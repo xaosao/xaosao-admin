@@ -1,5 +1,5 @@
+import { LoaderCircle, LogIn } from "lucide-react";
 import { ActionFunctionArgs } from "@remix-run/node";
-import { LoaderCircle, LogIn, Sparkles } from "lucide-react";
 import { Form, json, useActionData, useNavigation } from "@remix-run/react";
 
 // components
@@ -13,6 +13,32 @@ import { login } from "~/services/auth.server";
 import { ISigninCredentials } from "~/interfaces";
 import { validateSignInInputs } from "~/services/validation.server";
 
+export async function action({ request }: ActionFunctionArgs) {
+    const formData = await request.formData();
+    const signInData: ISigninCredentials = {
+        email: formData.get("email") as string,
+        password: formData.get("password") as string,
+    };
+
+    if (!signInData.email || !signInData.password) {
+        return { error: "Invalide email or password!" }
+    }
+
+    if (request.method === "POST") {
+        try {
+            validateSignInInputs(signInData);
+            return await login(signInData);
+        } catch (error: any) {
+            console.log("LOGIN_FAILED:::::", error)
+            if (error.status === 401) {
+                return { error: "Username or password incorrect!" };
+            }
+            return { error: "An unexpected error occurred." };
+        }
+    }
+    return json({ error: "Invalid request method." });
+}
+
 export default function SignIn() {
     const navigation = useNavigation();
     const isSubmitting = navigation.state !== 'idle' && navigation.formMethod === "POST";
@@ -23,15 +49,13 @@ export default function SignIn() {
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-50 via-purple-50 to-pink-100 p-4">
             <div className="absolute inset-0 bg-dark-pink opacity-5"></div>
-            <Card className="w-full max-w-md relative z-10 shadow-2xl border-0 bg-white/80 backdrop-blur-sm">
+            <Card className="w-full max-w-md relative z-10 shadow-2xl border-0 bg-white/80 backdrop-blur-sm rounded-md">
                 <CardHeader className="space-y-1 text-center">
                     <div className="flex items-center justify-center mb-4">
-                        <div className="p-3 rounded-full bg-dark-pink">
-                            <Sparkles className="h-6 w-6 text-white" />
-                        </div>
+                        <img src="/images/logo-pink.png" className="w-35 h-12" />
                     </div>
-                    <CardTitle className="text-2xl font-bold bg-dark-pink bg-clip-text text-transparent">Welcome Back</CardTitle>
-                    <CardDescription className="text-gray-600">Sign in to your admin dashboard</CardDescription>
+                    <CardTitle className="text-xl font-bold text-rose-500">Welcome Back to Xaosao</CardTitle>
+                    <CardDescription className="text-gray-600">Sign in to xaosao admin dashboard</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Form method="post" className="space-y-4">
@@ -75,7 +99,7 @@ export default function SignIn() {
                         </div>
                         <Button
                             type="submit"
-                            className="w-full bg-dark-pink hover:opacity-90 text-white font-medium py-2.5"
+                            className="w-full bg-rose-500 hover:bg-rose-600 text-white font-medium py-2.5"
                             disabled={isSubmitting}
                         >
                             {isSubmitting ? <LoaderCircle className="w-4 h-4 mr-2 animate-spin" /> : <LogIn className="w-4 h-4" />}
@@ -89,30 +113,4 @@ export default function SignIn() {
             </Card>
         </div>
     );
-}
-
-export async function action({ request }: ActionFunctionArgs) {
-    const formData = await request.formData();
-    const signInData: ISigninCredentials = {
-        email: formData.get("email") as string,
-        password: formData.get("password") as string,
-    };
-
-    if (!signInData.email || !signInData.password) {
-        return { error: "Invalide email or password!" }
-    }
-
-    if (request.method === "POST") {
-        try {
-            validateSignInInputs(signInData);
-            return await login(signInData);
-        } catch (error: any) {
-            console.log("LOGIN_FAILED:::::", error)
-            if (error.status === 401) {
-                return { error: "Username or password incorrect!" };
-            }
-            return { error: "An unexpected error occurred." };
-        }
-    }
-    return json({ error: "Invalid request method." });
 }

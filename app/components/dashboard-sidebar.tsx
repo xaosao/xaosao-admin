@@ -26,7 +26,7 @@ export function DashboardSidebar() {
   return (
     <div className="fixed inset-y-0 left-0 z-50 w-64 flex flex-col bg-white border-r border-gray-200">
       <div className="flex h-16 items-center justify-center px-6 border-b border-gray-200">
-        <h1 className="text-xl font-bold text-gray-900 uppercase">Xaosao Admin</h1>
+        <img src="/images/logo-pink.png" className="w-28 h-8" />
       </div>
 
       <ScrollArea className="flex-1 px-3 py-4">
