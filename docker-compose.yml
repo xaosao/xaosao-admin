@@ -1,4 +1,3 @@
-version: "3.8"
 services:
   xaosao-admin:
     build:
@@ -9,13 +8,10 @@ services:
     env_file:
       - .env
     environment:
-      - REMIX_DEV_ORIGIN=http://localhost:5173
+      - NODE_ENV=production
       - DATABASE_URL=${DATABASE_URL}
     ports:
       - "5173:3000"
-    volumes:
-      # Only mount for dev — in prod you don’t want to overwrite built files
-      - ./public:/app/public
 networks:
   xaosao-share-network:
     external: false

@@ -17,6 +17,6 @@ RUN npx prisma generate
 # Build Remix for production with Bun
 RUN bun run build
 
-EXPOSE 5173
+EXPOSE 3000
 
-CMD ["bun", "run", "start", "--", "--port", "5173", "--host", "0.0.0.0"]
+CMD ["bun", "run", "start"]
