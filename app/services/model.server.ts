@@ -79,7 +79,6 @@ export async function getModels(
           ModelService: {
             include: {
               service: {
-                where: { status: "active" },
                 select: {
                   id: true,
                   name: true,
