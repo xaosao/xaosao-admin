@@ -50,9 +50,7 @@ export async function getModels(
       whereClause.OR = searchConditions;
     }
 
-    if (status === "all") {
-      whereClause.status = { not: "pending" };
-    } else {
+    if (status !== "all") {
       whereClause.status = status;
     }
 
