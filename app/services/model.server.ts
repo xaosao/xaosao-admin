@@ -9,6 +9,7 @@ import { createModalService } from "./service.server";
 import { IModelInput, IModelUpdateInput } from "~/interfaces/model";
 import { extractFilenameFromCDNSafe } from "~/utils";
 import { deleteFileFromBunny } from "./upload.server";
+import { processReferralReward, ensureReferralCode } from "./referral.server";
 
 const { hash } = bcrypt;
 
@@ -539,6 +540,15 @@ export async function approveModel(id: string, userId: string) {
         status: "success",
         onSuccess: model,
       });
+
+      // Generate referral code for the newly approved model
+      await ensureReferralCode(model.id);
+
+      // Process referral reward if this model was referred by another model
+      const referralResult = await processReferralReward(model.id, userId);
+      if (referralResult.success) {
+        console.log(`Referral reward processed for model ${model.id}: ${referralResult.amount} Kip to referrer ${referralResult.referrerId}`);
+      }
     }
     return model;
   } catch (error) {
