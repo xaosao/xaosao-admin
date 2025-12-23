@@ -8,8 +8,53 @@ import {
   endOfMonth,
   startOfWeek,
   startOfMonth,
+  subDays,
   format as formatDate,
 } from "date-fns";
+
+// ========================================
+// Pending Counts for Sidebar Badges
+// ========================================
+
+export interface PendingCounts {
+  pendingModels: number;
+  pendingTransactions: number;
+  newReviews: number;
+}
+
+export async function getPendingCounts(): Promise<PendingCounts> {
+  try {
+    // Get reviews from last 7 days as "new" reviews
+    const sevenDaysAgo = subDays(new Date(), 7);
+
+    const [pendingModels, pendingTransactions, newReviews] = await Promise.all([
+      prisma.model.count({
+        where: { status: "pending" },
+      }),
+      prisma.transaction_history.count({
+        where: { status: "pending" },
+      }),
+      prisma.review.count({
+        where: {
+          createdAt: { gte: sevenDaysAgo },
+        },
+      }),
+    ]);
+
+    return {
+      pendingModels,
+      pendingTransactions,
+      newReviews,
+    };
+  } catch (error) {
+    console.error("GET_PENDING_COUNTS_FAILED", error);
+    return {
+      pendingModels: 0,
+      pendingTransactions: 0,
+      newReviews: 0,
+    };
+  }
+}
 
 export async function getDashboardStats() {
   try {

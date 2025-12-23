@@ -158,11 +158,13 @@ export async function action({ params, request }: ActionFunctionArgs) {
         try {
             const res = await approveTransaction(transactionId as string, userId, type);
             if (res.id) {
-                return redirect("/dashboard/transactions?success=Approved+service+successfully");
+                return redirect("/dashboard/transactions?success=Approved+transaction+successfully");
             }
         } catch (error: any) {
             console.log("APPROVED_TRANSACTION_FAILED", error);
-            return error
+            // Return proper error message
+            const errorMessage = error?.errors?.id || error?.message || "Failed to approve transaction";
+            return redirect(`/dashboard/transactions?error=${encodeURIComponent(errorMessage)}`);
         }
     }
 

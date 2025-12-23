@@ -10,6 +10,7 @@ import { IModelInput, IModelUpdateInput } from "~/interfaces/model";
 import { extractFilenameFromCDNSafe } from "~/utils";
 import { deleteFileFromBunny } from "./upload.server";
 import { processReferralReward, ensureReferralCode } from "./referral.server";
+import { notifyModelApproved, notifyModelRejected } from "./email.server";
 
 const { hash } = bcrypt;
 
@@ -549,6 +550,14 @@ export async function approveModel(id: string, userId: string) {
       if (referralResult.success) {
         console.log(`Referral reward processed for model ${model.id}: ${referralResult.amount} Kip to referrer ${referralResult.referrerId}`);
       }
+
+      // Send email and SMS notification to the model
+      notifyModelApproved({
+        id: model.id,
+        firstName: model.firstName,
+        lastName: model.lastName,
+        whatsapp: model.whatsapp,
+      });
     }
     return model;
   } catch (error) {
@@ -597,6 +606,14 @@ export async function rejectModel(id: string, userId: string) {
         description: `Reject new model: ${model.id} successfully.`,
         status: "success",
         onSuccess: model,
+      });
+
+      // Send email and SMS notification to the model
+      notifyModelRejected({
+        id: model.id,
+        firstName: model.firstName,
+        lastName: model.lastName,
+        whatsapp: model.whatsapp,
       });
     }
     return model;

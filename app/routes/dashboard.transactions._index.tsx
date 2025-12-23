@@ -327,22 +327,22 @@ export default function Transactions() {
                                                     {transaction.identifier === "payment" ? <div className="flex items-center justify-start">
                                                         <div className="flex items-center space-x-2">
                                                             <Avatar className="h-6 w-6">
-                                                                <AvatarImage src={transaction.customer ?? ""} />
-                                                                <AvatarFallback>{transaction.customer.firstName.charAt(0)}</AvatarFallback>
+                                                                <AvatarImage src={transaction.customer?.profile ?? ""} />
+                                                                <AvatarFallback>{transaction.customer?.firstName?.charAt(0) ?? "?"}</AvatarFallback>
                                                             </Avatar>
                                                             <div>
-                                                                <p className="text-sm font-medium text-gray-900">{transaction.customer.firstName} {transaction.customer.lastName}</p>
-                                                                <p className="flex items-center justify-start text-xs font-medium text-gray-900"><Users className="h-3 w-3" />&nbsp;{transaction.customer.gender}</p>
+                                                                <p className="text-sm font-medium text-gray-900">{transaction.customer?.firstName ?? "Unknown"} {transaction.customer?.lastName ?? ""}</p>
+                                                                <p className="flex items-center justify-start text-xs font-medium text-gray-900"><Users className="h-3 w-3" />&nbsp;{transaction.customer?.gender ?? "N/A"}</p>
                                                             </div>
                                                         </div>
                                                         <div className="flex items-center space-x-2 pl-4">
                                                             <div className="text-xs text-gray-400">→</div>
                                                             <Avatar className="h-6 w-6">
-                                                                <AvatarImage src={transaction.model.profile ?? ""} />
-                                                                <AvatarFallback>{transaction.model.firstName.charAt(0)}</AvatarFallback>
+                                                                <AvatarImage src={transaction.model?.profile ?? ""} />
+                                                                <AvatarFallback>{transaction.model?.firstName?.charAt(0) ?? "?"}</AvatarFallback>
                                                             </Avatar>
                                                             <div>
-                                                                <p className="text-sm text-gray-600">{transaction.model.firstName}&nbsp;{transaction.model.lastName}</p>
+                                                                <p className="text-sm text-gray-600">{transaction.model?.firstName ?? "Unknown"}&nbsp;{transaction.model?.lastName ?? ""}</p>
                                                                 <p className="flex items-center justify-start text-xs font-medium text-gray-500">
                                                                     {transaction.model ? <UserCheck className="h-3 w-3" /> : <Users className="h-3 w-3" />}&nbsp;{transaction.model ? "Model" : "Customer"},&nbsp;
                                                                     {transaction.model ? <span className="flex items-center justify-start"><Mars className="h-3 w-3" />&nbsp;Male</span> : <span className="flex items-center justify-start"><Venus className="h-3 w-3" />&nbsp;Female</span>}
@@ -352,11 +352,11 @@ export default function Transactions() {
                                                     </div> :
                                                         <div className="flex items-center space-x-2">
                                                             <Avatar className="h-6 w-6">
-                                                                <AvatarImage src={owner.profile ?? ""} />
-                                                                <AvatarFallback>{owner.firstName.charAt(0)}</AvatarFallback>
+                                                                <AvatarImage src={owner?.profile ?? ""} />
+                                                                <AvatarFallback>{owner?.firstName?.charAt(0) ?? "?"}</AvatarFallback>
                                                             </Avatar>
                                                             <div>
-                                                                <p className="text-sm text-gray-600">{owner.firstName}&nbsp;{owner.lastName}</p>
+                                                                <p className="text-sm text-gray-600">{owner?.firstName ?? "Unknown"}&nbsp;{owner?.lastName ?? ""}</p>
                                                                 <p className="flex items-center justify-start text-xs font-medium text-gray-500">
                                                                     {transaction.model ? <UserCheck className="h-3 w-3" /> : <Users className="h-3 w-3" />}&nbsp;{transaction.model ? "Model" : "Customer"},&nbsp;
                                                                     {transaction.model ? <span className="flex items-center justify-start"><Mars className="h-3 w-3" />&nbsp;Male</span> : <span className="flex items-center justify-start"><Venus className="h-3 w-3" />&nbsp;Female</span>}

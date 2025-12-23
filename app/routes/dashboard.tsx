@@ -8,9 +8,10 @@ import { DashboardNavbar } from "~/components/dashboard-navbar";
 // services
 import { getAdmin } from "~/services/admin.server";
 import { requireUserSession } from "~/services/auth.server";
+import { getPendingCounts } from "~/services/dashboard.server";
 
 export default function DashboardLayout() {
-  const { admin } = useLoaderData<typeof loader>();
+  const { admin, pendingCounts } = useLoaderData<typeof loader>();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
@@ -33,7 +34,7 @@ export default function DashboardLayout() {
             <X className="w-6 h-6" />
           </button>
         </div>
-        <DashboardSidebar />
+        <DashboardSidebar pendingCounts={pendingCounts} />
       </div>
 
       <div className="flex-1 flex flex-col h-full overflow-hidden">
@@ -59,12 +60,13 @@ export default function DashboardLayout() {
 }
 
 export async function loader({ request }: { request: Request }) {
-  // await requireUserSession(request);
-  // return getUserFromSession(request);
   const ID = await requireUserSession(request);
   try {
-    const admin = await getAdmin(ID)
-    return json({ admin });
+    const [admin, pendingCounts] = await Promise.all([
+      getAdmin(ID),
+      getPendingCounts(),
+    ]);
+    return json({ admin, pendingCounts });
   } catch (error) {
     console.log("LOAD_ADMIN_DATA_FAILED", error);
     throw new Error("Failed to fetch data");

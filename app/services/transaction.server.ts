@@ -2,6 +2,7 @@ import { prisma } from "./database.server";
 import { createAuditLogs } from "./log.server";
 import { FieldValidationError } from "./admin.server";
 import { ITransactionInput } from "~/routes/dashboard.transactions.reject.$id";
+import { notifyTransactionApproved, notifyTransactionRejected } from "./email.server";
 
 function isValidObjectId(id: string): boolean {
   return /^[a-fA-F0-9]{24}$/.test(id);
@@ -195,6 +196,15 @@ export async function rejectTransaction(
         ApprovedBy: { connect: { id: userId } },
         updatedAt: new Date(),
       },
+      include: {
+        model: {
+          select: {
+            firstName: true,
+            lastName: true,
+            whatsapp: true,
+          },
+        },
+      },
     });
 
     if (res.id) {
@@ -203,6 +213,15 @@ export async function rejectTransaction(
         description: `Transaction with ID ${id} rejected successfully.`,
         status: "success",
         onSuccess: res,
+      });
+
+      // Send email and SMS notification to the model
+      notifyTransactionRejected({
+        id: res.id,
+        amount: res.amount,
+        identifier: res.identifier,
+        model: res.model,
+        rejectReason: res.rejectReason,
       });
     }
     return res;
@@ -362,10 +381,52 @@ export async function approveTransaction(
 
     let walletId: string | undefined;
 
-    if (type === "model" && transaction.model?.Wallet?.[0]?.id) {
-      walletId = transaction.model.Wallet[0].id;
-    } else if (type === "customer" && transaction.customer?.Wallet?.[0]?.id) {
-      walletId = transaction.customer.Wallet[0].id;
+    if (type === "model") {
+      if (!transaction.model) {
+        throw new FieldValidationError({
+          id: "No model associated with this transaction!",
+        });
+      }
+      if (!transaction.model.Wallet || transaction.model.Wallet.length === 0) {
+        // Auto-create wallet for the model if it doesn't exist
+        console.log(`Creating wallet for model ${transaction.model.id} as it doesn't exist...`);
+        const newWallet = await prisma.wallet.create({
+          data: {
+            totalBalance: 0,
+            totalRecharge: 0,
+            totalDeposit: 0,
+            status: "active",
+            model: { connect: { id: transaction.model.id } },
+          },
+        });
+        walletId = newWallet.id;
+        console.log(`Created wallet ${walletId} for model ${transaction.model.id}`);
+      } else {
+        walletId = transaction.model.Wallet[0].id;
+      }
+    } else if (type === "customer") {
+      if (!transaction.customer) {
+        throw new FieldValidationError({
+          id: "No customer associated with this transaction!",
+        });
+      }
+      if (!transaction.customer.Wallet || transaction.customer.Wallet.length === 0) {
+        // Auto-create wallet for the customer if it doesn't exist
+        console.log(`Creating wallet for customer ${transaction.customer.id} as it doesn't exist...`);
+        const newWallet = await prisma.wallet.create({
+          data: {
+            totalBalance: 0,
+            totalRecharge: 0,
+            totalDeposit: 0,
+            status: "active",
+            customer: { connect: { id: transaction.customer.id } },
+          },
+        });
+        walletId = newWallet.id;
+        console.log(`Created wallet ${walletId} for customer ${transaction.customer.id}`);
+      } else {
+        walletId = transaction.customer.Wallet[0].id;
+      }
     }
 
     if (!walletId) {
@@ -387,6 +448,15 @@ export async function approveTransaction(
         ApprovedBy: { connect: { id: approverUserId } },
         updatedAt: new Date(),
       },
+      include: {
+        model: {
+          select: {
+            firstName: true,
+            lastName: true,
+            whatsapp: true,
+          },
+        },
+      },
     });
 
     await createAuditLogs({
@@ -394,6 +464,14 @@ export async function approveTransaction(
       description: `Transaction with ID ${transactionId} approved successfully.`,
       status: "success",
       onSuccess: updatedTransaction,
+    });
+
+    // Send email and SMS notification to the model
+    notifyTransactionApproved({
+      id: updatedTransaction.id,
+      amount: updatedTransaction.amount,
+      identifier: updatedTransaction.identifier,
+      model: updatedTransaction.model,
     });
 
     return updatedTransaction;
@@ -422,7 +500,7 @@ async function updateWalletBalanceByTransaction(transaction: {
   }
 
   const isRecharge = type === "recharge";
-  const isWithdraw = type === "withdraw" || type === "deposit";
+  const isWithdraw = type === "withdraw" || type === "withdrawal" || type === "deposit";
 
   if (isRecharge) {
     return await prisma.wallet.update({
