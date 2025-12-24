@@ -21,6 +21,34 @@ export interface IModels extends BaseEntity {
   rating: number | 0;
   total_review: number | 0;
   ModelService: IModelService[];
+
+  // Additional profile fields
+  hourly_rate_talking?: number;
+  hourly_rate_video?: number;
+  interests?: string[];
+  relationshipStatus?: string;
+  career?: string;
+  education?: string;
+
+  // Notification settings
+  sendMailNoti?: boolean;
+  sendSMSNoti?: boolean;
+  sendPushNoti?: boolean;
+
+  // Account settings
+  defaultLanguage?: string;
+  defaultTheme?: string;
+  twofactorEnabled?: boolean;
+
+  // Referral fields
+  referralCode?: string;
+  referredById?: string;
+  referralRewardPaid?: boolean;
+
+  // Admin relations
+  createdBy?: { firstName: string; lastName?: string };
+  approveBy?: { firstName: string; lastName?: string };
+  rejectedBy?: { firstName: string; lastName?: string };
 }
 
 export interface IModelUpdateInput {

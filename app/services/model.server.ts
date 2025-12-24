@@ -121,7 +121,6 @@ export async function getModel(id: string) {
       where: { id },
       include: {
         ModelService: {
-          // where: { status: "active" },
           include: {
             service: {
               where: { status: "active" },
@@ -131,6 +130,27 @@ export async function getModel(id: string) {
                 baseRate: true,
               },
             },
+          },
+        },
+        createdBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+        approveBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+        rejectedBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
           },
         },
       },

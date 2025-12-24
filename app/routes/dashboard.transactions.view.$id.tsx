@@ -1,7 +1,7 @@
 import { json } from "react-router"
 import { LoaderFunctionArgs } from "@remix-run/node"
 import { useLoaderData, useNavigate } from "@remix-run/react"
-import { User, Clock, FileText, Check, X, Download, Calendar, DollarSign, Users, UserCheck, Mars, Venus } from "lucide-react"
+import { User, Clock, FileText, Check, X, Download, Calendar, DollarSign, Users, UserCheck, Mars, Venus, Building2, CreditCard, QrCode } from "lucide-react"
 
 // components
 import Modal from "~/components/ui/modal"
@@ -9,7 +9,7 @@ import { Button } from "~/components/ui/button"
 import { ForbiddenCard } from "~/components/ui/forbidden-card"
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar"
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs"
+import { Separator } from "~/components/ui/separator"
 
 // utils and service
 import { formatDate } from "~/utils"
@@ -46,32 +46,49 @@ export default function TransactionDetails() {
         )
     }
 
+    // Get status badge style
+    const getStatusBadge = (status: string) => {
+        switch (status) {
+            case "approved":
+                return "bg-green-100 text-green-700 border-green-200";
+            case "rejected":
+                return "bg-red-100 text-red-700 border-red-200";
+            default:
+                return "bg-yellow-100 text-yellow-700 border-yellow-200";
+        }
+    };
+
     return (
-        <Modal onClose={closeHandler} className="w-11/12 sm:w-3/5 p-4">
-            <div className="space-y-4">
-                <div>
-                    <h3 className="flex items-center text-black text-md font-bold">Transaction Details</h3>
-                    <p className="text-gray-500 text-sm ml-2">Complete transaction information and processing history</p>
+        <Modal onClose={closeHandler} className="w-11/12 sm:w-4/5 lg:w-3/5 p-4 max-h-[90vh] overflow-y-auto">
+            <div>
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h3 className="flex items-center text-black text-lg font-bold">Transaction Details</h3>
+                    </div>
+                    <span className={`px-3 py-1 rounded-full text-sm  border capitalize ${getStatusBadge(transaction.status)}`}>
+                        {transaction.status}
+                    </span>
                 </div>
-                <div className="space-y-2 border">
-                    <Card className="py-0">
-                        <CardHeader>
-                            <CardTitle className="text-lg flex items-center">
-                                <User className="h-5 w-5 mr-2" />
-                                User Information
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="space-y-2">
-                                {transaction.identifier === "payment" ? <div className="flex items-center justify-start">
+
+                <Card>
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-md flex items-center">
+                            <User className="h-5 w-5 mr-2" />
+                            User Information
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex items-center justify-between">
+                        <div>
+                            {transaction.identifier === "payment" ? (
+                                <div className="flex items-center justify-start">
                                     <div className="flex items-center space-x-2">
                                         <Avatar className="h-10 w-10">
                                             <AvatarImage src={transaction.customer.profile} />
                                             <AvatarFallback>{transaction.customer.firstName.charAt(0)}</AvatarFallback>
                                         </Avatar>
                                         <div>
-                                            <p className="text-sm font-medium text-gray-900">{transaction.customer.firstName} {transaction.customer.lastName}</p>
-                                            <p className="flex items-center justify-start text-xs font-medium text-gray-900"><Users className="h-3 w-3" />&nbsp;{transaction.customer.gender}</p>
+                                            <p className="text-sm  text-gray-900">{transaction.customer.firstName} {transaction.customer.lastName}</p>
+                                            <p className="flex items-center justify-start text-xs  text-gray-500"><Users className="h-3 w-3" />&nbsp;Customer</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center space-x-2 pl-4">
@@ -82,203 +99,229 @@ export default function TransactionDetails() {
                                         </Avatar>
                                         <div>
                                             <p className="text-sm text-gray-600">{transaction.model.firstName}&nbsp;{transaction.model.lastName}</p>
-                                            <p className="flex items-center justify-start text-xs font-medium text-gray-500">
-                                                {transaction.model ? <UserCheck className="h-3 w-3" /> : <Users className="h-3 w-3" />}&nbsp;{transaction.model ? "Model" : "Customer"},&nbsp;
-                                                {transaction.model ? <span className="flex items-center justify-start"><Mars className="h-3 w-3" />&nbsp;Male</span> : <span className="flex items-center justify-start"><Venus className="h-3 w-3" />&nbsp;Female</span>}
+                                            <p className="flex items-center justify-start text-xs  text-gray-500">
+                                                <UserCheck className="h-3 w-3" />&nbsp;Model
                                             </p>
                                         </div>
                                     </div>
-                                </div> :
-                                    <div className="flex items-center space-x-2">
-                                        <Avatar className="h-10 w-10">
-                                            <AvatarImage src={owner.profile} />
-                                            <AvatarFallback>{owner.firstName.charAt(0)}</AvatarFallback>
-                                        </Avatar>
-                                        <div>
-                                            <p className="text-sm text-gray-600">{owner.firstName}&nbsp;{owner.lastName}</p>
-                                            <p className="flex items-center justify-start text-xs font-medium text-gray-500">
-                                                {transaction.model ? <UserCheck className="h-3 w-3" /> : <Users className="h-3 w-3" />}&nbsp;{transaction.model ? "Model" : "Customer"},&nbsp;
-                                                {transaction.model ? <span className="flex items-center justify-start"><Mars className="h-3 w-3" />&nbsp;Male</span> : <span className="flex items-center justify-start"><Venus className="h-3 w-3" />&nbsp;Female</span>}
-                                            </p>
-                                        </div>
+                                </div>
+                            ) : (
+                                <div className="flex items-center space-x-3">
+                                    <Avatar className="h-12 w-12">
+                                        <AvatarImage src={owner?.profile} />
+                                        <AvatarFallback>{owner?.firstName?.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                        <p className="text-sm  text-gray-900">{owner?.firstName}&nbsp;{owner?.lastName}</p>
+                                        <p className="flex items-center justify-start text-xs  text-gray-500">
+                                            {transaction.model ? <UserCheck className="h-3 w-3" /> : <Users className="h-3 w-3" />}&nbsp;{transaction.model ? "Model" : "Customer"}
+                                            {owner?.gender && (
+                                                <>
+                                                    &nbsp;•&nbsp;
+                                                    {owner.gender === "male" ? <Mars className="h-3 w-3" /> : <Venus className="h-3 w-3" />}
+                                                    &nbsp;{owner.gender}
+                                                </>
+                                            )}
+                                        </p>
                                     </div>
-                                }
+                                </div>
+                            )}
+                        </div>
+                        <div className="space-y-4">
+                            {/* Created */}
+                            <div className="flex items-center space-x-3">
+                                <div className="p-2 rounded-lg bg-blue-50">
+                                    <Calendar className="h-4 w-4 text-blue-600" />
+                                </div>
+                                <div className="flex items-center justify-start gap-2">
+                                    <p className=" text-sm">Transaction Created:</p>
+                                    <p className="text-xs text-gray-500">{formatDate(transaction?.createdAt)}</p>
+                                </div>
+                            </div>
+
+                            {/* Approved */}
+                            {transaction?.status === "approved" && (
+                                <div className="flex items-center space-x-3">
+                                    <div className="p-2 rounded-lg bg-green-50">
+                                        <Check className="h-4 w-4 text-green-600" />
+                                    </div>
+                                    <div className="flex items-center justify-start gap-2">
+                                        <p className=" text-sm">Transaction Approved:</p>
+                                        <p className="text-xs text-gray-500">
+                                            {formatDate(transaction?.updatedAt)} • by {transaction?.ApprovedBy?.firstName}&nbsp;{transaction?.ApprovedBy?.lastName}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Rejected */}
+                            {transaction?.status === "rejected" && (
+                                <div className="flex items-center space-x-3">
+                                    <div className="p-2 rounded-lg bg-red-50">
+                                        <X className="h-4 w-4 text-red-600" />
+                                    </div>
+                                    <div className="flex items-center justify-start gap-2">
+                                        <p className=" text-sm">Transaction Rejected:</p>
+                                        <p className="text-xs text-gray-500">
+                                            {formatDate(transaction?.updatedAt)} • by {transaction?.RejectedBy?.firstName}&nbsp;{transaction?.RejectedBy?.lastName}
+                                        </p>
+                                        {transaction?.rejectReason && (
+                                            <p className="text-xs text-red-600 mt-1">Reason: {transaction.rejectReason}</p>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Pending */}
+                            {transaction?.status === "pending" && (
+                                <div className="flex items-center space-x-3">
+                                    <div className="p-2 rounded-lg bg-yellow-50">
+                                        <Clock className="h-4 w-4 text-yellow-600" />
+                                    </div>
+                                    <div className="flex items-center justify-start gap-2">
+                                        <p className=" text-sm">Awaiting Review:</p>
+                                        <p className="text-xs text-gray-500">Transaction is pending admin approval</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-md flex items-center">
+                            <FileText className="h-5 w-5 mr-2" />
+                            Transaction Information
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-1">
+                            <div className="flex items-center justify-start gap-4">
+                                <label className="text-sm  text-gray-500 tracking-wide">Transaction ID:</label>
+                                <p className="mtext-sm text-gray-900">{transaction?.id}</p>
+                            </div>
+                            <div className="flex items-center justify-start gap-4">
+                                <label className="text-sm  text-gray-500 tracking-wide">Type:</label>
+                                <p className="text-sm  text-gray-900">{transaction?.identifier?.replace(/_/g, ' ')}</p>
+                            </div>
+                            <div className="flex items-center justify-start gap-4">
+                                <label className="text-sm  text-gray-500 tracking-wide">Amount:</label>
+                                <p className={` text-lg font-semibold ${transaction.identifier === "withdrawal" ? "text-red-600" : "text-green-600"}`}>
+                                    {transaction.identifier === "withdrawal" ? "-" : "+"}{transaction.amount?.toLocaleString()} Kip
+                                </p>
+                            </div>
+                            <div className="flex items-center justify-start gap-4">
+                                <label className="text-sm  text-gray-500 tracking-wide">Created At:</label>
+                                <p className="text-sm text-gray-900">{formatDate(transaction?.createdAt)}</p>
+                            </div>
+                            <div className="flex items-center justify-start gap-4">
+                                <label className="text-sm  text-gray-500 tracking-wide">Last Updated:</label>
+                                <p className="text-sm text-gray-900">{formatDate(transaction?.updatedAt)}</p>
+                            </div>
+                            {transaction?.reason && (
+                                <div className="sm:col-span-2 lg:col-span-1">
+                                    <label className="text-sm  text-gray-500 tracking-wide">Description:</label>
+                                    <p className="mt-1 text-sm text-gray-900">{transaction.reason}</p>
+                                </div>
+                            )}
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {transaction.identifier === "withdrawal" && transaction.bank && (
+                    <Card>
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-md flex items-center">
+                                <Building2 className="h-5 w-5 mr-2" />
+                                Bank Account Information
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-0">
+                                    <div className="flex items-center justify-start gap-4">
+                                        <label className="text-sm text-gray-500">Bank Name:</label>
+                                        <p className="mt-1 text-sm text-gray-900">{transaction.bank.bank_name}</p>
+                                    </div>
+                                    <div className="flex items-center justify-start gap-4">
+                                        <label className="text-sm text-gray-500">Account Name:</label>
+                                        <p className="mt-1 text-sm text-gray-900">{transaction.bank.bank_account_name}</p>
+                                    </div>
+                                    <div className="flex items-center justify-start gap-4">
+                                        <label className="text-sm text-gray-500">Account Number:</label>
+                                        <p className="mt-1 text-sm text-gray-900 flex items-center">
+                                            {transaction.bank.bank_account_number}
+                                        </p>
+                                    </div>
+                                </div>
+                                {transaction.bank.qr_code && (
+                                    <div className="flex flex-col items-center justify-center p-4 bg-gray-50 rounded-lg">
+                                        <label className="text-sm  text-gray-500 mb-2 flex items-center">
+                                            <QrCode className="h-4 w-4 mr-1" />
+                                            QR Code
+                                        </label>
+                                        <img
+                                            src={transaction.bank.qr_code}
+                                            alt="Bank QR Code"
+                                            className="max-h-40 rounded-md border border-gray-200"
+                                        />
+                                    </div>
+                                )}
                             </div>
                         </CardContent>
                     </Card>
+                )}
 
-                    <Tabs defaultValue="details" className="w-full">
-                        <TabsList className="grid w-full grid-cols-3">
-                            <TabsTrigger value="details"><span className="hidden sm:block">Transaction</span> Details</TabsTrigger>
-                            <TabsTrigger value="payment"><span className="block sm:hidden">Payment Slip</span><span className="hidden sm:block">Payment Information</span></TabsTrigger>
-                            <TabsTrigger value="history"><span className="hidden sm:block">Processing</span> History</TabsTrigger>
-                        </TabsList>
-
-                        <TabsContent value="details" className="space-y-4">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="text-md flex items-center">
-                                        <FileText className="h-5 w-5 mr-2" />
-                                        Transaction Information
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {transaction.identifier !== "withdrawal" || transaction.identifier !== "booking_hold" && <Card>
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-md flex items-center">
+                            <DollarSign className="h-5 w-5 mr-2" />
+                            Payment Slip
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {transaction?.paymentSlip ? (
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-3">
+                                        <FileText className="h-6 w-6 text-blue-600" />
                                         <div>
-                                            <label className="text-sm font-medium text-gray-500">Transaction ID</label>
-                                            <p className="mt-1 text-sm font-mono">{transaction?.id}</p>
-                                        </div>
-                                        <div>
-                                            <label className="text-sm font-medium text-gray-500">Identifier</label>
-                                            <p className="mt-1 text-sm font-mono">{transaction?.identifier}</p>
-                                        </div>
-                                        <div>
-                                            <label className="text-sm font-medium text-gray-500">Description</label>
-                                            <p className="mt-1 text-sm">{transaction?.description || "No description provided"}</p>
-                                        </div>
-                                        <div>
-                                            <label className="text-sm font-medium text-gray-500">Amount</label>
-                                            <p className="mt-1 text-lg font-semibold text-green-600">${transaction.amount}</p>
-                                        </div>
-                                        <div>
-                                            <label className="text-sm font-medium text-gray-500">Created At</label>
-                                            <p className="mt-1 text-sm">{formatDate(transaction?.createdAt)}</p>
-                                        </div>
-                                        <div>
-                                            <label className="text-sm font-medium text-gray-500">Last Updated</label>
-                                            <p className="mt-1 text-sm">{formatDate(transaction?.updatedAt)}</p>
+                                            <p className="text-sm ">Payment Slip Available</p>
+                                            <p className="text-xs text-gray-500">Uploaded with transaction</p>
                                         </div>
                                     </div>
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
+                                    <Button variant="outline" size="sm" onClick={handleDownloadSlip}>
+                                        <Download className="h-4 w-4 mr-1" />
+                                        Download
+                                    </Button>
+                                </div>
+                                <div className="rounded-lg bg-gray-50 p-4">
+                                    <img
+                                        src={transaction.paymentSlip}
+                                        alt="Payment Slip"
+                                        className="mx-auto rounded-md max-h-64 object-contain"
+                                    />
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="text-center py-6">
+                                <FileText className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                                <p className="text-gray-500 text-sm">No payment slip provided</p>
+                                <p className="text-xs text-gray-400">This transaction was processed without a payment slip</p>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+                }
 
-                        <TabsContent value="payment" className="space-y-4">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="text-md flex items-center">
-                                        <DollarSign className="h-5 w-5 mr-2" />
-                                        Payment Information
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    {transaction?.paymentSlip ? (
-                                        <div className="space-y-4">
-                                            <div className="sm:border sm:border-gray-200 rounded p-4">
-                                                <div className="flex flex-col sm:flex-row sm:items-center justify-between sm:space-x-3 space-y-2 sm:space-y-0">
-                                                    <div className="flex items-center space-x-3">
-                                                        <FileText className="h-8 w-8 text-blue-600" />
-                                                        <div>
-                                                            <p className="text-sm font-medium">Payment Slip Available</p>
-                                                            <p className="text-sm text-gray-500">Uploaded with transaction</p>
-                                                        </div>
-                                                    </div>
-                                                    <Button variant="outline" size="sm" className="hidden sm:block" onClick={handleDownloadSlip}>
-                                                        <Download className="h-4 w-4" />
-                                                        Download
-                                                    </Button>
-                                                </div>
-                                                <div className="rounded-lg text-center mt-2">
-                                                    <img
-                                                        src={transaction.paymentSlip}
-                                                        alt="Payment Slip"
-                                                        className="mx-auto rounded-md max-h-96 object-contain"
-                                                    />
-                                                </div>
-                                                <Button variant="outline" size="sm" className="flex sm:hidden mt-2" onClick={handleDownloadSlip}>
-                                                    <Download className="h-4 w-4" />
-                                                    Download
-                                                </Button>
-                                            </div>
-
-                                        </div>
-                                    ) : (
-                                        <div className="text-center py-8">
-                                            <FileText className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                                            <p className="text-gray-500">No payment slip provided</p>
-                                            <p className="text-sm text-gray-400">This transaction was processed without a payment slip</p>
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-
-                        <TabsContent value="history" className="space-y-4">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="text-md flex items-center">
-                                        <Clock className="h-5 w-5 mr-2" />
-                                        Processing History
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="space-y-4">
-                                        <div className="flex items-start space-x-3">
-                                            <div className="p-2 rounded-lg bg-blue-50">
-                                                <Calendar className="h-4 w-4 text-blue-600" />
-                                            </div>
-                                            <div>
-                                                <p className="font-medium text-sm">Transaction Created</p>
-                                                <p className="text-xs text-gray-500">
-                                                    {formatDate(transaction?.createdAt)}
-                                                </p>
-                                            </div>
-                                        </div>
-
-                                        {/* Status Updates */}
-                                        {transaction?.status === "approved" && (
-                                            <div className="flex items-start space-x-3">
-                                                <div className="p-2 rounded-lg bg-green-50">
-                                                    <Check className="h-4 w-4 text-green-600" />
-                                                </div>
-                                                <div>
-                                                    <p className="font-medium text-sm">Transaction Approved</p>
-                                                    <p className="text-xs text-gray-500">
-                                                        {formatDate(transaction?.updatedAt)} • by {transaction?.ApprovedBy.firstName}&nbsp;{transaction?.ApprovedBy.lastName}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {transaction?.status === "rejected" && (
-                                            <div className="flex items-start space-x-3">
-                                                <div className="p-2 rounded-lg bg-red-50">
-                                                    <X className="h-4 w-4 text-red-600" />
-                                                </div>
-                                                <div>
-                                                    <p className="font-medium text-sm">Transaction Rejected</p>
-                                                    <p className="text-xs text-gray-500">
-                                                        {formatDate(transaction?.updatedAt)} • by {transaction?.RejectedBy?.firstName}&nbsp;{transaction?.RejectedBy?.lastName}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {transaction?.status === "pending" && (
-                                            <div className="flex items-start space-x-3">
-                                                <div className="p-2 rounded-lg bg-yellow-50">
-                                                    <Clock className="h-4 w-4 text-yellow-600" />
-                                                </div>
-                                                <div>
-                                                    <p className="font-medium text-sm">Awaiting Review</p>
-                                                    <p className="text-xs text-gray-500">Transaction is pending admin approval</p>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-                    </Tabs>
-                </div>
-
-                <div className="flex justify-end space-x-2 pt-4">
+                <div className="flex justify-end pt-2">
                     <Button variant="outline" onClick={closeHandler}>
                         Close
                     </Button>
                 </div>
-            </div >
-        </Modal >
+            </div>
+        </Modal>
     )
 }
 

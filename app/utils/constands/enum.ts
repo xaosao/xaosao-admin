@@ -74,18 +74,18 @@ export const singleNavigation = [
     icon: Settings,
     permission: { group: "service", action: "view" },
   },
-  {
-    name: "Chats",
-    href: "/dashboard/chats",
-    icon: MessageSquare,
-    permission: { group: "chat", action: "view" },
-  },
-  {
-    name: "Call Sessions",
-    href: "/dashboard/call-sessions",
-    icon: Phone,
-    permission: { group: "call", action: "view" },
-  },
+  // {
+  //   name: "Chats",
+  //   href: "/dashboard/chats",
+  //   icon: MessageSquare,
+  //   permission: { group: "chat", action: "view" },
+  // },
+  // {
+  //   name: "Call Sessions",
+  //   href: "/dashboard/call-sessions",
+  //   icon: Phone,
+  //   permission: { group: "call", action: "view" },
+  // },
   {
     name: "Wallets",
     href: "/dashboard/wallets",

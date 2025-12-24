@@ -129,7 +129,7 @@ export async function getTransactions(
 
 export async function getTransaction(id: string) {
   try {
-    return await prisma.transaction_history.findFirst({
+    const transaction = await prisma.transaction_history.findFirst({
       where: { id },
       include: {
         model: {
@@ -170,6 +170,28 @@ export async function getTransaction(id: string) {
         createdAt: "desc",
       },
     });
+
+    // For withdrawal transactions, fetch the bank information
+    let bank = null;
+    if (transaction?.identifier === "withdrawal" && transaction.reason) {
+      // Extract bank ID from reason: "Withdrawal to bank account: {bankId}"
+      const bankIdMatch = transaction.reason.match(/Withdrawal to bank account: (.+)/);
+      if (bankIdMatch && bankIdMatch[1]) {
+        const bankId = bankIdMatch[1].trim();
+        bank = await prisma.banks.findUnique({
+          where: { id: bankId },
+          select: {
+            id: true,
+            bank_name: true,
+            bank_account_name: true,
+            bank_account_number: true,
+            qr_code: true,
+          },
+        });
+      }
+    }
+
+    return { ...transaction, bank };
   } catch (error) {
     console.error("GET_TRANSACTIONS_FAILED", error);
     throw new Error("Failed to fetch transactions!");

@@ -254,12 +254,12 @@ export default function Reviews() {
                                             <div className="flex items-start space-x-2">
                                                 <Avatar className="h-6 w-6">
                                                     <AvatarImage src={review.customer?.profile ?? ""} />
-                                                    <AvatarFallback>{review.customer.firstName.charAt(0)}</AvatarFallback>
+                                                    <AvatarFallback>{review.customer?.firstName?.charAt(0) ?? "?"}</AvatarFallback>
                                                 </Avatar>
                                                 <div>
                                                     <p className="text-sm font-medium text-gray-900">
-                                                        {review.customer.firstName}&nbsp;{review.customer.lastName}&nbsp;
-                                                        <span className={`rounded text-xs ${review.customer.status === "active" ? "text-green-500" : review.customer.status === "inactive" ? "text-red-500" : "text-yellow-500"}`}>({capitalizeFirstLetter(review.customer.status)})</span>
+                                                        {review.customer?.firstName ?? "Unknown"}&nbsp;{review.customer?.lastName ?? ""}&nbsp;
+                                                        <span className={`rounded text-xs ${review.customer?.status === "active" ? "text-green-500" : review.customer?.status === "inactive" ? "text-red-500" : "text-yellow-500"}`}>({capitalizeFirstLetter(review.customer?.status ?? "unknown")})</span>
                                                     </p>
                                                 </div>
                                             </div>
@@ -284,11 +284,11 @@ export default function Reviews() {
                                         <div className="flex items-start space-x-2">
                                             <Avatar className="h-6 w-6">
                                                 <AvatarImage src={review.model?.profile ?? ""} />
-                                                <AvatarFallback>{review.model?.firstName.charAt(0)}</AvatarFallback>
+                                                <AvatarFallback>{review.model?.firstName?.charAt(0) ?? "?"}</AvatarFallback>
                                             </Avatar>
                                             <div>
-                                                <p className="text-sm font-medium text-gray-900">{review.model?.firstName}&nbsp;{review.model?.lastName}</p>
-                                                <p className={`rounded text-xs ${review.model?.status === "active" ? "text-green-500" : review.model?.status === "inactive" ? "text-red-500" : "text-yellow-500"}`}>{capitalizeFirstLetter(review.model?.status)}</p>
+                                                <p className="text-sm font-medium text-gray-900">{review.model?.firstName ?? "Unknown"}&nbsp;{review.model?.lastName ?? ""}</p>
+                                                <p className={`rounded text-xs ${review.model?.status === "active" ? "text-green-500" : review.model?.status === "inactive" ? "text-red-500" : "text-yellow-500"}`}>{capitalizeFirstLetter(review.model?.status ?? "unknown")}</p>
                                             </div>
                                         </div>
                                     </TableCell>

@@ -273,13 +273,13 @@ export default function RevenuePage() {
                                     <div className="flex items-center space-x-3 min-w-0 flex-1">
                                         <div className="flex items-center space-x-3">
                                             <Avatar className="h-8 w-8">
-                                                <AvatarImage src={earner.model.profile ?? ""} alt={`${earner.model.firstName} ${earner.model.lastName}`} />
-                                                <AvatarFallback className="">{earner.model.firstName.charAt(0)}</AvatarFallback>
+                                                <AvatarImage src={earner.model?.profile ?? ""} alt={`${earner.model?.firstName ?? "Unknown"} ${earner.model?.lastName ?? ""}`} />
+                                                <AvatarFallback className="">{earner.model?.firstName?.charAt(0) ?? "?"}</AvatarFallback>
                                             </Avatar>
                                         </div>
                                         <div className="min-w-0 flex-1">
-                                            <p className="text-sm font-medium text-gray-900 truncate">{earner.model.firstName}&nbsp;{earner.model.lastName}</p>
-                                            <p className="flex items-center justify-start text-xs font-medium text-gray-500 gap-2"><MapPin height={12} width={12} />{earner.model.address}</p>
+                                            <p className="text-sm font-medium text-gray-900 truncate">{earner.model?.firstName ?? "Unknown"}&nbsp;{earner.model?.lastName ?? ""}</p>
+                                            <p className="flex items-center justify-start text-xs font-medium text-gray-500 gap-2"><MapPin height={12} width={12} />{earner.model?.address ?? "N/A"}</p>
                                         </div>
                                     </div>
                                     <div className="text-right flex-shrink-0">
