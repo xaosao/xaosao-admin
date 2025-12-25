@@ -38,6 +38,10 @@ export async function createService(data: IServicesInput, userId: string) {
         baseRate: data.baseRate,
         commission: data.commission,
         status: data.status,
+        billingType: data.billingType,
+        hourlyRate: data.hourlyRate,
+        oneTimePrice: data.oneTimePrice,
+        oneNightPrice: data.oneNightPrice,
         createdBy: { connect: { id: userId } },
       },
     });
@@ -97,6 +101,10 @@ export async function updateService(
         baseRate: data.baseRate,
         commission: data.commission,
         status: data.status,
+        billingType: data.billingType,
+        hourlyRate: data.hourlyRate,
+        oneTimePrice: data.oneTimePrice,
+        oneNightPrice: data.oneNightPrice,
         createdBy: { connect: { id: userId } },
       },
     });

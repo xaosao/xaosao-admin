@@ -86,6 +86,7 @@ export default function Services() {
                                 <TableRow className="border-gray-100">
                                     <TableHead className="font-semibold">NO</TableHead>
                                     <TableHead className="font-semibold">Service</TableHead>
+                                    <TableHead className="font-semibold">Billing Type</TableHead>
                                     <TableHead className="font-semibold">Base Rate</TableHead>
                                     <TableHead className="font-semibold">Commission</TableHead>
                                     <TableHead className="font-semibold">Status</TableHead>
@@ -102,6 +103,17 @@ export default function Services() {
                                                 <p className="text-sm font-medium text-gray-900">{service.name}</p>
                                                 <p className="text-xs text-gray-500">{service.description}</p>
                                             </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <span className={`text-xs px-2 py-1 rounded-full ${
+                                                service.billingType === "per_hour" ? "bg-blue-100 text-blue-700" :
+                                                service.billingType === "per_session" ? "bg-purple-100 text-purple-700" :
+                                                "bg-green-100 text-green-700"
+                                            }`}>
+                                                {service.billingType === "per_hour" ? "Per Hour" :
+                                                 service.billingType === "per_session" ? "Per Session" :
+                                                 "Per Day"}
+                                            </span>
                                         </TableCell>
                                         <TableCell className="text-sm font-medium text-gray-900">${service.baseRate}</TableCell>
                                         <TableCell>
@@ -138,7 +150,7 @@ export default function Services() {
 
                                     </TableRow>
                                 )) : <TableRow>
-                                    <TableCell colSpan={7} className="text-center py-12">
+                                    <TableCell colSpan={8} className="text-center py-12">
                                         <EmptyPage
                                             title="No services found!"
                                             description="There is no service in the database yet!"

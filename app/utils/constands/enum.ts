@@ -42,6 +42,12 @@ export const adjustment: any = [
   { label: "Subtract Funds", value: "substract fund" },
 ];
 
+export const billingTypes: any = [
+  { label: "Per Day", value: "per_day" },
+  { label: "Per Hour", value: "per_hour" },
+  { label: "Per Session", value: "per_session" },
+];
+
 // Sidebar menu
 export const singleNavigation = [
   {

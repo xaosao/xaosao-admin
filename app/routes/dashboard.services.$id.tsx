@@ -4,10 +4,10 @@ import { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node"
 import { Form, json, redirect, useActionData, useLoaderData, useNavigate, useNavigation } from "@remix-run/react"
 
 // utils and service
-import { status } from "~/utils"
+import { status, billingTypes } from "~/utils"
 import { UserStatus } from "~/interfaces/base"
 import { useAuthStore } from "~/store/permissionStore"
-import { IServices, IServicesInput } from "~/interfaces/service"
+import { IServices, IServicesInput, BillingType } from "~/interfaces/service"
 import { validateServiceInputs } from "~/services/validation.server"
 import { getService, updateService } from "~/services/service.server"
 import { requireUserPermission, requireUserSession } from "~/services/auth.server"
@@ -19,7 +19,7 @@ import Textfield from "~/components/ui/text-field"
 import SelectTextfield from "~/components/ui/select"
 import { ForbiddenCard } from "~/components/ui/forbidden-card"
 
-export default function CreateService() {
+export default function EditService() {
     const navigate = useNavigate()
     const navigation = useNavigation()
     const service = useLoaderData<typeof loader>();
@@ -30,9 +30,21 @@ export default function CreateService() {
     // Live pricing state
     const [baseRate, setBaseRate] = useState<number>(service.baseRate)
     const [commission, setCommission] = useState<number>(service.commission)
+    const [billingType, setBillingType] = useState<BillingType>(service.billingType as BillingType || "per_day")
+    const [hourlyRate, setHourlyRate] = useState<number>(service.hourlyRate || 0)
+    const [oneTimePrice, setOneTimePrice] = useState<number>(service.oneTimePrice || 0)
+    const [oneNightPrice, setOneNightPrice] = useState<number>(service.oneNightPrice || 0)
 
     const commissionAmount = (baseRate * commission) / 100
     const modelReceives = baseRate - commissionAmount
+
+    // Calculate commission for different billing types
+    const hourlyCommission = (hourlyRate * commission) / 100
+    const hourlyModelReceives = hourlyRate - hourlyCommission
+    const oneTimeCommission = (oneTimePrice * commission) / 100
+    const oneTimeModelReceives = oneTimePrice - oneTimeCommission
+    const oneNightCommission = (oneNightPrice * commission) / 100
+    const oneNightModelReceives = oneNightPrice - oneNightCommission
 
     function closeHandler() {
         navigate("..")
@@ -92,6 +104,16 @@ export default function CreateService() {
                                     defaultValue={service.status}
                                 />
                             </div>
+                            <div className="space-y-1">
+                                <SelectTextfield
+                                    required
+                                    title="Billing Type"
+                                    name="billingType"
+                                    option={billingTypes}
+                                    defaultValue={service.billingType || "per_day"}
+                                    onChange={(e) => setBillingType(e.target.value as BillingType)}
+                                />
+                            </div>
                         </div>
                     </div>
 
@@ -104,7 +126,7 @@ export default function CreateService() {
                                         type="number"
                                         id="baseRate"
                                         name="baseRate"
-                                        title="Base rate"
+                                        title={billingType === "per_day" ? "Base rate (per day)" : "Base rate"}
                                         color="text-gray-500"
                                         placeholder="Enter base rate...."
                                         onChange={(e) => setBaseRate(parseFloat(e.target.value || "0"))}
@@ -130,22 +152,131 @@ export default function CreateService() {
                             </div>
                         </div>
 
-                        {baseRate > 0 && (
-                            <div className="bg-gray-50 p-4 rounded-lg text-sm text-gray-500">
+                        {/* Per Hour Rate Field */}
+                        {billingType === "per_hour" && (
+                            <div className="mt-4">
+                                <Textfield
+                                    required
+                                    type="number"
+                                    id="hourlyRate"
+                                    name="hourlyRate"
+                                    title="Hourly Rate"
+                                    color="text-gray-500"
+                                    placeholder="Enter hourly rate...."
+                                    defaultValue={service.hourlyRate || 0}
+                                    onChange={(e) => setHourlyRate(parseFloat(e.target.value || "0"))}
+                                />
+                            </div>
+                        )}
+
+                        {/* Per Session Rate Fields */}
+                        {billingType === "per_session" && (
+                            <div className="mt-4 grid grid-cols-2 gap-4">
+                                <Textfield
+                                    required
+                                    type="number"
+                                    id="oneTimePrice"
+                                    name="oneTimePrice"
+                                    title="One-Time Price (1-2 hrs)"
+                                    color="text-gray-500"
+                                    placeholder="Enter one-time price...."
+                                    defaultValue={service.oneTimePrice || 0}
+                                    onChange={(e) => setOneTimePrice(parseFloat(e.target.value || "0"))}
+                                />
+                                <Textfield
+                                    required
+                                    type="number"
+                                    id="oneNightPrice"
+                                    name="oneNightPrice"
+                                    title="One-Night Price (overnight)"
+                                    color="text-gray-500"
+                                    placeholder="Enter one-night price...."
+                                    defaultValue={service.oneNightPrice || 0}
+                                    onChange={(e) => setOneNightPrice(parseFloat(e.target.value || "0"))}
+                                />
+                            </div>
+                        )}
+
+                        {/* Pricing Breakdown */}
+                        {(baseRate > 0 || hourlyRate > 0 || oneTimePrice > 0 || oneNightPrice > 0) && (
+                            <div className="bg-gray-50 p-4 rounded-lg text-sm text-gray-500 mt-4">
                                 <h4 className="font-medium mb-2">Pricing Breakdown</h4>
                                 <div className="space-y-1 text-sm">
-                                    <div className="flex justify-between">
-                                        <span>Customer pays:</span>
-                                        <span className="font-medium">${baseRate.toFixed(2)}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span>Platform commission ({commission}%):</span>
-                                        <span className="font-medium">${commissionAmount.toFixed(2)}</span>
-                                    </div>
-                                    <div className="flex justify-between border-t pt-1">
-                                        <span>Model receives:</span>
-                                        <span className="font-medium  text-black">${modelReceives.toFixed(2)}</span>
-                                    </div>
+                                    {/* Per Day Breakdown */}
+                                    {billingType === "per_day" && baseRate > 0 && (
+                                        <>
+                                            <div className="flex justify-between">
+                                                <span>Customer pays (per day):</span>
+                                                <span className="font-medium">${baseRate.toFixed(2)}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span>Platform commission ({commission}%):</span>
+                                                <span className="font-medium">${commissionAmount.toFixed(2)}</span>
+                                            </div>
+                                            <div className="flex justify-between border-t pt-1">
+                                                <span>Model receives:</span>
+                                                <span className="font-medium text-black">${modelReceives.toFixed(2)}</span>
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {/* Per Hour Breakdown */}
+                                    {billingType === "per_hour" && hourlyRate > 0 && (
+                                        <>
+                                            <div className="flex justify-between">
+                                                <span>Customer pays (per hour):</span>
+                                                <span className="font-medium">${hourlyRate.toFixed(2)}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span>Platform commission ({commission}%):</span>
+                                                <span className="font-medium">${hourlyCommission.toFixed(2)}</span>
+                                            </div>
+                                            <div className="flex justify-between border-t pt-1">
+                                                <span>Model receives:</span>
+                                                <span className="font-medium text-black">${hourlyModelReceives.toFixed(2)}</span>
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {/* Per Session Breakdown */}
+                                    {billingType === "per_session" && (oneTimePrice > 0 || oneNightPrice > 0) && (
+                                        <>
+                                            {oneTimePrice > 0 && (
+                                                <div className="mb-2">
+                                                    <p className="font-medium text-gray-700 mb-1">One-Time Session:</p>
+                                                    <div className="flex justify-between">
+                                                        <span>Customer pays:</span>
+                                                        <span className="font-medium">${oneTimePrice.toFixed(2)}</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span>Platform commission ({commission}%):</span>
+                                                        <span className="font-medium">${oneTimeCommission.toFixed(2)}</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span>Model receives:</span>
+                                                        <span className="font-medium text-black">${oneTimeModelReceives.toFixed(2)}</span>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {oneNightPrice > 0 && (
+                                                <div className="border-t pt-2">
+                                                    <p className="font-medium text-gray-700 mb-1">One-Night Session:</p>
+                                                    <div className="flex justify-between">
+                                                        <span>Customer pays:</span>
+                                                        <span className="font-medium">${oneNightPrice.toFixed(2)}</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span>Platform commission ({commission}%):</span>
+                                                        <span className="font-medium">${oneNightCommission.toFixed(2)}</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span>Model receives:</span>
+                                                        <span className="font-medium text-black">${oneNightModelReceives.toFixed(2)}</span>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -214,6 +345,10 @@ export async function action({ params, request }: ActionFunctionArgs) {
                 status: service.status as UserStatus,
                 baseRate: Number(service.baseRate),
                 commission: Number(service.commission),
+                billingType: service.billingType as BillingType,
+                hourlyRate: service.hourlyRate ? Number(service.hourlyRate) : null,
+                oneTimePrice: service.oneTimePrice ? Number(service.oneTimePrice) : null,
+                oneNightPrice: service.oneNightPrice ? Number(service.oneNightPrice) : null,
             };
 
             await validateServiceInputs(input);
