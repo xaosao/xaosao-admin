@@ -11,6 +11,7 @@ import {
   FileText,
   MessageSquare,
   DollarSign,
+  CalendarDays,
 } from "lucide-react";
 
 export const status: any = [
@@ -102,6 +103,12 @@ export const singleNavigation = [
     name: "Transactions",
     href: "/dashboard/transactions",
     icon: Receipt,
+    permission: { group: "transaction", action: "view" },
+  },
+  {
+    name: "Bookings",
+    href: "/dashboard/bookings",
+    icon: CalendarDays,
     permission: { group: "transaction", action: "view" },
   },
   {

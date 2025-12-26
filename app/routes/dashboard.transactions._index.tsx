@@ -15,6 +15,8 @@ import {
     ArrowUpRight,
     CircleDollarSign,
     ArrowDownLeft,
+    RotateCcw,
+    CheckCircle,
 } from "lucide-react";
 
 // components
@@ -201,6 +203,7 @@ export default function Transactions() {
                                         <option value="withdraw">Withdrawal</option>
                                         <option value="recharge">Recharge</option>
                                         <option value="payment">Payment</option>
+                                        <option value="booking_hold">Booking Hold</option>
                                     </select>
                                 </div>
                                 <div className="hidden sm:block w-28">
@@ -213,6 +216,7 @@ export default function Transactions() {
                                         <option value="approved">Approved</option>
                                         <option value="rejected">Rejected</option>
                                         <option value="pending">Pending</option>
+                                        <option value="held">Held</option>
                                     </select>
                                 </div>
                                 <div className="block sm:hidden mr-4">
@@ -275,6 +279,7 @@ export default function Transactions() {
                                         <option value="withdraw">Withdraw</option>
                                         <option value="recharge">Recharge</option>
                                         <option value="payment">Payment</option>
+                                        <option value="booking_hold">Booking Hold</option>
                                     </select>
                                 </div>
                                 <div className="block sm:hidden w-28">
@@ -287,6 +292,7 @@ export default function Transactions() {
                                         <option value="approved">Approved</option>
                                         <option value="rejected">Rejected</option>
                                         <option value="pending">Pending</option>
+                                        <option value="held">Held</option>
                                     </select>
                                 </div>
                                 <div className="w-28">
@@ -430,6 +436,20 @@ export default function Transactions() {
                                                                 <Link to={`reject/${transaction.id}`} className="flex space-x-2">
                                                                     <X className="mr-2 h-3 w-3 text-red-500" />
                                                                     <span>Reject</span>
+                                                                </Link>
+                                                            </DropdownMenuItem>}
+                                                        {transaction.status === "held" && transaction.identifier === "booking_hold" && canEdit &&
+                                                            <DropdownMenuItem className="text-sm">
+                                                                <Link to={`refund/${transaction.id}`} className="flex space-x-2">
+                                                                    <RotateCcw className="mr-2 h-3 w-3 text-orange-500" />
+                                                                    <span>Refund</span>
+                                                                </Link>
+                                                            </DropdownMenuItem>}
+                                                        {transaction.status === "held" && transaction.identifier === "booking_hold" && canEdit &&
+                                                            <DropdownMenuItem className="text-sm">
+                                                                <Link to={`complete/${transaction.id}`} className="flex space-x-2">
+                                                                    <CheckCircle className="mr-2 h-3 w-3 text-green-500" />
+                                                                    <span>Complete</span>
                                                                 </Link>
                                                             </DropdownMenuItem>}
                                                     </DropdownMenuContent>
