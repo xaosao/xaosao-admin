@@ -19,6 +19,7 @@ import {
 export interface PendingCounts {
   pendingModels: number;
   pendingTransactions: number;
+  pendingBookings: number;
   newReviews: number;
 }
 
@@ -27,11 +28,14 @@ export async function getPendingCounts(): Promise<PendingCounts> {
     // Get reviews from last 7 days as "new" reviews
     const sevenDaysAgo = subDays(new Date(), 7);
 
-    const [pendingModels, pendingTransactions, newReviews] = await Promise.all([
+    const [pendingModels, pendingTransactions, pendingBookings, newReviews] = await Promise.all([
       prisma.model.count({
         where: { status: "pending" },
       }),
       prisma.transaction_history.count({
+        where: { status: "pending" },
+      }),
+      prisma.service_booking.count({
         where: { status: "pending" },
       }),
       prisma.review.count({
@@ -44,6 +48,7 @@ export async function getPendingCounts(): Promise<PendingCounts> {
     return {
       pendingModels,
       pendingTransactions,
+      pendingBookings,
       newReviews,
     };
   } catch (error) {
@@ -51,6 +56,7 @@ export async function getPendingCounts(): Promise<PendingCounts> {
     return {
       pendingModels: 0,
       pendingTransactions: 0,
+      pendingBookings: 0,
       newReviews: 0,
     };
   }

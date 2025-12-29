@@ -380,8 +380,8 @@ export default function Bookings() {
                                 {bookings && bookings.length > 0 ? bookings.map((booking: any, index: number) => {
                                     const statusInfo = statusConfig[booking.status] || statusConfig.pending;
                                     const StatusIcon = statusInfo.icon;
-                                    const canRefund = ["confirmed", "disputed"].includes(booking.status) && booking.paymentStatus !== "refunded";
-                                    const canComplete = ["confirmed", "disputed"].includes(booking.status) && booking.paymentStatus !== "released";
+                                    const canRefund = booking.status !== "pending";
+                                    const canComplete = booking.status !== "pending";
 
                                     return (
                                         <TableRow key={booking.id} className="border-gray-50 hover:bg-gray-50">

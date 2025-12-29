@@ -36,6 +36,8 @@ export function DashboardSidebar({ pendingCounts }: DashboardSidebarProps) {
         return pendingCounts.pendingModels;
       case "Transactions":
         return pendingCounts.pendingTransactions;
+      case "Bookings":
+        return pendingCounts.pendingBookings;
       case "Reviews":
         return pendingCounts.newReviews;
       default:
