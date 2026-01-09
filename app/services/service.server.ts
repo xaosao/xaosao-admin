@@ -5,7 +5,12 @@ import { FieldValidationError } from "./admin.server";
 
 export async function getServices() {
   try {
-    return await prisma.service.findMany();
+    // Exclude soft-deleted services
+    return await prisma.service.findMany({
+      where: {
+        status: { not: "deleted" },
+      },
+    });
   } catch (error) {
     console.error("GET_SERVICES_FAILED", error);
     throw new Error("Failed to fetch services!");
@@ -93,6 +98,12 @@ export async function updateService(
   };
 
   try {
+    // Get current service to check if status is changing
+    const currentService = await prisma.service.findUnique({
+      where: { id },
+      select: { status: true },
+    });
+
     const res = await prisma.service.update({
       where: { id },
       data: {
@@ -108,6 +119,28 @@ export async function updateService(
         createdBy: { connect: { id: userId } },
       },
     });
+
+    // Cascade status change to related model_service records
+    if (currentService && currentService.status !== data.status) {
+      const cascadeResult = await prisma.model_service.updateMany({
+        where: { serviceId: id },
+        data: {
+          status: data.status,
+          updatedAt: new Date(),
+        },
+      });
+
+      // Log cascade update
+      if (cascadeResult.count > 0) {
+        await createAuditLogs({
+          action: "CASCADE_UPDATE_MODEL_SERVICES",
+          user: userId,
+          description: `Cascade ${data.status === "inactive" ? "inactivated" : "activated"} ${cascadeResult.count} model service(s) for service: ${res.name}.`,
+          status: "success",
+          onSuccess: { serviceId: id, affectedCount: cascadeResult.count },
+        });
+      }
+    }
 
     if (res.id) {
       await createAuditLogs({
@@ -150,24 +183,50 @@ export async function deleteService(id: string, userId: string) {
   };
 
   try {
-    const res = await prisma.service.delete({
+    // Soft delete: Update status to "deleted" instead of permanent deletion
+    const res = await prisma.service.update({
       where: { id },
+      data: {
+        status: "deleted",
+        deletedBy: { connect: { id: userId } },
+        updatedAt: new Date(),
+      },
+    });
+
+    // Cascade soft delete to related model_service records
+    const cascadeResult = await prisma.model_service.updateMany({
+      where: { serviceId: id },
+      data: {
+        status: "deleted",
+        updatedAt: new Date(),
+      },
     });
 
     if (res.id) {
       await createAuditLogs({
         ...auditBase,
-        description: `Service with ID ${id} deleted successfully.`,
+        description: `Service "${res.name}" soft deleted successfully.`,
         status: "success",
         onSuccess: res,
       });
+
+      // Log cascade delete
+      if (cascadeResult.count > 0) {
+        await createAuditLogs({
+          action: "CASCADE_DELETE_MODEL_SERVICES",
+          user: userId,
+          description: `Cascade soft deleted ${cascadeResult.count} model service(s) for service: ${res.name}.`,
+          status: "success",
+          onSuccess: { serviceId: id, affectedCount: cascadeResult.count },
+        });
+      }
     }
     return res;
   } catch (error) {
     console.log("DELETE_SERVICE_FAILED", error);
     await createAuditLogs({
       ...auditBase,
-      description: `Service with ID ${id} deleted failed.`,
+      description: `Service with ID ${id} soft delete failed.`,
       status: "failed",
       onError: error,
     });
