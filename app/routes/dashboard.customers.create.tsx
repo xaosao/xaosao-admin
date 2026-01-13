@@ -13,7 +13,7 @@ import Password from "~/components/ui/password-textfield";
 
 // types & Backend
 import { ICustomer } from "~/interfaces";
-import { customer_type, status } from "~/utils";
+import { customer_type, status, gender } from "~/utils";
 import { useAuthStore } from "~/store/permissionStore";
 import { addCustomer } from "~/services/customer.server";
 import { ForbiddenCard } from "~/components/ui/forbidden-card";
@@ -127,10 +127,30 @@ export default function CustomersCreateNew() {
                             <div className="space-y-2">
                                 <Textfield
                                     required
+                                    type="date"
+                                    id="dob"
+                                    name="dob"
+                                    title="Date of Birth"
+                                    color="text-gray-500"
+                                    placeholder="Enter date of birth...."
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <SelectTextfield
+                                    required
+                                    title="Gender"
+                                    name="gender"
+                                    option={gender}
+                                />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Textfield
                                     type="text"
                                     id="username"
                                     name="username"
-                                    title="Username"
+                                    title="Username (Optional)"
                                     color="text-gray-500"
                                     placeholder="Enter username...."
                                 />

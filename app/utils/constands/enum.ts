@@ -2,22 +2,23 @@ import {
   LayoutDashboard,
   Users,
   UserCheck,
-  Phone,
   Settings,
   UserCog,
   Wallet,
   Receipt,
   Star,
   FileText,
-  MessageSquare,
   DollarSign,
   CalendarDays,
 } from "lucide-react";
 
 export const status: any = [
+  { label: "Pending", value: "pending" },
+  { label: "Verified", value: "verified" },
   { label: "Active", value: "active" },
   { label: "Inactive", value: "inactive" },
   { label: "Suspended", value: "suspended" },
+  { label: "Deleted", value: "deleted" },
 ];
 
 export const available_status: any = [

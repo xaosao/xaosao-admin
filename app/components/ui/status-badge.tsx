@@ -12,6 +12,8 @@ const useStatus = {
     DELETED: "deleted",
     FAILED: "failed",
     PENDING: "pending",
+    VERIFIED: "verified",
+    SUSPENDED: "suspended",
     APPROVED: "approved",
     REJECTED: "rejected",
     BANNED: "banned",
@@ -73,6 +75,16 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
                 return {
                     className: "bg-orange-100 text-orange-800",
                     weight: "bg-orange-500",
+                };
+            case useStatus.VERIFIED:
+                return {
+                    className: "bg-blue-100 text-blue-800",
+                    weight: "bg-blue-500",
+                };
+            case useStatus.SUSPENDED:
+                return {
+                    className: "bg-yellow-100 text-yellow-800",
+                    weight: "bg-yellow-500",
                 };
             case useStatus.EXPIRED:
                 return {

@@ -73,14 +73,18 @@ export default function ModelDetailsModal() {
     // Get status badge style
     const getStatusBadge = (status: string) => {
         switch (status) {
+            case "pending":
+                return "bg-orange-100 text-orange-700 border-orange-200";
+            case "verified":
+                return "bg-blue-100 text-blue-700 border-blue-200";
             case "active":
                 return "bg-green-100 text-green-700 border-green-200";
+            case "inactive":
+                return "bg-red-100 text-red-700 border-red-200";
             case "suspended":
                 return "bg-yellow-100 text-yellow-700 border-yellow-200";
-            case "inactive":
+            case "deleted":
                 return "bg-gray-100 text-gray-700 border-gray-200";
-            case "pending":
-                return "bg-blue-100 text-blue-700 border-blue-200";
             default:
                 return "bg-gray-100 text-gray-700 border-gray-200";
         }

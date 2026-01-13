@@ -6,7 +6,9 @@ export interface ICustomer extends BaseEntity {
   number: string;
   firstName: string;
   lastName?: string;
-  username: string;
+  dob: string;
+  gender: string;
+  username?: string;
   password: string;
   latitude: number;
   longitude: number;

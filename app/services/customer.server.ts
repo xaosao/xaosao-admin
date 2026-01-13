@@ -176,7 +176,9 @@ export async function addCustomer(
         number: nextNumber,
         firstName: customerData.firstName,
         lastName: customerData.lastName,
-        username: customerData.username,
+        dob: new Date(customerData.dob),
+        gender: customerData.gender,
+        username: customerData.username || undefined,
         password: passwordHash,
         latitude: +locationDetails.latitude,
         longitude: +locationDetails.longitude,
@@ -188,7 +190,6 @@ export async function addCustomer(
         location: locationDetails,
         profile: customerData.profile,
         createdBy: { connect: { id: userId } },
-        deletedBy: undefined,
       },
     });
 
@@ -255,7 +256,9 @@ export async function updateCustomer(
       data: {
         firstName: customerData.firstName,
         lastName: customerData.lastName,
-        username: customerData.username,
+        dob: new Date(customerData.dob),
+        gender: customerData.gender,
+        username: customerData.username || undefined,
         whatsapp: customerData.whatsapp,
         tier: customerData.tier,
         status: customerData.status,

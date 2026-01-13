@@ -178,10 +178,16 @@ export async function getPendingModelCount() {
 
 export async function getModelStatus() {
   try {
-    const [total, active, suspended, inactive] = await Promise.all([
+    const [total, active, verified, pending, suspended, inactive] = await Promise.all([
       prisma.model.count(),
       prisma.model.count({
         where: { status: "active" },
+      }),
+      prisma.model.count({
+        where: { status: "verified" },
+      }),
+      prisma.model.count({
+        where: { status: "pending" },
       }),
       prisma.model.count({
         where: { status: "suspended" },
@@ -205,6 +211,18 @@ export async function getModelStatus() {
         value: format(active),
         icon: "UserCheck",
         color: "text-green-600",
+      },
+      {
+        title: "Verified models",
+        value: format(verified),
+        icon: "UserCheck",
+        color: "text-blue-600",
+      },
+      {
+        title: "Pending models",
+        value: format(pending),
+        icon: "UserLock",
+        color: "text-orange-600",
       },
       {
         title: "Suspended models",
@@ -647,6 +665,98 @@ export async function rejectModel(id: string, userId: string) {
     });
     throw new FieldValidationError({
       id: "Failed to reject model account!",
+    });
+  }
+}
+
+export async function updateModelStatus(
+  id: string,
+  newStatus: "pending" | "verified" | "active" | "inactive" | "suspended" | "deleted",
+  userId: string
+) {
+  if (!id || !userId || !newStatus) {
+    throw new Error("Missing model status update data!");
+  }
+
+  const auditBase = {
+    action: "UPDATE_MODEL_STATUS",
+    user: userId,
+  };
+
+  try {
+    const existingModel = await prisma.model.findFirst({
+      where: { id },
+    });
+
+    if (!existingModel) {
+      throw new FieldValidationError({
+        id: "Model is not found!",
+      });
+    }
+
+    const updateData: any = {
+      status: newStatus,
+      updatedAt: new Date(),
+    };
+
+    // If changing to active, set approveBy
+    if (newStatus === "active" && existingModel.status !== "active") {
+      updateData.approveBy = { connect: { id: userId } };
+
+      // Generate referral code if not exists
+      await ensureReferralCode(id);
+
+      // Process referral reward if this model was referred
+      const referralResult = await processReferralReward(id, userId);
+      if (referralResult.success) {
+        console.log(
+          `Referral reward processed for model ${id}: ${referralResult.amount} Kip to referrer ${referralResult.referrerId}`
+        );
+      }
+    }
+
+    const model = await prisma.model.update({
+      where: { id },
+      data: updateData,
+    });
+
+    if (model.id) {
+      await createAuditLogs({
+        ...auditBase,
+        description: `Updated model ${model.id} status from ${existingModel.status} to ${newStatus} successfully.`,
+        status: "success",
+        onSuccess: model,
+      });
+
+      // Send notifications based on status
+      if (newStatus === "active" && existingModel.status !== "active") {
+        notifyModelApproved({
+          id: model.id,
+          firstName: model.firstName,
+          lastName: model.lastName,
+          whatsapp: model.whatsapp,
+        });
+      } else if (newStatus === "inactive" && existingModel.status !== "inactive") {
+        notifyModelRejected({
+          id: model.id,
+          firstName: model.firstName,
+          lastName: model.lastName,
+          whatsapp: model.whatsapp,
+        });
+      }
+    }
+
+    return model;
+  } catch (error) {
+    console.error("UPDATE_MODEL_STATUS_FAILED", error);
+    await createAuditLogs({
+      ...auditBase,
+      description: `Update model status failed.`,
+      status: "failed",
+      onError: error,
+    });
+    throw new FieldValidationError({
+      id: "Failed to update model status!",
     });
   }
 }

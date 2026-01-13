@@ -17,6 +17,7 @@ import {
     MoreVertical,
     UserPen,
     CheckSquare,
+    Shield,
 } from "lucide-react";
 
 import EmptyPage from "~/components/ui/empty";
@@ -167,7 +168,7 @@ export default function Models() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 {modelStatus.map((stat) => {
                     const IconComponent = iconMap[stat.icon as keyof typeof iconMap];
                     return (
@@ -222,9 +223,12 @@ export default function Models() {
                                     defaultValue={filters.status}
                                 >
                                     <option value="all">All Status</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="verified">Verified</option>
                                     <option value="active">Active</option>
-                                    <option value="suspended">Suspended</option>
                                     <option value="inactive">Inactive</option>
+                                    <option value="suspended">Suspended</option>
+                                    <option value="deleted">Deleted</option>
                                 </select>
                             </div>
                             <div className="w-ູຟ flex items-center space-x-2">
@@ -271,9 +275,12 @@ export default function Models() {
                                     defaultValue={filters.status}
                                 >
                                     <option value="all">All Status</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="verified">Verified</option>
                                     <option value="active">Active</option>
-                                    <option value="suspended">Suspended</option>
                                     <option value="inactive">Inactive</option>
+                                    <option value="suspended">Suspended</option>
+                                    <option value="deleted">Deleted</option>
                                 </select>
                             </div>
                             <div className="w-28">
@@ -377,6 +384,12 @@ export default function Models() {
                                                         <Link to={`${model.id}`} className="flex space-x-2 w-full">
                                                             <UserPen className="mr-2 h-3 w-3" />
                                                             <span>Edit </span>
+                                                        </Link>
+                                                    </DropdownMenuItem>}
+                                                    {canEdit && <DropdownMenuItem className="text-sm">
+                                                        <Link to={`status/${model.id}`} className="flex space-x-2 w-full">
+                                                            <Shield className="mr-2 h-3 w-3" />
+                                                            <span>Update status</span>
                                                         </Link>
                                                     </DropdownMenuItem>}
                                                     {model.ModelService && model.ModelService.length > 0 && canEdit && <DropdownMenuItem className="text-sm">
