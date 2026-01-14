@@ -17,6 +17,7 @@ import "react-toastify/dist/ReactToastify.css";
 import { requireUserSession } from "./services/auth.server";
 import { getUserWithPermissions } from "./services/role.server";
 import { useAuthStore } from "./store/permissionStore";
+import DevToolsRedirect from "./components/DevToolsRedirect";
 
 export const links: LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -77,5 +78,10 @@ export default function App() {
     setAuthReady();
   }, [user, setRole, setPermissions, setAuthReady]);
 
-  return <Outlet />;
+  return (
+    <>
+      <DevToolsRedirect />
+      <Outlet />
+    </>
+  );
 }

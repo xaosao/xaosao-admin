@@ -521,16 +521,33 @@ model model_service {
   service   service? @relation(fields: [serviceId], references: [id])
   serviceId String?  @db.ObjectId
 
-  Session         session[]
+  Session                session[]
+  service_booking        service_booking[]
+  model_service_variant  model_service_variant[]
+}
+
+// Stores custom massage types (variants) for services like massage
+// Each model can define their own massage types with custom pricing
+model model_service_variant {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  name         String   // e.g., "Thai Massage", "Swedish Massage", "Deep Tissue"
+  pricePerHour Float    // Custom price per hour for this massage type
+  status       String   @default("active")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  modelService   model_service? @relation(fields: [modelServiceId], references: [id])
+  modelServiceId String?        @db.ObjectId
+
   service_booking service_booking[]
 }
 
 model service_booking {
   id                   String    @id @default(auto()) @map("_id") @db.ObjectId
   price                Float
-  dayAmount            Int
-  hours                Int? // For per_hour billing
-  sessionType          String? // For per_session billing: 'one_time' or 'one_night'
+  dayAmount            Int?      // For per_day services (optional for hourly/session)
+  hours                Int?      // For per_hour services (e.g., drinkingFriend: 1-10 hours)
+  sessionType          String?   // For per_session services: "one_time" or "one_night" (sleepPartner)
   location             String
   locationLat          Float? // Booking location latitude for GPS verification
   locationLng          Float? // Booking location longitude for GPS verification
@@ -573,6 +590,9 @@ model service_booking {
 
   modelService   model_service? @relation(fields: [modelServiceId], references: [id])
   modelServiceId String?        @db.ObjectId
+
+  modelServiceVariant   model_service_variant? @relation(fields: [modelServiceVariantId], references: [id])
+  modelServiceVariantId String?                @db.ObjectId
 }
 
 model session {
