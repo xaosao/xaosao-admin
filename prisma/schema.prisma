@@ -515,6 +515,9 @@ model model_service {
   customOneTimePrice  Float? // Custom one-time price for per_session billing
   customOneNightPrice Float? // Custom overnight price for per_session billing
 
+  // Service-specific location (e.g., massage shop/spa address)
+  serviceLocation String? // Location where the service is provided (required for massage)
+
   model   model?  @relation(fields: [modelId], references: [id])
   modelId String? @db.ObjectId
 
