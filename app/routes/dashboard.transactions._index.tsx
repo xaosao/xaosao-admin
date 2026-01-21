@@ -200,10 +200,14 @@ export default function Transactions() {
                                         defaultValue={filters.identifier}
                                     >
                                         <option value="all">All types</option>
-                                        <option value="withdraw">Withdrawal</option>
+                                        <option value="withdrawal">Withdrawal</option>
                                         <option value="recharge">Recharge</option>
                                         <option value="payment">Payment</option>
                                         <option value="booking_hold">Booking Hold</option>
+                                        <option value="booking_refund">Booking Refund</option>
+                                        <option value="booking_earning">Booking Earning</option>
+                                        <option value="subscription">Subscription</option>
+                                        <option value="referral">Referral</option>
                                     </select>
                                 </div>
                                 <div className="hidden sm:block w-28">

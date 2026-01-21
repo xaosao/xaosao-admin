@@ -1,7 +1,8 @@
+import { useState } from "react"
 import { json } from "react-router"
 import { LoaderFunctionArgs } from "@remix-run/node"
 import { useLoaderData, useNavigate } from "@remix-run/react"
-import { User, Clock, FileText, Check, X, Download, Calendar, DollarSign, Users, UserCheck, Mars, Venus, Building2, CreditCard, QrCode } from "lucide-react"
+import { User, Clock, FileText, Check, X, Download, Calendar, DollarSign, Users, UserCheck, Mars, Venus, Building2, CreditCard, QrCode, Maximize2 } from "lucide-react"
 
 // components
 import Modal from "~/components/ui/modal"
@@ -23,6 +24,7 @@ export default function TransactionDetails() {
     const transaction = useLoaderData<typeof loader>();
     const hasPermission = useAuthStore((state) => state.hasPermission);
     const owner = transaction.model || transaction.customer;
+    const [showQrFullscreen, setShowQrFullscreen] = useState(false);
 
     const handleDownloadSlip = async () => {
         if (transaction?.paymentSlip) {
@@ -261,11 +263,20 @@ export default function TransactionDetails() {
                                             <QrCode className="h-4 w-4 mr-1" />
                                             QR Code
                                         </label>
-                                        <img
-                                            src={transaction.bank.qr_code}
-                                            alt="Bank QR Code"
-                                            className="max-h-40 rounded-md border border-gray-200"
-                                        />
+                                        <div
+                                            className="relative cursor-pointer group"
+                                            onClick={() => setShowQrFullscreen(true)}
+                                        >
+                                            <img
+                                                src={transaction.bank.qr_code}
+                                                alt="Bank QR Code"
+                                                className="max-h-40 rounded-md border border-gray-200 transition-opacity group-hover:opacity-80"
+                                            />
+                                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <Maximize2 className="h-6 w-6 text-gray-700 bg-white/80 rounded-full p-1" />
+                                            </div>
+                                        </div>
+                                        <p className="text-xs text-gray-400 mt-1">Click to view fullscreen</p>
                                     </div>
                                 )}
                             </div>
@@ -321,6 +332,29 @@ export default function TransactionDetails() {
                     </Button>
                 </div>
             </div>
+
+            {/* Fullscreen QR Code Modal */}
+            {showQrFullscreen && transaction.bank?.qr_code && (
+                <div
+                    className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center cursor-pointer"
+                    onClick={() => setShowQrFullscreen(false)}
+                >
+                    <div className="relative max-w-[90vw] max-h-[90vh]">
+                        <button
+                            className="absolute -top-10 right-0 text-white hover:text-gray-300 transition-colors"
+                            onClick={() => setShowQrFullscreen(false)}
+                        >
+                            <X className="h-8 w-8" />
+                        </button>
+                        <img
+                            src={transaction.bank.qr_code}
+                            alt="Bank QR Code - Fullscreen"
+                            className="max-w-full max-h-[85vh] object-contain rounded-lg"
+                        />
+                        <p className="text-center text-white/70 mt-4 text-sm">Click anywhere to close</p>
+                    </div>
+                </div>
+            )}
         </Modal>
     )
 }
