@@ -231,60 +231,37 @@ export default function TransactionDetails() {
                     </CardContent>
                 </Card>
 
-                {transaction.identifier === "withdrawal" && transaction.bank && (
+                {transaction.identifier === "withdrawal" && transaction.bank?.qr_code && (
                     <Card>
                         <CardHeader className="pb-3">
                             <CardTitle className="text-md flex items-center">
-                                <Building2 className="h-5 w-5 mr-2" />
-                                Bank Account Information
+                                <QrCode className="h-5 w-5 mr-2" />
+                                Bank QR Code
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div className="space-y-0">
-                                    <div className="flex items-center justify-start gap-4">
-                                        <label className="text-sm text-gray-500">Bank Name:</label>
-                                        <p className="mt-1 text-sm text-gray-900">{transaction.bank.bank_name}</p>
-                                    </div>
-                                    <div className="flex items-center justify-start gap-4">
-                                        <label className="text-sm text-gray-500">Account Name:</label>
-                                        <p className="mt-1 text-sm text-gray-900">{transaction.bank.bank_account_name}</p>
-                                    </div>
-                                    <div className="flex items-center justify-start gap-4">
-                                        <label className="text-sm text-gray-500">Account Number:</label>
-                                        <p className="mt-1 text-sm text-gray-900 flex items-center">
-                                            {transaction.bank.bank_account_number}
-                                        </p>
+                            <div className="flex flex-col items-center justify-center p-4 bg-gray-50 rounded-lg">
+                                <div
+                                    className="relative cursor-pointer group"
+                                    onClick={() => setShowQrFullscreen(true)}
+                                >
+                                    <img
+                                        src={transaction.bank.qr_code}
+                                        alt="Bank QR Code"
+                                        className="max-h-48 rounded-md border border-gray-200 transition-opacity group-hover:opacity-80"
+                                    />
+                                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Maximize2 className="h-8 w-8 text-gray-700 bg-white/80 rounded-full p-1.5" />
                                     </div>
                                 </div>
-                                {transaction.bank.qr_code && (
-                                    <div className="flex flex-col items-center justify-center p-4 bg-gray-50 rounded-lg">
-                                        <label className="text-sm  text-gray-500 mb-2 flex items-center">
-                                            <QrCode className="h-4 w-4 mr-1" />
-                                            QR Code
-                                        </label>
-                                        <div
-                                            className="relative cursor-pointer group"
-                                            onClick={() => setShowQrFullscreen(true)}
-                                        >
-                                            <img
-                                                src={transaction.bank.qr_code}
-                                                alt="Bank QR Code"
-                                                className="max-h-40 rounded-md border border-gray-200 transition-opacity group-hover:opacity-80"
-                                            />
-                                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <Maximize2 className="h-6 w-6 text-gray-700 bg-white/80 rounded-full p-1" />
-                                            </div>
-                                        </div>
-                                        <p className="text-xs text-gray-400 mt-1">Click to view fullscreen</p>
-                                    </div>
-                                )}
+                                <p className="text-xs text-gray-400 mt-2">Click to view fullscreen</p>
                             </div>
                         </CardContent>
                     </Card>
                 )}
 
-                {transaction.identifier !== "withdrawal" || transaction.identifier !== "booking_hold" && <Card>
+                {transaction.identifier !== "withdrawal" && transaction.identifier !== "booking_hold" && (
+                    <Card>
                     <CardHeader className="pb-3">
                         <CardTitle className="text-md flex items-center">
                             <DollarSign className="h-5 w-5 mr-2" />
@@ -324,7 +301,7 @@ export default function TransactionDetails() {
                         )}
                     </CardContent>
                 </Card>
-                }
+                )}
 
                 <div className="flex justify-end pt-2">
                     <Button variant="outline" onClick={closeHandler}>

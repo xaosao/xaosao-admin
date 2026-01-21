@@ -186,9 +186,6 @@ export async function getTransaction(id: string) {
               where: { id: bankId },
               select: {
                 id: true,
-                bank_name: true,
-                bank_account_name: true,
-                bank_account_number: true,
                 qr_code: true,
               },
             });
