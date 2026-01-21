@@ -178,16 +178,25 @@ export async function getTransaction(id: string) {
       const bankIdMatch = transaction.reason.match(/Withdrawal to bank account: (.+)/);
       if (bankIdMatch && bankIdMatch[1]) {
         const bankId = bankIdMatch[1].trim();
-        bank = await prisma.banks.findUnique({
-          where: { id: bankId },
-          select: {
-            id: true,
-            bank_name: true,
-            bank_account_name: true,
-            bank_account_number: true,
-            qr_code: true,
-          },
-        });
+        // Validate if bankId looks like a valid MongoDB ObjectId (24 hex characters)
+        const isValidObjectId = /^[a-fA-F0-9]{24}$/.test(bankId);
+        if (isValidObjectId) {
+          try {
+            bank = await prisma.banks.findUnique({
+              where: { id: bankId },
+              select: {
+                id: true,
+                bank_name: true,
+                bank_account_name: true,
+                bank_account_number: true,
+                qr_code: true,
+              },
+            });
+          } catch (bankError) {
+            console.error("Failed to fetch bank info:", bankError);
+            // Continue without bank info if lookup fails
+          }
+        }
       }
     }
 
