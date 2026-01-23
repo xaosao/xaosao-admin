@@ -47,6 +47,7 @@ export async function createService(data: IServicesInput, userId: string) {
         hourlyRate: data.hourlyRate,
         oneTimePrice: data.oneTimePrice,
         oneNightPrice: data.oneNightPrice,
+        minuteRate: data.minuteRate,
         createdBy: { connect: { id: userId } },
       },
     });
@@ -116,6 +117,7 @@ export async function updateService(
         hourlyRate: data.hourlyRate,
         oneTimePrice: data.oneTimePrice,
         oneNightPrice: data.oneNightPrice,
+        minuteRate: data.minuteRate,
         createdBy: { connect: { id: userId } },
       },
     });

@@ -29,6 +29,7 @@ export default function CreateService() {
     const [hourlyRate, setHourlyRate] = useState<number>(0)
     const [oneTimePrice, setOneTimePrice] = useState<number>(0)
     const [oneNightPrice, setOneNightPrice] = useState<number>(0)
+    const [minuteRate, setMinuteRate] = useState<number>(0)
     const hasPermission = useAuthStore((state) => state.hasPermission);
     const isSubmitting = navigation.state !== "idle" && navigation.formMethod === "POST"
     const validationErrors = useActionData<Partial<Record<keyof IServices, string>>>();
@@ -43,6 +44,8 @@ export default function CreateService() {
     const oneTimeModelReceives = oneTimePrice - oneTimeCommission
     const oneNightCommission = (oneNightPrice * commission) / 100
     const oneNightModelReceives = oneNightPrice - oneNightCommission
+    const minuteCommission = (minuteRate * commission) / 100
+    const minuteModelReceives = minuteRate - minuteCommission
 
     function closeHandler() {
         navigate("..")
@@ -187,8 +190,27 @@ export default function CreateService() {
                             </div>
                         )}
 
+                        {/* Per Minute Rate Field (Call Service) */}
+                        {billingType === "per_minute" && (
+                            <div className="mt-4">
+                                <Textfield
+                                    required
+                                    type="number"
+                                    id="minuteRate"
+                                    name="minuteRate"
+                                    title="Rate per Minute (LAK)"
+                                    color="text-gray-500"
+                                    placeholder="Enter rate per minute...."
+                                    onChange={(e) => setMinuteRate(parseFloat(e.target.value || "0"))}
+                                />
+                                <p className="text-xs text-gray-400 mt-1">
+                                    This rate will be charged per minute during voice/video calls.
+                                </p>
+                            </div>
+                        )}
+
                         {/* Pricing Breakdown */}
-                        {(baseRate > 0 || hourlyRate > 0 || oneTimePrice > 0 || oneNightPrice > 0) ? (
+                        {(baseRate > 0 || hourlyRate > 0 || oneTimePrice > 0 || oneNightPrice > 0 || minuteRate > 0) ? (
                             <div className="bg-gray-50 p-4 rounded-lg text-sm text-gray-500 mt-4">
                                 <h4 className="font-medium mb-2">Pricing Breakdown</h4>
                                 <div className="space-y-1 text-sm">
@@ -267,6 +289,27 @@ export default function CreateService() {
                                             )}
                                         </>
                                     )}
+
+                                    {/* Per Minute Breakdown (Call Service) */}
+                                    {billingType === "per_minute" && minuteRate > 0 && (
+                                        <>
+                                            <div className="flex justify-between">
+                                                <span>Customer pays (per minute):</span>
+                                                <span className="font-medium">{minuteRate.toLocaleString()} LAK</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span>Platform commission ({commission}%):</span>
+                                                <span className="font-medium">{minuteCommission.toLocaleString()} LAK</span>
+                                            </div>
+                                            <div className="flex justify-between border-t pt-1">
+                                                <span>Model receives (per minute):</span>
+                                                <span className="font-medium text-black">{minuteModelReceives.toLocaleString()} LAK</span>
+                                            </div>
+                                            <div className="border-t pt-2 mt-2 text-xs text-gray-400">
+                                                <p>Example: 10 min call = {(minuteRate * 10).toLocaleString()} LAK (Model gets {(minuteModelReceives * 10).toLocaleString()} LAK)</p>
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         ) : <EmptyPage
@@ -327,6 +370,7 @@ export async function action({ request }: ActionFunctionArgs) {
                 hourlyRate: service.hourlyRate ? Number(service.hourlyRate) : null,
                 oneTimePrice: service.oneTimePrice ? Number(service.oneTimePrice) : null,
                 oneNightPrice: service.oneNightPrice ? Number(service.oneNightPrice) : null,
+                minuteRate: service.minuteRate ? Number(service.minuteRate) : null,
             };
 
             await validateServiceInputs(input);

@@ -48,6 +48,7 @@ export const billingTypes: any = [
   { label: "Per Day", value: "per_day" },
   { label: "Per Hour", value: "per_hour" },
   { label: "Per Session", value: "per_session" },
+  { label: "Per Minute (Call Service)", value: "per_minute" },
 ];
 
 // Sidebar menu

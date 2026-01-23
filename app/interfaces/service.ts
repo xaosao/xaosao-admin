@@ -1,6 +1,6 @@
 import { BaseEntity, UserStatus } from "./base";
 
-export type BillingType = "per_day" | "per_hour" | "per_session";
+export type BillingType = "per_day" | "per_hour" | "per_session" | "per_minute";
 
 export interface IServices extends BaseEntity {
   id: string;
@@ -13,6 +13,7 @@ export interface IServices extends BaseEntity {
   hourlyRate?: number | null;
   oneTimePrice?: number | null;
   oneNightPrice?: number | null;
+  minuteRate?: number | null;
 }
 
 export interface IServicesInput {
@@ -25,6 +26,7 @@ export interface IServicesInput {
   hourlyRate?: number | null;
   oneTimePrice?: number | null;
   oneNightPrice?: number | null;
+  minuteRate?: number | null;
 }
 
 export interface IModelService {
