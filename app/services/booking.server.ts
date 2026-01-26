@@ -497,3 +497,227 @@ export async function completeBooking(
     throw error;
   }
 }
+
+/**
+ * Admin resolves a disputed booking
+ * Admin decides to either release payment to model or refund to customer
+ */
+export async function adminResolveDispute(
+  bookingId: string,
+  adminId: string,
+  resolution: "released" | "refunded"
+) {
+  if (!bookingId) throw new Error("Missing booking id!");
+  if (!adminId) throw new Error("Missing admin id!");
+  if (!resolution || (resolution !== "released" && resolution !== "refunded")) {
+    throw new Error("Invalid resolution! Must be 'released' or 'refunded'");
+  }
+
+  const auditBase = {
+    action: "ADMIN_RESOLVE_DISPUTE",
+    user: adminId,
+  };
+
+  try {
+    const booking = await prisma.service_booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        modelService: {
+          include: {
+            service: true,
+          },
+        },
+      },
+    });
+
+    if (!booking) {
+      throw new FieldValidationError({
+        success: false,
+        error: true,
+        message: "The booking does not exist!",
+      });
+    }
+
+    if (booking.status !== "disputed") {
+      throw new FieldValidationError({
+        success: false,
+        error: true,
+        message: "Only disputed bookings can be resolved!",
+      });
+    }
+
+    if (!booking.modelId || !booking.customerId) {
+      throw new FieldValidationError({
+        success: false,
+        error: true,
+        message: "Booking missing model or customer information!",
+      });
+    }
+
+    if (resolution === "released") {
+      // RELEASE to model: Move from pending to available
+      const modelWallet = await prisma.wallet.findFirst({
+        where: { modelId: booking.modelId, status: "active" },
+      });
+
+      if (!modelWallet) {
+        throw new FieldValidationError({
+          success: false,
+          error: true,
+          message: "Model wallet not found!",
+        });
+      }
+
+      // Calculate net amount (after commission)
+      const commissionRate = booking.modelService?.service?.commission || 0;
+      const commissionAmount = Math.floor((booking.price * commissionRate) / 100);
+      const netAmount = booking.price - commissionAmount;
+
+      // Create earning transaction
+      const earningTransaction = await prisma.transaction_history.create({
+        data: {
+          identifier: "booking_earning",
+          amount: netAmount,
+          status: "approved",
+          comission: commissionAmount,
+          fee: 0,
+          modelId: booking.modelId,
+          reason: `Earning from disputed booking #${booking.id} resolved by admin (${commissionRate}% commission: ${commissionAmount.toLocaleString()} LAK)`,
+        },
+      });
+
+      // Update hold transaction status to released
+      if (booking.holdTransactionId) {
+        await prisma.transaction_history.update({
+          where: { id: booking.holdTransactionId },
+          data: { status: "released" },
+        });
+      }
+
+      // Move from pending to available: decrease pending, increase balance
+      await prisma.wallet.update({
+        where: { id: modelWallet.id },
+        data: {
+          totalPending: modelWallet.totalPending - netAmount,
+          totalBalance: modelWallet.totalBalance + netAmount,
+          totalDeposit: modelWallet.totalDeposit + netAmount,
+        },
+      });
+
+      // Update booking to completed
+      await prisma.service_booking.update({
+        where: { id: bookingId },
+        data: {
+          status: "completed",
+          paymentStatus: "released",
+          completedAt: new Date(),
+          disputeResolvedAt: new Date(),
+          disputeResolution: "released",
+          releaseTransactionId: earningTransaction.id,
+        },
+      });
+
+      await createAuditLogs({
+        ...auditBase,
+        description: `Admin resolved dispute for booking ${bookingId} - Released ${netAmount.toLocaleString()} LAK to model. Commission: ${commissionAmount.toLocaleString()} LAK.`,
+        status: "success",
+        onSuccess: { booking, transaction: earningTransaction },
+      });
+    } else {
+      // REFUND to customer
+      const customerWallet = await prisma.wallet.findFirst({
+        where: { customerId: booking.customerId, status: "active" },
+      });
+
+      if (!customerWallet) {
+        throw new FieldValidationError({
+          success: false,
+          error: true,
+          message: "Customer wallet not found!",
+        });
+      }
+
+      // Refund held payment
+      if (booking.holdTransactionId) {
+        await prisma.transaction_history.update({
+          where: { id: booking.holdTransactionId },
+          data: { status: "refunded" },
+        });
+
+        const refundTransaction = await prisma.transaction_history.create({
+          data: {
+            identifier: "booking_refund",
+            amount: booking.price,
+            status: "approved",
+            comission: 0,
+            fee: 0,
+            customerId: booking.customerId,
+            reason: `Refund for booking #${booking.id}: Admin resolved dispute in favor of customer`,
+          },
+        });
+
+        await prisma.wallet.update({
+          where: { id: customerWallet.id },
+          data: { totalBalance: customerWallet.totalBalance + booking.price },
+        });
+      }
+
+      // Get model wallet and remove from pending balance
+      const modelWallet = await prisma.wallet.findFirst({
+        where: { modelId: booking.modelId, status: "active" },
+      });
+
+      if (modelWallet) {
+        const commissionRate = booking.modelService?.service?.commission || 0;
+        const commissionAmount = Math.floor((booking.price * commissionRate) / 100);
+        const netAmount = booking.price - commissionAmount;
+
+        // Remove from pending balance
+        await prisma.wallet.update({
+          where: { id: modelWallet.id },
+          data: {
+            totalPending: Math.max(0, modelWallet.totalPending - netAmount),
+          },
+        });
+      }
+
+      // Update booking to cancelled with refund
+      await prisma.service_booking.update({
+        where: { id: bookingId },
+        data: {
+          status: "cancelled",
+          paymentStatus: "refunded",
+          disputeResolvedAt: new Date(),
+          disputeResolution: "refunded",
+        },
+      });
+
+      await createAuditLogs({
+        ...auditBase,
+        description: `Admin resolved dispute for booking ${bookingId} - Refunded ${booking.price.toLocaleString()} LAK to customer.`,
+        status: "success",
+        onSuccess: booking,
+      });
+    }
+
+    return { success: true, resolution };
+  } catch (error) {
+    console.error("ADMIN_RESOLVE_DISPUTE_FAILED", error);
+    await createAuditLogs({
+      ...auditBase,
+      description: `Admin resolve dispute failed!`,
+      status: "failed",
+      onError: error,
+    });
+
+    if (error instanceof FieldValidationError) {
+      throw error;
+    }
+
+    throw new FieldValidationError({
+      success: false,
+      error: true,
+      message: "Failed to resolve dispute!",
+    });
+  }
+}
