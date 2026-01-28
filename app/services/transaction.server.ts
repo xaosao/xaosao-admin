@@ -232,10 +232,52 @@ export async function rejectTransaction(
             whatsapp: true,
           },
         },
+        customer: {
+          select: {
+            id: true,
+          },
+        },
       },
     });
 
     if (res.id) {
+      // Check for pending subscription linked to this transaction (customer only)
+      if (res.customerId) {
+        const pendingSubscription = await prisma.subscription.findFirst({
+          where: {
+            transactionId: id,
+            customerId: res.customerId,
+            status: "pending_payment",
+          },
+        });
+
+        if (pendingSubscription) {
+          console.log(`Found pending subscription ${pendingSubscription.id} for rejected transaction ${id}`);
+
+          // Update subscription to expired
+          await prisma.subscription.update({
+            where: { id: pendingSubscription.id },
+            data: {
+              status: "expired",
+              notes: "Transaction rejected by admin",
+            },
+          });
+
+          // Update subscription history
+          await prisma.subscription_history.updateMany({
+            where: {
+              subscriptionId: pendingSubscription.id,
+              status: "pending_payment",
+            },
+            data: {
+              status: "expired",
+            },
+          });
+
+          console.log(`Expired subscription ${pendingSubscription.id} due to transaction rejection`);
+        }
+      }
+
       await createAuditLogs({
         ...auditBase,
         description: `Transaction with ID ${id} rejected successfully.`,
@@ -486,6 +528,119 @@ export async function approveTransaction(
         },
       },
     });
+
+    // Check for pending subscription linked to this transaction (customer top-up only)
+    if (type === "customer" && transaction.customerId) {
+      const pendingSubscription = await prisma.subscription.findFirst({
+        where: {
+          transactionId: transactionId,
+          customerId: transaction.customerId,
+          status: "pending_payment",
+        },
+        include: {
+          plan: {
+            select: {
+              id: true,
+              name: true,
+              price: true,
+              durationDays: true,
+            },
+          },
+        },
+      });
+
+      if (pendingSubscription) {
+        console.log(`Found pending subscription ${pendingSubscription.id} for transaction ${transactionId}`);
+
+        // Deduct subscription price from customer wallet
+        await prisma.wallet.update({
+          where: { id: walletId },
+          data: {
+            totalBalance: {
+              decrement: pendingSubscription.plan.price,
+            },
+          },
+        });
+
+        // Update subscription to active
+        const startDate = new Date();
+        const endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + pendingSubscription.plan.durationDays);
+
+        await prisma.subscription.update({
+          where: { id: pendingSubscription.id },
+          data: {
+            status: "active",
+            startDate,
+            endDate,
+            notes: "Activated after transaction approval",
+          },
+        });
+
+        // Update subscription history
+        await prisma.subscription_history.updateMany({
+          where: {
+            subscriptionId: pendingSubscription.id,
+            status: "pending_payment",
+          },
+          data: {
+            status: "active",
+            startDate,
+            endDate,
+          },
+        });
+
+        console.log(`Activated subscription ${pendingSubscription.id} for customer ${transaction.customerId}`);
+
+        // Send SSE notification to customer about subscription activation
+        try {
+          const clientBackendUrl = process.env.CLIENT_BACKEND_URL;
+          const sseApiSecret = process.env.SSE_API_SECRET;
+
+          if (clientBackendUrl && sseApiSecret) {
+            const response = await fetch(
+              `${clientBackendUrl}/api/trigger-subscription-event`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-API-Secret": sseApiSecret,
+                },
+                body: JSON.stringify({
+                  customerId: transaction.customerId,
+                  subscriptionId: pendingSubscription.id,
+                  status: "active",
+                }),
+              }
+            );
+
+            if (response.ok) {
+              const result = await response.json();
+              console.log(
+                `SSE notification sent successfully to customer ${transaction.customerId}:`,
+                result
+              );
+            } else {
+              const error = await response.text();
+              console.error(
+                `Failed to send SSE notification (${response.status}):`,
+                error
+              );
+            }
+          } else {
+            console.warn(
+              "CLIENT_BACKEND_URL or SSE_API_SECRET not configured, skipping SSE notification"
+            );
+          }
+        } catch (notificationError) {
+          console.error(
+            "Error sending SSE notification:",
+            notificationError
+          );
+          // Don't fail the transaction if notification fails
+        }
+      }
+    }
 
     await createAuditLogs({
       ...auditBase,
