@@ -140,9 +140,9 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
         throw new Response("Booking not found", { status: 404 });
     }
 
-    // Only allow refund for confirmed or disputed bookings that haven't been refunded
-    if (!["confirmed", "disputed"].includes(booking.status) || booking.paymentStatus === "refunded") {
-        throw new Response("Booking is not eligible for refund", { status: 400 });
+    // Admin can refund pending, confirmed, or disputed bookings (not already refunded)
+    if (!["pending", "confirmed", "disputed"].includes(booking.status) || booking.paymentStatus === "refunded") {
+        throw new Response("Booking is not eligible for refund. Only pending, confirmed, or disputed bookings can be refunded.", { status: 400 });
     }
 
     return json(booking);

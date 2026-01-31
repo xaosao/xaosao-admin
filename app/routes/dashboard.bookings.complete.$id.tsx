@@ -162,9 +162,9 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
         throw new Response("Booking not found", { status: 404 });
     }
 
-    // Only allow complete for confirmed or disputed bookings that haven't been released
-    if (!["confirmed", "disputed"].includes(booking.status) || booking.paymentStatus === "released") {
-        throw new Response("Booking is not eligible for completion", { status: 400 });
+    // Admin can complete pending, confirmed, or disputed bookings (not already released)
+    if (!["pending", "confirmed", "disputed"].includes(booking.status) || booking.paymentStatus === "released") {
+        throw new Response("Booking is not eligible for completion. Only pending, confirmed, or disputed bookings can be completed.", { status: 400 });
     }
 
     // Calculate commission
