@@ -117,7 +117,7 @@ export async function getModels(
 
 export async function getModel(id: string) {
   try {
-    return await prisma.model.findFirst({
+    const model = await prisma.model.findFirst({
       where: { id },
       include: {
         ModelService: {
@@ -155,6 +155,23 @@ export async function getModel(id: string) {
         },
       },
     });
+
+    // Fetch referrer info if model was referred by another model
+    let referredBy = null;
+    if (model?.referredById) {
+      referredBy = await prisma.model.findFirst({
+        where: { id: model.referredById },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          username: true,
+          referralCode: true,
+        },
+      });
+    }
+
+    return model ? { ...model, referredBy } : null;
   } catch (error) {
     console.error("GET_MODEL_FAILED", error);
     throw new Error("Failed to fetch model!");

@@ -83,13 +83,6 @@ export default function Bookings() {
         navigate(`?${params.toString()}`, { replace: true });
     }, [searchParams, navigate]);
 
-    const clearFilters = useCallback(() => {
-        if (formRef.current) {
-            formRef.current.reset();
-        }
-        navigate("", { replace: true });
-    }, [navigate]);
-
     const handleSearchSubmit = useCallback((formData: FormData) => {
         const search = formData.get("search") as string;
         const status = formData.get("status") as string;
@@ -295,7 +288,7 @@ export default function Bookings() {
                                     </select>
                                 </div>
                                 {/* Date range */}
-                                <div className="w-32 sm:w-56 flex items-center space-x-1 sm:space-x-2 ml-2 sm:ml-0">
+                                <div className="w-full sm:w-56 flex items-center space-x-1 sm:space-x-2 ml-2 sm:ml-0">
                                     <input
                                         type="date"
                                         name="from"
@@ -312,16 +305,6 @@ export default function Bookings() {
                                 </div>
                             </div>
                             <div className="flex items-center justify-end w-full md:w-auto mt-2 md:mt-0 md:ml-4 space-x-0 sm:space-x-2">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={clearFilters}
-                                    className="flex items-center"
-                                >
-                                    <X className="h-3 w-3" />
-                                    <span>Clear</span>
-                                </Button>
                                 {/* Mobile search */}
                                 <div className="w-28 sm:auto block sm:hidden relative max-w-xs w-full">
                                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -369,157 +352,157 @@ export default function Bookings() {
                         {/* Desktop Table View */}
                         <div className="hidden md:block">
                             <Table>
-                            <TableHeader>
-                                <TableRow className="border-t border-gray-100 hover:bg-gray-100">
-                                    <TableHead className="font-semibold">No</TableHead>
-                                    <TableHead className="font-semibold">Customer</TableHead>
-                                    <TableHead className="font-semibold">Model</TableHead>
-                                    <TableHead className="font-semibold">Service</TableHead>
-                                    <TableHead className="font-semibold">Status</TableHead>
-                                    <TableHead className="font-semibold">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {bookings && bookings.length > 0 ? bookings.map((booking: any, index: number) => {
-                                    const statusInfo = statusConfig[booking.status] || statusConfig.pending;
-                                    const StatusIcon = statusInfo.icon;
-                                    // Admin can refund/complete pending, confirmed, or disputed bookings (not completed/cancelled/rejected)
-                                    const canRefund = ["pending", "confirmed", "disputed"].includes(booking.status);
-                                    const canComplete = ["pending", "confirmed", "disputed"].includes(booking.status);
+                                <TableHeader>
+                                    <TableRow className="border-t border-gray-100 hover:bg-gray-100">
+                                        <TableHead className="font-semibold">No</TableHead>
+                                        <TableHead className="font-semibold">Customer</TableHead>
+                                        <TableHead className="font-semibold">Model</TableHead>
+                                        <TableHead className="font-semibold">Service</TableHead>
+                                        <TableHead className="font-semibold">Status</TableHead>
+                                        <TableHead className="font-semibold">Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {bookings && bookings.length > 0 ? bookings.map((booking: any, index: number) => {
+                                        const statusInfo = statusConfig[booking.status] || statusConfig.pending;
+                                        const StatusIcon = statusInfo.icon;
+                                        // Admin can refund/complete pending, confirmed, or disputed bookings (not completed/cancelled/rejected)
+                                        const canRefund = ["pending", "confirmed", "disputed"].includes(booking.status);
+                                        const canComplete = ["pending", "confirmed", "disputed"].includes(booking.status);
 
-                                    return (
-                                        <TableRow key={booking.id} className="border-gray-50 hover:bg-gray-50">
-                                            <TableCell>{(pagination.currentPage - 1) * pagination.limit + index + 1}</TableCell>
-                                            {/* Customer */}
-                                            <TableCell>
-                                                <div className="flex items-center space-x-2">
-                                                    <Avatar className="h-8 w-8">
-                                                        <AvatarImage src={booking.customer?.profile ?? ""} />
-                                                        <AvatarFallback>{booking.customer?.firstName?.charAt(0) ?? "?"}</AvatarFallback>
-                                                    </Avatar>
+                                        return (
+                                            <TableRow key={booking.id} className="border-gray-50 hover:bg-gray-50">
+                                                <TableCell>{(pagination.currentPage - 1) * pagination.limit + index + 1}</TableCell>
+                                                {/* Customer */}
+                                                <TableCell>
+                                                    <div className="flex items-center space-x-2">
+                                                        <Avatar className="h-8 w-8">
+                                                            <AvatarImage src={booking.customer?.profile ?? ""} />
+                                                            <AvatarFallback>{booking.customer?.firstName?.charAt(0) ?? "?"}</AvatarFallback>
+                                                        </Avatar>
+                                                        <div>
+                                                            <p className="text-sm font-medium text-gray-900">
+                                                                {booking.customer?.firstName ?? "Unknown"} {booking.customer?.lastName ?? ""}
+                                                            </p>
+                                                            <p className="flex items-center text-xs text-gray-500">
+                                                                <Users className="h-3 w-3 mr-1" />
+                                                                {booking.customer?.age ? `${booking.customer.age} years` : "N/A"}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </TableCell>
+                                                {/* Model */}
+                                                <TableCell>
+                                                    <div className="flex items-center space-x-2">
+                                                        <Avatar className="h-8 w-8">
+                                                            <AvatarImage src={booking.model?.profile ?? ""} />
+                                                            <AvatarFallback>{booking.model?.firstName?.charAt(0) ?? "?"}</AvatarFallback>
+                                                        </Avatar>
+                                                        <div>
+                                                            <p className="text-sm font-medium text-gray-900">
+                                                                {booking.model?.firstName ?? "Unknown"} {booking.model?.lastName ?? ""}
+                                                            </p>
+                                                            <p className="flex items-center text-xs text-gray-500">
+                                                                <UserCheck className="h-3 w-3 mr-1" />
+                                                                {booking.model?.age ? `${booking.model.age} years` : "N/A"}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </TableCell>
+                                                {/* Service */}
+                                                <TableCell>
                                                     <div>
                                                         <p className="text-sm font-medium text-gray-900">
-                                                            {booking.customer?.firstName ?? "Unknown"} {booking.customer?.lastName ?? ""}
+                                                            {booking.modelService?.service?.name ?? "Unknown Service"}
                                                         </p>
-                                                        <p className="flex items-center text-xs text-gray-500">
-                                                            <Users className="h-3 w-3 mr-1" />
-                                                            {booking.customer?.age ? `${booking.customer.age} years` : "N/A"}
+                                                        <p className="text-xs text-green-600 font-medium">
+                                                            {booking.price?.toLocaleString()} LAK
                                                         </p>
-                                                    </div>
-                                                </div>
-                                            </TableCell>
-                                            {/* Model */}
-                                            <TableCell>
-                                                <div className="flex items-center space-x-2">
-                                                    <Avatar className="h-8 w-8">
-                                                        <AvatarImage src={booking.model?.profile ?? ""} />
-                                                        <AvatarFallback>{booking.model?.firstName?.charAt(0) ?? "?"}</AvatarFallback>
-                                                    </Avatar>
-                                                    <div>
-                                                        <p className="text-sm font-medium text-gray-900">
-                                                            {booking.model?.firstName ?? "Unknown"} {booking.model?.lastName ?? ""}
-                                                        </p>
-                                                        <p className="flex items-center text-xs text-gray-500">
-                                                            <UserCheck className="h-3 w-3 mr-1" />
-                                                            {booking.model?.age ? `${booking.model.age} years` : "N/A"}
+                                                        <p className="text-xs text-gray-400">
+                                                            {formatDate1(booking.startDate)}
                                                         </p>
                                                     </div>
-                                                </div>
-                                            </TableCell>
-                                            {/* Service */}
-                                            <TableCell>
-                                                <div>
-                                                    <p className="text-sm font-medium text-gray-900">
-                                                        {booking.modelService?.service?.name ?? "Unknown Service"}
-                                                    </p>
-                                                    <p className="text-xs text-green-600 font-medium">
-                                                        {booking.price?.toLocaleString()} LAK
-                                                    </p>
-                                                    <p className="text-xs text-gray-400">
-                                                        {formatDate1(booking.startDate)}
-                                                    </p>
-                                                </div>
-                                            </TableCell>
-                                            {/* Status */}
-                                            <TableCell>
-                                                <div className="space-y-1">
-                                                    {/* Booking status */}
-                                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full border ${statusInfo.color}`}>
-                                                        <StatusIcon className="h-3 w-3" />
-                                                        {statusInfo.label}
-                                                    </span>
-                                                    {/* Customer/Model check-in badges */}
-                                                    <div className="flex flex-col items-start gap-1">
-                                                        {getCheckInBadge(booking.customerCheckedInAt, "Customer")}
-                                                        {getCheckInBadge(booking.modelCheckedInAt, "Model")}
+                                                </TableCell>
+                                                {/* Status */}
+                                                <TableCell>
+                                                    <div className="space-y-1">
+                                                        {/* Booking status */}
+                                                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full border ${statusInfo.color}`}>
+                                                            <StatusIcon className="h-3 w-3" />
+                                                            {statusInfo.label}
+                                                        </span>
+                                                        {/* Customer/Model check-in badges */}
+                                                        <div className="flex flex-col items-start gap-1">
+                                                            {getCheckInBadge(booking.customerCheckedInAt, "Customer")}
+                                                            {getCheckInBadge(booking.modelCheckedInAt, "Model")}
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            </TableCell>
-                                            {/* Actions */}
-                                            <TableCell>
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" className="relative h-8 w-8 rounded-full p-0">
-                                                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                                                                <MoreVertical className="h-3 w-3" />
-                                                                <span className="sr-only">More</span>
+                                                </TableCell>
+                                                {/* Actions */}
+                                                <TableCell>
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" className="relative h-8 w-8 rounded-full p-0">
+                                                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                                                                    <MoreVertical className="h-3 w-3" />
+                                                                    <span className="sr-only">More</span>
+                                                                </Button>
                                                             </Button>
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent className="w-48" align="end" forceMount>
-                                                        <DropdownMenuItem className="text-sm">
-                                                            <Link to={`view/${booking.id}`} className="flex space-x-2">
-                                                                <Eye className="mr-2 h-3 w-3" />
-                                                                <span>View Details</span>
-                                                            </Link>
-                                                        </DropdownMenuItem>
-                                                        {booking.customer?.whatsapp && (
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent className="w-48" align="end" forceMount>
                                                             <DropdownMenuItem className="text-sm">
-                                                                <a href={`tel:${booking.customer.whatsapp}`} className="flex space-x-2 w-full">
-                                                                    <Phone className="mr-2 h-3 w-3 text-blue-500" />
-                                                                    <span>Call Customer</span>
-                                                                </a>
-                                                            </DropdownMenuItem>
-                                                        )}
-                                                        {booking.model?.whatsapp && (
-                                                            <DropdownMenuItem className="text-sm">
-                                                                <a href={`tel:${booking.model.whatsapp}`} className="flex space-x-2 w-full">
-                                                                    <Phone className="mr-2 h-3 w-3 text-purple-500" />
-                                                                    <span>Call Model</span>
-                                                                </a>
-                                                            </DropdownMenuItem>
-                                                        )}
-                                                        {canRefund && hasEditAccess && (
-                                                            <DropdownMenuItem className="text-sm">
-                                                                <Link to={`refund/${booking.id}`} className="flex space-x-2">
-                                                                    <RotateCcw className="mr-2 h-3 w-3 text-orange-500" />
-                                                                    <span>Refund</span>
+                                                                <Link to={`view/${booking.id}`} className="flex space-x-2">
+                                                                    <Eye className="mr-2 h-3 w-3" />
+                                                                    <span>View Details</span>
                                                                 </Link>
                                                             </DropdownMenuItem>
-                                                        )}
-                                                        {canComplete && hasEditAccess && (
-                                                            <DropdownMenuItem className="text-sm">
-                                                                <Link to={`complete/${booking.id}`} className="flex space-x-2">
-                                                                    <CheckCircle className="mr-2 h-3 w-3 text-green-500" />
-                                                                    <span>Complete</span>
-                                                                </Link>
-                                                            </DropdownMenuItem>
-                                                        )}
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            </TableCell>
-                                        </TableRow>
-                                    )
-                                }) : <TableRow>
-                                    <TableCell colSpan={6} className="text-center py-12">
-                                        <EmptyPage
-                                            title="No bookings found!"
-                                            description="There are no bookings matching your filters."
-                                        />
-                                    </TableCell>
-                                </TableRow>}
-                            </TableBody>
-                        </Table>
+                                                            {booking.customer?.whatsapp && (
+                                                                <DropdownMenuItem className="text-sm">
+                                                                    <a href={`tel:${booking.customer.whatsapp}`} className="flex space-x-2 w-full">
+                                                                        <Phone className="mr-2 h-3 w-3 text-blue-500" />
+                                                                        <span>Call Customer</span>
+                                                                    </a>
+                                                                </DropdownMenuItem>
+                                                            )}
+                                                            {booking.model?.whatsapp && (
+                                                                <DropdownMenuItem className="text-sm">
+                                                                    <a href={`tel:${booking.model.whatsapp}`} className="flex space-x-2 w-full">
+                                                                        <Phone className="mr-2 h-3 w-3 text-purple-500" />
+                                                                        <span>Call Model</span>
+                                                                    </a>
+                                                                </DropdownMenuItem>
+                                                            )}
+                                                            {canRefund && hasEditAccess && (
+                                                                <DropdownMenuItem className="text-sm">
+                                                                    <Link to={`refund/${booking.id}`} className="flex space-x-2">
+                                                                        <RotateCcw className="mr-2 h-3 w-3 text-orange-500" />
+                                                                        <span>Refund</span>
+                                                                    </Link>
+                                                                </DropdownMenuItem>
+                                                            )}
+                                                            {canComplete && hasEditAccess && (
+                                                                <DropdownMenuItem className="text-sm">
+                                                                    <Link to={`complete/${booking.id}`} className="flex space-x-2">
+                                                                        <CheckCircle className="mr-2 h-3 w-3 text-green-500" />
+                                                                        <span>Complete</span>
+                                                                    </Link>
+                                                                </DropdownMenuItem>
+                                                            )}
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </TableCell>
+                                            </TableRow>
+                                        )
+                                    }) : <TableRow>
+                                        <TableCell colSpan={6} className="text-center py-12">
+                                            <EmptyPage
+                                                title="No bookings found!"
+                                                description="There are no bookings matching your filters."
+                                            />
+                                        </TableCell>
+                                    </TableRow>}
+                                </TableBody>
+                            </Table>
                         </div>
 
                         {/* Mobile Card View */}

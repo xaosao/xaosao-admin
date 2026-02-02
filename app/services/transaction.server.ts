@@ -2,7 +2,10 @@ import { prisma } from "./database.server";
 import { createAuditLogs } from "./log.server";
 import { FieldValidationError } from "./admin.server";
 import { ITransactionInput } from "~/routes/dashboard.transactions.reject.$id";
-import { notifyTransactionApproved, notifyTransactionRejected } from "./email.server";
+import {
+  notifyTransactionApproved,
+  notifyTransactionRejected,
+} from "./email.server";
 
 function isValidObjectId(id: string): boolean {
   return /^[a-fA-F0-9]{24}$/.test(id);
@@ -175,7 +178,9 @@ export async function getTransaction(id: string) {
     let bank = null;
     if (transaction?.identifier === "withdrawal" && transaction.reason) {
       // Extract bank ID from reason: "Withdrawal to bank account: {bankId}"
-      const bankIdMatch = transaction.reason.match(/Withdrawal to bank account: (.+)/);
+      const bankIdMatch = transaction.reason.match(
+        /Withdrawal to bank account: (.+)/
+      );
       if (bankIdMatch && bankIdMatch[1]) {
         const bankId = bankIdMatch[1].trim();
         // Validate if bankId looks like a valid MongoDB ObjectId (24 hex characters)
@@ -252,7 +257,9 @@ export async function rejectTransaction(
         });
 
         if (pendingSubscription) {
-          console.log(`Found pending subscription ${pendingSubscription.id} for rejected transaction ${id}`);
+          console.log(
+            `Found pending subscription ${pendingSubscription.id} for rejected transaction ${id}`
+          );
 
           // Update subscription to expired
           await prisma.subscription.update({
@@ -274,7 +281,9 @@ export async function rejectTransaction(
             },
           });
 
-          console.log(`Expired subscription ${pendingSubscription.id} due to transaction rejection`);
+          console.log(
+            `Expired subscription ${pendingSubscription.id} due to transaction rejection`
+          );
         }
       }
 
@@ -326,25 +335,25 @@ export async function getTransactionStatus() {
 
     const transactionStatus = [
       {
-        title: "Total Transaction",
+        title: "Total",
         value: format(total),
         icon: "CircleDollarSign",
         color: "text-blue-600",
       },
       {
-        title: "Approved transaction",
+        title: "Approved",
         value: format(approved),
         icon: "CircleDollarSign",
         color: "text-green-600",
       },
       {
-        title: "Rejected transaction",
+        title: "Rejected",
         value: format(rejected),
         icon: "CircleDollarSign",
         color: "text-red-600",
       },
       {
-        title: "Pending Transaction",
+        title: "Pending",
         value: format(pending),
         icon: "CircleDollarSign",
         color: "text-yellow-600",
@@ -459,7 +468,9 @@ export async function approveTransaction(
       }
       if (!transaction.model.Wallet || transaction.model.Wallet.length === 0) {
         // Auto-create wallet for the model if it doesn't exist
-        console.log(`Creating wallet for model ${transaction.model.id} as it doesn't exist...`);
+        console.log(
+          `Creating wallet for model ${transaction.model.id} as it doesn't exist...`
+        );
         const newWallet = await prisma.wallet.create({
           data: {
             totalBalance: 0,
@@ -470,7 +481,9 @@ export async function approveTransaction(
           },
         });
         walletId = newWallet.id;
-        console.log(`Created wallet ${walletId} for model ${transaction.model.id}`);
+        console.log(
+          `Created wallet ${walletId} for model ${transaction.model.id}`
+        );
       } else {
         walletId = transaction.model.Wallet[0].id;
       }
@@ -480,9 +493,14 @@ export async function approveTransaction(
           id: "No customer associated with this transaction!",
         });
       }
-      if (!transaction.customer.Wallet || transaction.customer.Wallet.length === 0) {
+      if (
+        !transaction.customer.Wallet ||
+        transaction.customer.Wallet.length === 0
+      ) {
         // Auto-create wallet for the customer if it doesn't exist
-        console.log(`Creating wallet for customer ${transaction.customer.id} as it doesn't exist...`);
+        console.log(
+          `Creating wallet for customer ${transaction.customer.id} as it doesn't exist...`
+        );
         const newWallet = await prisma.wallet.create({
           data: {
             totalBalance: 0,
@@ -493,7 +511,9 @@ export async function approveTransaction(
           },
         });
         walletId = newWallet.id;
-        console.log(`Created wallet ${walletId} for customer ${transaction.customer.id}`);
+        console.log(
+          `Created wallet ${walletId} for customer ${transaction.customer.id}`
+        );
       } else {
         walletId = transaction.customer.Wallet[0].id;
       }
@@ -550,7 +570,9 @@ export async function approveTransaction(
       });
 
       if (pendingSubscription) {
-        console.log(`Found pending subscription ${pendingSubscription.id} for transaction ${transactionId}`);
+        console.log(
+          `Found pending subscription ${pendingSubscription.id} for transaction ${transactionId}`
+        );
 
         // Deduct subscription price from customer wallet
         await prisma.wallet.update({
@@ -565,7 +587,9 @@ export async function approveTransaction(
         // Update subscription to active
         const startDate = new Date();
         const endDate = new Date(startDate);
-        endDate.setDate(startDate.getDate() + pendingSubscription.plan.durationDays);
+        endDate.setDate(
+          startDate.getDate() + pendingSubscription.plan.durationDays
+        );
 
         await prisma.subscription.update({
           where: { id: pendingSubscription.id },
@@ -590,7 +614,9 @@ export async function approveTransaction(
           },
         });
 
-        console.log(`Activated subscription ${pendingSubscription.id} for customer ${transaction.customerId}`);
+        console.log(
+          `Activated subscription ${pendingSubscription.id} for customer ${transaction.customerId}`
+        );
 
         // Send SSE notification to customer about subscription activation
         try {
@@ -633,10 +659,7 @@ export async function approveTransaction(
             );
           }
         } catch (notificationError) {
-          console.error(
-            "Error sending SSE notification:",
-            notificationError
-          );
+          console.error("Error sending SSE notification:", notificationError);
           // Don't fail the transaction if notification fails
         }
       }
@@ -861,7 +884,9 @@ export async function completeHeldTransaction(
             id: true,
             firstName: true,
             lastName: true,
-            Wallet: { select: { id: true, totalBalance: true, totalDeposit: true } },
+            Wallet: {
+              select: { id: true, totalBalance: true, totalDeposit: true },
+            },
           },
         },
         modelService: {
@@ -987,7 +1012,8 @@ async function updateWalletBalanceByTransaction(transaction: {
   }
 
   const isRecharge = type === "recharge";
-  const isWithdraw = type === "withdraw" || type === "withdrawal" || type === "deposit";
+  const isWithdraw =
+    type === "withdraw" || type === "withdrawal" || type === "deposit";
 
   if (isRecharge) {
     return await prisma.wallet.update({

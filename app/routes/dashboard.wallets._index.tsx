@@ -74,13 +74,6 @@ export default function Wallets() {
         navigate(`?${params.toString()}`, { replace: true });
     }, [searchParams, navigate]);
 
-    const clearFilters = useCallback(() => {
-        if (formRef.current) {
-            formRef.current.reset();
-        }
-        navigate("", { replace: true });
-    }, [navigate]);
-
     const handleSearchSubmit = useCallback((formData: FormData) => {
         const type = formData.get("type") as string;
         const order = formData.get("order") as string;
@@ -201,7 +194,7 @@ export default function Wallets() {
                                         <option value="inactive">Inactive</option>
                                     </select>
                                 </div>
-                                <div className="w-56 flex items-center space-x-1 mr-8 sm:mr-0">
+                                <div className="w-full sm:w-56 flex items-center space-x-1 mr-8 sm:mr-0">
                                     <input
                                         type="date"
                                         name="from"
@@ -218,16 +211,6 @@ export default function Wallets() {
                                 </div>
                             </div>
                             <div className="flex items-center justify-end w-full md:w-auto mt-2 md:mt-0 md:ml-4 space-x-2">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={clearFilters}
-                                    className="flex items-center"
-                                >
-                                    <X className="h-3 w-3" />
-                                    <span>Clear</span>
-                                </Button>
                                 <div className="block sm:hidden w-28">
                                     <select
                                         name="type"
@@ -448,10 +431,10 @@ export default function Wallets() {
                         </CardHeader>
                         <CardContent className="p-0">
                             <div className="space-y-0">
-                                {recentTransaction.map((transaction, index) => {
+                                {recentTransaction.map((transaction) => {
                                     const owner = transaction.model || transaction.customer;
                                     return (
-                                        < div key={index} className="flex items-start space-x-3 py-2 px-4 hover:bg-gray-50 transition-colors" >
+                                        <div key={transaction.id} className="flex items-start space-x-3 py-2 px-4 hover:bg-gray-50 transition-colors">
                                             <div className={`w-2 h-2 rounded-full mt-2 ${transaction.identifier === "deposit" ? "bg-green-500" :
                                                 transaction.identifier === "withdraw" ? "bg-blue-500" :
                                                     transaction.identifier === "payment" ? "bg-purple-500" : "bg-yellow-500"

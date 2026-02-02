@@ -350,23 +350,38 @@ export default function ModelDetailsModal() {
                             </div>
                         </div>
                         <div className="pt-2 border-t space-y-2">
-                            <span className="text-gray-500 text-xs block">Referral Information:</span>
+                            <span className="text-gray-500 text-xs block">Registration & Referral:</span>
+                            <div className="flex justify-between items-center">
+                                <span className="text-gray-500 flex items-center gap-1"><User className="h-3 w-3" /> Registration:</span>
+                                {model.referredBy ? (
+                                    <Badge className="bg-purple-100 text-purple-700 text-xs">Via Referral</Badge>
+                                ) : (
+                                    <Badge className="bg-blue-100 text-blue-700 text-xs">Self-Registered</Badge>
+                                )}
+                            </div>
+                            {model.referredBy && (
+                                <div className="flex justify-between items-center">
+                                    <span className="text-gray-500 flex items-center gap-1"><Gift className="h-3 w-3" /> Referred By:</span>
+                                    <span className="text-purple-700 font-medium">
+                                        {model.referredBy.firstName} {model.referredBy.lastName ?? ""}
+                                        <span className="text-gray-400 text-xs ml-1">(@{model.referredBy.username})</span>
+                                    </span>
+                                </div>
+                            )}
                             <div className="flex justify-between">
                                 <span className="text-gray-500 flex items-center gap-1"><Share2 className="h-3 w-3" /> Referral Code:</span>
                                 <span className="text-gray-900 font-mono">{model.referralCode ?? "Not generated"}</span>
                             </div>
-                            <div className="flex justify-between items-center">
-                                <span className="text-gray-500">Referred By:</span>
-                                <span className="text-gray-900">{model.referredById ?? "None"}</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                                <span className="text-gray-500 flex items-center gap-1"><Gift className="h-3 w-3" /> Reward Paid:</span>
-                                {model.referralRewardPaid ? (
-                                    <Badge className="bg-green-100 text-green-700 text-xs">Paid</Badge>
-                                ) : (
-                                    <Badge variant="outline" className="text-xs">Not Paid</Badge>
-                                )}
-                            </div>
+                            {model.referredBy && (
+                                <div className="flex justify-between items-center">
+                                    <span className="text-gray-500 flex items-center gap-1"><Gift className="h-3 w-3" /> Reward Paid:</span>
+                                    {model.referralRewardPaid ? (
+                                        <Badge className="bg-green-100 text-green-700 text-xs">Paid</Badge>
+                                    ) : (
+                                        <Badge variant="outline" className="text-xs text-orange-600 border-orange-300">Pending</Badge>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </CardContent>
                 </Card>

@@ -44,6 +44,13 @@ export interface IModels extends BaseEntity {
   referralCode?: string;
   referredById?: string;
   referralRewardPaid?: boolean;
+  referredBy?: {
+    id: string;
+    firstName: string;
+    lastName?: string;
+    username: string;
+    referralCode?: string;
+  } | null;
 
   // Admin relations
   createdBy?: { firstName: string; lastName?: string };

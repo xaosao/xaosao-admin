@@ -9,7 +9,6 @@ import {
     Video,
     Users,
     Check,
-    Search,
     UserCheck,
     MoreVertical,
     ArrowUpRight,
@@ -79,13 +78,6 @@ export default function Transactions() {
 
         navigate(`?${params.toString()}`, { replace: true });
     }, [searchParams, navigate]);
-
-    const clearFilters = useCallback(() => {
-        if (formRef.current) {
-            formRef.current.reset();
-        }
-        navigate("", { replace: true });
-    }, [navigate]);
 
     const handleSearchSubmit = useCallback((formData: FormData) => {
         const search = formData.get("search") as string;
@@ -183,16 +175,6 @@ export default function Transactions() {
                             className="flex flex-col md:flex-row md:items-center md:space-y-0 space-y-2"
                         >
                             <div className="flex flex-1 items-center space-x-1 sm:space-x-4">
-                                <div className="hidden sm:block relative max-w-xs w-full">
-                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                                    <input
-                                        type="text"
-                                        name="search"
-                                        placeholder="Search by transaction ID..."
-                                        className="pl-9 border-gray-200 focus:border-pink-300 focus:ring-pink-300 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                        defaultValue={filters.search}
-                                    />
-                                </div>
                                 <div className="hidden sm:block w-28">
                                     <select
                                         name="identifier"
@@ -223,20 +205,7 @@ export default function Transactions() {
                                         <option value="held">Held</option>
                                     </select>
                                 </div>
-                                <div className="block sm:hidden mr-4">
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={clearFilters}
-                                        className="flex items-center bg-primary text-white"
-                                    >
-                                        <X className="h-3 w-3" />
-                                        <span>Clear</span>
-                                    </Button>
-                                </div>
-
-                                <div className="w-32 sm:w-56 flex items-center space-x-1 sm:space-x-2 ml-2 sm:ml-0">
+                                <div className="w-full sm:w-56 flex items-center space-x-1 sm:space-x-2 ml-2 sm:ml-0">
                                     <input
                                         type="date"
                                         name="from"
@@ -252,27 +221,7 @@ export default function Transactions() {
                                     />
                                 </div>
                             </div>
-                            <div className="flex items-center justify-end w-full md:w-auto mt-2 md:mt-0 md:ml-4 space-x-0 sm:space-x-2">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={clearFilters}
-                                    className="flex items-center"
-                                >
-                                    <X className="h-3 w-3" />
-                                    <span>Clear</span>
-                                </Button>
-                                <div className="w-28 sm:auto block sm:hidden relative max-w-xs w-full">
-                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                                    <input
-                                        type="text"
-                                        name="search"
-                                        placeholder="Search by transaction ID..."
-                                        className="pl-9 border-gray-200 focus:border-pink-300 focus:ring-pink-300 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                        defaultValue={filters.search}
-                                    />
-                                </div>
+                            <div className="flex items-center justify-between w-full md:w-auto mt-2 md:mt-0 md:ml-4 space-x-0 sm:space-x-2">
                                 <div className="block sm:hidden w-28">
                                     <select
                                         name="identifier"
@@ -315,162 +264,302 @@ export default function Transactions() {
                         </Form>
                     </CardHeader>
                     <CardContent className="p-0 mt-4">
-                        <Table>
-                            <TableHeader>
-                                <TableRow className="border-t border-gray-100 hover:bg-gray-100">
-                                    <TableHead className="font-semibold">No</TableHead>
-                                    <TableHead className="font-semibold">Transaction</TableHead>
-                                    <TableHead className="font-semibold">Amount</TableHead>
-                                    <TableHead className="font-semibold">Type</TableHead>
-                                    <TableHead className="font-semibold">Status</TableHead>
-                                    <TableHead className="font-semibold">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {transactions && transactions.length > 0 ? transactions.map((transaction: any, index: number) => {
-                                    const owner = transaction.model || transaction.customer;
-                                    return (
-                                        <TableRow key={transaction.id} className="border-gray-50 hover:bg-gray-50">
-                                            <TableCell>{index + 1}</TableCell>
-                                            <TableCell>
-                                                <div className="space-y-2">
-                                                    {transaction.identifier === "payment" ? <div className="flex items-center justify-start">
-                                                        <div className="flex items-center space-x-2">
-                                                            <Avatar className="h-6 w-6">
-                                                                <AvatarImage src={transaction.customer?.profile ?? ""} />
-                                                                <AvatarFallback>{transaction.customer?.firstName?.charAt(0) ?? "?"}</AvatarFallback>
-                                                            </Avatar>
-                                                            <div>
-                                                                <p className="text-sm font-medium text-gray-900">{transaction.customer?.firstName ?? "Unknown"} {transaction.customer?.lastName ?? ""}</p>
-                                                                <p className="flex items-center justify-start text-xs font-medium text-gray-900"><Users className="h-3 w-3" />&nbsp;{transaction.customer?.gender ?? "N/A"}</p>
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex items-center space-x-2 pl-4">
-                                                            <div className="text-xs text-gray-400">→</div>
-                                                            <Avatar className="h-6 w-6">
-                                                                <AvatarImage src={transaction.model?.profile ?? ""} />
-                                                                <AvatarFallback>{transaction.model?.firstName?.charAt(0) ?? "?"}</AvatarFallback>
-                                                            </Avatar>
-                                                            <div>
-                                                                <p className="text-sm text-gray-600">{transaction.model?.firstName ?? "Unknown"}&nbsp;{transaction.model?.lastName ?? ""}</p>
-                                                                <p className="flex items-center justify-start text-xs font-medium text-gray-500">
-                                                                    {transaction.model ? <UserCheck className="h-3 w-3" /> : <Users className="h-3 w-3" />}&nbsp;{transaction.model ? "Model" : "Customer"},&nbsp;
-                                                                    {transaction.model ? <span className="flex items-center justify-start"><Mars className="h-3 w-3" />&nbsp;Male</span> : <span className="flex items-center justify-start"><Venus className="h-3 w-3" />&nbsp;Female</span>}
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                    </div> :
-                                                        <div className="flex items-center space-x-2">
-                                                            <Avatar className="h-6 w-6">
-                                                                <AvatarImage src={owner?.profile ?? ""} />
-                                                                <AvatarFallback>{owner?.firstName?.charAt(0) ?? "?"}</AvatarFallback>
-                                                            </Avatar>
-                                                            <div>
-                                                                <p className="text-sm text-gray-600">{owner?.firstName ?? "Unknown"}&nbsp;{owner?.lastName ?? ""}</p>
-                                                                <p className="flex items-center justify-start text-xs font-medium text-gray-500">
-                                                                    {transaction.model ? <UserCheck className="h-3 w-3" /> : <Users className="h-3 w-3" />}&nbsp;{transaction.model ? "Model" : "Customer"},&nbsp;
-                                                                    {transaction.model ? <span className="flex items-center justify-start"><Mars className="h-3 w-3" />&nbsp;Male</span> : <span className="flex items-center justify-start"><Venus className="h-3 w-3" />&nbsp;Female</span>}
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                    }
-
-                                                    <div className="pl-8">
-                                                        <p className="flex items-center justify-start text-xs text-gray-500"><Video className="h-3 w-3" />&nbsp; Video Call</p>
-                                                    </div>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
+                        {/* Mobile Card View */}
+                        <div className="block md:hidden space-y-3 p-3">
+                            {transactions && transactions.length > 0 ? transactions.map((transaction: any, index: number) => {
+                                const owner = transaction.model || transaction.customer;
+                                return (
+                                    <div key={transaction.id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                                        {/* Header: User Info & Status */}
+                                        <div className="flex items-start justify-between mb-3">
+                                            <div className="flex items-center space-x-3">
+                                                <Avatar className="h-10 w-10">
+                                                    <AvatarImage src={owner?.profile ?? ""} />
+                                                    <AvatarFallback className="text-sm">{owner?.firstName?.charAt(0) ?? "?"}</AvatarFallback>
+                                                </Avatar>
                                                 <div>
-                                                    <div className="flex items-center justify-start gap-2">
-                                                        <p className={`text-sm font-medium ${transaction.identifier === 'withdraw' || transaction.identifier === 'payment' ? 'text-red-600' :
-                                                            transaction.identifier === 'recharge' ? 'text-green-600' : 'text-gray-900'
-                                                            }`}>
-                                                            {transaction.identifier === 'withdraw' || transaction.identifier === 'payment' ? '-' : '+'}
-                                                            ${transaction.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                                        </p>
-                                                        {transaction.fee > 0 && (
-                                                            <p className="text-xs text-gray-500">(Fee: ${transaction.fee.toFixed(2)})</p>
-                                                        )}
-                                                    </div>
-                                                    <p className="text-xs text-gray-400">{formatDate1(transaction.createdAt)}</p>
+                                                    <p className="text-sm font-semibold text-gray-900">
+                                                        {owner?.firstName ?? "Unknown"} {owner?.lastName ?? ""}
+                                                    </p>
+                                                    <p className="flex items-center text-xs text-gray-500">
+                                                        {transaction.model ? <UserCheck className="h-3 w-3 mr-1" /> : <Users className="h-3 w-3 mr-1" />}
+                                                        {transaction.model ? "Model" : "Customer"}
+                                                    </p>
                                                 </div>
-                                            </TableCell>
-                                            <TableCell>
+                                            </div>
+                                            <StatusBadge status={transaction.status} />
+                                        </div>
+
+                                        {/* Payment Flow (for payment type) */}
+                                        {transaction.identifier === "payment" && transaction.model && (
+                                            <div className="flex items-center justify-center py-2 mb-3 bg-gray-50 rounded-lg">
+                                                <div className="flex items-center space-x-2">
+                                                    <Avatar className="h-6 w-6">
+                                                        <AvatarImage src={transaction.customer?.profile ?? ""} />
+                                                        <AvatarFallback className="text-xs">{transaction.customer?.firstName?.charAt(0) ?? "?"}</AvatarFallback>
+                                                    </Avatar>
+                                                    <span className="text-xs text-gray-600">{transaction.customer?.firstName ?? "Customer"}</span>
+                                                </div>
+                                                <span className="mx-2 text-gray-400">→</span>
+                                                <div className="flex items-center space-x-2">
+                                                    <Avatar className="h-6 w-6">
+                                                        <AvatarImage src={transaction.model?.profile ?? ""} />
+                                                        <AvatarFallback className="text-xs">{transaction.model?.firstName?.charAt(0) ?? "?"}</AvatarFallback>
+                                                    </Avatar>
+                                                    <span className="text-xs text-gray-600">{transaction.model?.firstName ?? "Model"}</span>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Transaction Details */}
+                                        <div className="space-y-2 text-sm">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-gray-500">Amount:</span>
+                                                <span className={`font-bold ${transaction.identifier === 'withdraw' || transaction.identifier === 'payment' || transaction.identifier === 'booking_hold' ? 'text-red-600' : 'text-green-600'}`}>
+                                                    {transaction.identifier === 'withdraw' || transaction.identifier === 'payment' || transaction.identifier === 'booking_hold' ? '-' : '+'}
+                                                    ${transaction.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                </span>
+                                            </div>
+                                            {transaction.fee > 0 && (
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-gray-500">Fee:</span>
+                                                    <span className="text-gray-600">${transaction.fee.toFixed(2)}</span>
+                                                </div>
+                                            )}
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-gray-500">Type:</span>
                                                 <Badge
                                                     variant="outline"
                                                     className={`text-xs ${transaction.identifier === 'payment' ? 'text-blue-800 border-blue-200' :
-                                                        transaction.identifier === 'withdraw' ? 'text-purple-800 border-purple-200' :
-                                                            transaction.identifier === 'deposit' ? 'text-green-800 border-green-200' : 'text-gray-800'
+                                                        transaction.identifier === 'withdraw' || transaction.identifier === 'withdrawal' ? 'text-purple-800 border-purple-200' :
+                                                            transaction.identifier === 'recharge' ? 'text-green-800 border-green-200' :
+                                                                transaction.identifier === 'booking_hold' ? 'text-orange-800 border-orange-200' :
+                                                                    transaction.identifier === 'booking_refund' ? 'text-cyan-800 border-cyan-200' :
+                                                                        transaction.identifier === 'booking_earning' ? 'text-emerald-800 border-emerald-200' : 'text-gray-800'
                                                         }`}
                                                 >
-                                                    {capitalizeFirstLetter(transaction.identifier)}
+                                                    {capitalizeFirstLetter(transaction.identifier?.replace('_', ' '))}
                                                 </Badge>
-                                            </TableCell>
-                                            <TableCell>
-                                                <StatusBadge status={transaction.status} />
-                                            </TableCell>
-                                            <TableCell>
-                                                <DropdownMenu>
-                                                    {canEdit && <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" className="relative h-8 w-8 rounded-full p-0">
-                                                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                                                                <MoreVertical className="h-3 w-3" />
-                                                                <span className="sr-only">More</span>
-                                                            </Button>
+                                            </div>
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-gray-500">Date:</span>
+                                                <span className="text-gray-600">{formatDate1(transaction.createdAt)}</span>
+                                            </div>
+                                            {transaction.reason && (
+                                                <div className="pt-2 border-t">
+                                                    <span className="text-gray-500 text-xs">Reason:</span>
+                                                    <p className="text-gray-700 text-xs mt-1">{transaction.reason}</p>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Actions */}
+                                        <div className="flex items-center justify-end gap-2 mt-3 pt-3 border-t">
+                                            {canAccess && (
+                                                <Link to={`view/${transaction.id}`}>
+                                                    <Button variant="outline" size="sm" className="h-8 text-xs">
+                                                        <Eye className="h-3 w-3 mr-1" /> View
+                                                    </Button>
+                                                </Link>
+                                            )}
+                                            {transaction.status === "pending" && canEdit && (
+                                                <>
+                                                    <Link to={`approve/${transaction.id}?type=${transaction.customerId === null ? "model" : "customer"}`}>
+                                                        <Button variant="outline" size="sm" className="h-8 text-xs text-green-600 border-green-200 hover:bg-green-50">
+                                                            <Check className="h-3 w-3 mr-1" /> Approve
                                                         </Button>
-                                                    </DropdownMenuTrigger>}
-                                                    <DropdownMenuContent className="w-48" align="end" forceMount>
-                                                        {canAccess && <DropdownMenuItem className="text-sm">
-                                                            <Link to={`view/${transaction.id}`} className="flex space-x-2">
-                                                                <Eye className="mr-2 h-3 w-3" />
-                                                                <span>View details</span>
-                                                            </Link>
-                                                        </DropdownMenuItem>}
-                                                        {transaction.status === "pending" && canEdit &&
-                                                            <DropdownMenuItem className="text-sm">
-                                                                <Link to={`approve/${transaction.id}?type=${transaction.customerId === null ? "model" : "customer"}`} className="flex space-x-2">
-                                                                    <Check className="mr-2 h-3 w-3 text-green-500" />
-                                                                    <span>Approve</span>
-                                                                </Link>
-                                                            </DropdownMenuItem>
+                                                    </Link>
+                                                    <Link to={`reject/${transaction.id}`}>
+                                                        <Button variant="outline" size="sm" className="h-8 text-xs text-red-600 border-red-200 hover:bg-red-50">
+                                                            <X className="h-3 w-3 mr-1" /> Reject
+                                                        </Button>
+                                                    </Link>
+                                                </>
+                                            )}
+                                            {transaction.status === "held" && transaction.identifier === "booking_hold" && canEdit && (
+                                                <>
+                                                    <Link to={`refund/${transaction.id}`}>
+                                                        <Button variant="outline" size="sm" className="h-8 text-xs text-orange-600 border-orange-200 hover:bg-orange-50">
+                                                            <RotateCcw className="h-3 w-3 mr-1" /> Refund
+                                                        </Button>
+                                                    </Link>
+                                                    <Link to={`complete/${transaction.id}`}>
+                                                        <Button variant="outline" size="sm" className="h-8 text-xs text-green-600 border-green-200 hover:bg-green-50">
+                                                            <CheckCircle className="h-3 w-3 mr-1" /> Complete
+                                                        </Button>
+                                                    </Link>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                )
+                            }) : (
+                                <EmptyPage
+                                    title="No transaction found!"
+                                    description="There is no transaction in the database yet!"
+                                />
+                            )}
+                        </div>
+
+                        {/* Desktop Table View */}
+                        <div className="hidden md:block">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className="border-t border-gray-100 hover:bg-gray-100">
+                                        <TableHead className="font-semibold">No</TableHead>
+                                        <TableHead className="font-semibold">Transaction</TableHead>
+                                        <TableHead className="font-semibold">Amount</TableHead>
+                                        <TableHead className="font-semibold">Type</TableHead>
+                                        <TableHead className="font-semibold">Status</TableHead>
+                                        <TableHead className="font-semibold">Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {transactions && transactions.length > 0 ? transactions.map((transaction: any, index: number) => {
+                                        const owner = transaction.model || transaction.customer;
+                                        return (
+                                            <TableRow key={transaction.id} className="border-gray-50 hover:bg-gray-50">
+                                                <TableCell>{index + 1}</TableCell>
+                                                <TableCell>
+                                                    <div className="space-y-2">
+                                                        {transaction.identifier === "payment" ? <div className="flex items-center justify-start">
+                                                            <div className="flex items-center space-x-2">
+                                                                <Avatar className="h-6 w-6">
+                                                                    <AvatarImage src={transaction.customer?.profile ?? ""} />
+                                                                    <AvatarFallback>{transaction.customer?.firstName?.charAt(0) ?? "?"}</AvatarFallback>
+                                                                </Avatar>
+                                                                <div>
+                                                                    <p className="text-sm font-medium text-gray-900">{transaction.customer?.firstName ?? "Unknown"} {transaction.customer?.lastName ?? ""}</p>
+                                                                    <p className="flex items-center justify-start text-xs font-medium text-gray-900"><Users className="h-3 w-3" />&nbsp;{transaction.customer?.gender ?? "N/A"}</p>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center space-x-2 pl-4">
+                                                                <div className="text-xs text-gray-400">→</div>
+                                                                <Avatar className="h-6 w-6">
+                                                                    <AvatarImage src={transaction.model?.profile ?? ""} />
+                                                                    <AvatarFallback>{transaction.model?.firstName?.charAt(0) ?? "?"}</AvatarFallback>
+                                                                </Avatar>
+                                                                <div>
+                                                                    <p className="text-sm text-gray-600">{transaction.model?.firstName ?? "Unknown"}&nbsp;{transaction.model?.lastName ?? ""}</p>
+                                                                    <p className="flex items-center justify-start text-xs font-medium text-gray-500">
+                                                                        {transaction.model ? <UserCheck className="h-3 w-3" /> : <Users className="h-3 w-3" />}&nbsp;{transaction.model ? "Model" : "Customer"},&nbsp;
+                                                                        {transaction.model ? <span className="flex items-center justify-start"><Mars className="h-3 w-3" />&nbsp;Male</span> : <span className="flex items-center justify-start"><Venus className="h-3 w-3" />&nbsp;Female</span>}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                        </div> :
+                                                            <div className="flex items-center space-x-2">
+                                                                <Avatar className="h-6 w-6">
+                                                                    <AvatarImage src={owner?.profile ?? ""} />
+                                                                    <AvatarFallback>{owner?.firstName?.charAt(0) ?? "?"}</AvatarFallback>
+                                                                </Avatar>
+                                                                <div>
+                                                                    <p className="text-sm text-gray-600">{owner?.firstName ?? "Unknown"}&nbsp;{owner?.lastName ?? ""}</p>
+                                                                    <p className="flex items-center justify-start text-xs font-medium text-gray-500">
+                                                                        {transaction.model ? <UserCheck className="h-3 w-3" /> : <Users className="h-3 w-3" />}&nbsp;{transaction.model ? "Model" : "Customer"},&nbsp;
+                                                                        {transaction.model ? <span className="flex items-center justify-start"><Mars className="h-3 w-3" />&nbsp;Male</span> : <span className="flex items-center justify-start"><Venus className="h-3 w-3" />&nbsp;Female</span>}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
                                                         }
-                                                        {transaction.status === "pending" && canEdit &&
-                                                            <DropdownMenuItem className="text-sm">
-                                                                <Link to={`reject/${transaction.id}`} className="flex space-x-2">
-                                                                    <X className="mr-2 h-3 w-3 text-red-500" />
-                                                                    <span>Reject</span>
+
+                                                        <div className="pl-8">
+                                                            <p className="flex items-center justify-start text-xs text-gray-500"><Video className="h-3 w-3" />&nbsp; Video Call</p>
+                                                        </div>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div>
+                                                        <div className="flex items-center justify-start gap-2">
+                                                            <p className={`text-sm font-medium ${transaction.identifier === 'withdraw' || transaction.identifier === 'payment' ? 'text-red-600' :
+                                                                transaction.identifier === 'recharge' ? 'text-green-600' : 'text-gray-900'
+                                                                }`}>
+                                                                {transaction.identifier === 'withdraw' || transaction.identifier === 'payment' ? '-' : '+'}
+                                                                ${transaction.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                            </p>
+                                                            {transaction.fee > 0 && (
+                                                                <p className="text-xs text-gray-500">(Fee: ${transaction.fee.toFixed(2)})</p>
+                                                            )}
+                                                        </div>
+                                                        <p className="text-xs text-gray-400">{formatDate1(transaction.createdAt)}</p>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={`text-xs ${transaction.identifier === 'payment' ? 'text-blue-800 border-blue-200' :
+                                                            transaction.identifier === 'withdraw' ? 'text-purple-800 border-purple-200' :
+                                                                transaction.identifier === 'deposit' ? 'text-green-800 border-green-200' : 'text-gray-800'
+                                                            }`}
+                                                    >
+                                                        {capitalizeFirstLetter(transaction.identifier)}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <StatusBadge status={transaction.status} />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <DropdownMenu>
+                                                        {canEdit && <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" className="relative h-8 w-8 rounded-full p-0">
+                                                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                                                                    <MoreVertical className="h-3 w-3" />
+                                                                    <span className="sr-only">More</span>
+                                                                </Button>
+                                                            </Button>
+                                                        </DropdownMenuTrigger>}
+                                                        <DropdownMenuContent className="w-48" align="end" forceMount>
+                                                            {canAccess && <DropdownMenuItem className="text-sm">
+                                                                <Link to={`view/${transaction.id}`} className="flex space-x-2">
+                                                                    <Eye className="mr-2 h-3 w-3" />
+                                                                    <span>View details</span>
                                                                 </Link>
                                                             </DropdownMenuItem>}
-                                                        {transaction.status === "held" && transaction.identifier === "booking_hold" && canEdit &&
-                                                            <DropdownMenuItem className="text-sm">
-                                                                <Link to={`refund/${transaction.id}`} className="flex space-x-2">
-                                                                    <RotateCcw className="mr-2 h-3 w-3 text-orange-500" />
-                                                                    <span>Refund</span>
-                                                                </Link>
-                                                            </DropdownMenuItem>}
-                                                        {transaction.status === "held" && transaction.identifier === "booking_hold" && canEdit &&
-                                                            <DropdownMenuItem className="text-sm">
-                                                                <Link to={`complete/${transaction.id}`} className="flex space-x-2">
-                                                                    <CheckCircle className="mr-2 h-3 w-3 text-green-500" />
-                                                                    <span>Complete</span>
-                                                                </Link>
-                                                            </DropdownMenuItem>}
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            </TableCell>
-                                        </TableRow>
-                                    )
-                                }) : <TableRow>
-                                    <TableCell colSpan={6} className="text-center py-12">
-                                        <EmptyPage
-                                            title="No transaction found!"
-                                            description="There is no transaction in the database yet!"
-                                        />
-                                    </TableCell>
-                                </TableRow>}
-                            </TableBody>
-                        </Table>
+                                                            {transaction.status === "pending" && canEdit &&
+                                                                <DropdownMenuItem className="text-sm">
+                                                                    <Link to={`approve/${transaction.id}?type=${transaction.customerId === null ? "model" : "customer"}`} className="flex space-x-2">
+                                                                        <Check className="mr-2 h-3 w-3 text-green-500" />
+                                                                        <span>Approve</span>
+                                                                    </Link>
+                                                                </DropdownMenuItem>
+                                                            }
+                                                            {transaction.status === "pending" && canEdit &&
+                                                                <DropdownMenuItem className="text-sm">
+                                                                    <Link to={`reject/${transaction.id}`} className="flex space-x-2">
+                                                                        <X className="mr-2 h-3 w-3 text-red-500" />
+                                                                        <span>Reject</span>
+                                                                    </Link>
+                                                                </DropdownMenuItem>}
+                                                            {transaction.status === "held" && transaction.identifier === "booking_hold" && canEdit &&
+                                                                <DropdownMenuItem className="text-sm">
+                                                                    <Link to={`refund/${transaction.id}`} className="flex space-x-2">
+                                                                        <RotateCcw className="mr-2 h-3 w-3 text-orange-500" />
+                                                                        <span>Refund</span>
+                                                                    </Link>
+                                                                </DropdownMenuItem>}
+                                                            {transaction.status === "held" && transaction.identifier === "booking_hold" && canEdit &&
+                                                                <DropdownMenuItem className="text-sm">
+                                                                    <Link to={`complete/${transaction.id}`} className="flex space-x-2">
+                                                                        <CheckCircle className="mr-2 h-3 w-3 text-green-500" />
+                                                                        <span>Complete</span>
+                                                                    </Link>
+                                                                </DropdownMenuItem>}
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </TableCell>
+                                            </TableRow>
+                                        )
+                                    }) : <TableRow>
+                                        <TableCell colSpan={6} className="text-center py-12">
+                                            <EmptyPage
+                                                title="No transaction found!"
+                                                description="There is no transaction in the database yet!"
+                                            />
+                                        </TableCell>
+                                    </TableRow>}
+                                </TableBody>
+                            </Table>
+                        </div>
 
                         <Pagination
                             currentPage={pagination.currentPage}
