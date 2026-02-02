@@ -45,8 +45,8 @@ const customerSchema = z.object({
     }),
   status: z
     .string()
-    .refine((val) => ["active", "inactive", "suspended"].includes(val), {
-      message: "Invalid status. Must be one of: active, inactive, suspended.",
+    .refine((val) => ["active", "inactive", "suspended", "verified"].includes(val), {
+      message: "Invalid status. Must be one of: active, inactive, suspended, verified.",
     })
     .refine(blockInjection, {
       message: "Status is Potentially unsafe input detected in status.",
@@ -95,8 +95,8 @@ const customerUpdateSchema = z.object({
     }),
   status: z
     .string()
-    .refine((val) => ["active", "inactive", "suspended"].includes(val), {
-      message: "Invalid status. Must be one of: active, inactive, suspended.",
+    .refine((val) => ["active", "inactive", "suspended", "verified"].includes(val), {
+      message: "Invalid status. Must be one of: active, inactive, suspended, verified.",
     })
     .refine(blockInjection, {
       message: "Status is Potentially unsafe input detected in status.",

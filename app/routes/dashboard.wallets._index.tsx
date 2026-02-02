@@ -141,7 +141,7 @@ export default function Wallets() {
                                 <div className="flex items-center justify-between">
                                     <div className="flex-1">
                                         <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{stat.title}</p>
-                                        <p className="text-xl font-bold text-gray-900 mt-1">{stat.value}</p>
+                                        <p className="text-sm sm:text-xl font-bold text-gray-900 mt-1">{stat.value}</p>
                                         <div className="flex items-center mt-1">
                                             <ArrowUpRight className="h-3 w-3 text-green-500" />
                                         </div>
@@ -260,118 +260,212 @@ export default function Wallets() {
                         </Form>
                     </CardHeader>
                     <CardContent className="p-0">
-                        <Table>
-                            <TableHeader>
-                                <TableRow className="border-gray-100">
-                                    <TableHead className="font-semibold">No</TableHead>
-                                    <TableHead className="font-semibold">Owner</TableHead>
-                                    <TableHead className="font-semibold">Type</TableHead>
-                                    <TableHead className="font-semibold">Balance</TableHead>
-                                    <TableHead className="font-semibold">Status</TableHead>
-                                    <TableHead className="font-semibold">Created At</TableHead>
-                                    <TableHead className="font-semibold text-center">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {walletData && walletData.length > 0 ? walletData.map((wallet, index: number) => {
-                                    const owner = wallet.model ?? wallet.customer;
-                                    return (
-                                        <TableRow key={wallet.id} className="border-gray-50 hover:bg-gray-50 text-gray-500 text-sm">
-                                            <TableCell>{index + 1}</TableCell>
-                                            <TableCell>
-                                                <div className="flex items-center space-x-3">
-                                                    <Avatar className="h-8 w-8">
-                                                        <AvatarImage src={owner?.profile ?? ""} alt={`${owner?.firstName} ${owner?.lastName}`} />
-                                                        <AvatarFallback className="text-xs">{owner?.firstName.charAt(0)}</AvatarFallback>
-                                                    </Avatar>
-                                                    <div>
-                                                        <p className="flex items-center text-sm font-medium text-gray-900">{owner?.firstName}&nbsp;{owner?.lastName}&nbsp; {owner?.status === "active" && (
-                                                            <CheckCircle className="h-3 w-3 text-green-600" />
-                                                        )}</p>
+                        {/* Mobile Card View */}
+                        <div className="block md:hidden p-2 space-y-4">
+                            {walletData && walletData.length > 0 ? walletData.map((wallet, index: number) => {
+                                const owner = wallet.model ?? wallet.customer;
+                                return (
+                                    <div key={wallet.id} className="border rounded-lg p-4 bg-white shadow-sm">
+                                        <div className="flex items-start justify-between mb-3">
+                                            <div className="flex items-center space-x-3">
+                                                <Avatar className="h-12 w-12">
+                                                    <AvatarImage src={owner?.profile ?? ""} alt={`${owner?.firstName} ${owner?.lastName}`} />
+                                                    <AvatarFallback className="text-sm">{owner?.firstName.charAt(0)}</AvatarFallback>
+                                                </Avatar>
+                                                <div>
+                                                    <p className="flex items-center text-sm font-semibold text-gray-900">
+                                                        #{index + 1} {owner?.firstName}&nbsp;{owner?.lastName}
+                                                        {owner?.status === "active" && (
+                                                            <CheckCircle className="h-3 w-3 ml-1 text-green-600" />
+                                                        )}
+                                                    </p>
+                                                    <Badge variant="outline" className="text-xs mt-1">{wallet.customerId === null ? "Model" : "Customer"}</Badge>
+                                                </div>
+                                            </div>
+                                            <StatusBadge status={wallet.status} />
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-2 text-xs mb-3">
+                                            <div>
+                                                <span className="text-gray-400">Total Balance:</span>
+                                                <p className="text-gray-700 font-medium">{wallet.totalBalance.toLocaleString()} Kip</p>
+                                            </div>
+                                            <div>
+                                                <span className="text-gray-400">Recharge:</span>
+                                                <p className="text-gray-700 font-medium">{wallet.totalRecharge.toLocaleString()} Kip</p>
+                                            </div>
+                                            <div>
+                                                <span className="text-gray-400">Deposits:</span>
+                                                <p className="text-gray-700 font-medium">{wallet.totalDeposit.toLocaleString()} Kip</p>
+                                            </div>
+                                            <div>
+                                                <span className="text-gray-400">Created:</span>
+                                                <p className="text-gray-700">{formatDate(wallet.createdAt)}</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center justify-end gap-2 pt-2 border-t">
+                                            {canAccess && (
+                                                <Button variant="outline" size="sm" className="h-8 px-2" asChild>
+                                                    <Link to={`view/${wallet.id}?type=${wallet.customerId === null ? "model" : "customer"}`}>
+                                                        <Eye className="h-3 w-3" />View
+                                                    </Link>
+                                                </Button>
+                                            )}
+                                            {canEdit && (
+                                                <Button variant="outline" size="sm" className="h-8 px-2" asChild>
+                                                    <Link to={`${wallet.id}`}>
+                                                        <Edit className="h-3 w-3" />Edit
+                                                    </Link>
+                                                </Button>
+                                            )}
+                                            {canEdit && (
+                                                <Button variant="outline" size="sm" className="h-8 px-2" asChild>
+                                                    <Link to={`adjust/${wallet.id}`}>
+                                                        <DollarSignIcon className="h-3 w-3" />Adjust
+                                                    </Link>
+                                                </Button>
+                                            )}
+                                            {canEdit && (
+                                                <Button variant="outline" size="sm" className="h-8 px-2 text-orange-500 border-orange-200 hover:bg-orange-50" asChild>
+                                                    <Link to={`ban/${wallet.id}`}>
+                                                        <Ban className="h-3 w-3" />
+                                                    </Link>
+                                                </Button>
+                                            )}
+                                            {canDelete && (
+                                                <Button variant="outline" size="sm" className="h-8 px-2 text-red-500 border-red-200 hover:bg-red-50" asChild>
+                                                    <Link to={`delete/${wallet.id}`}>
+                                                        <Trash2 className="h-3 w-3" />
+                                                    </Link>
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </div>
+                                )
+                            }) : (
+                                <EmptyPage
+                                    title="No wallets found!"
+                                    description="There is no wallets in the database yet!"
+                                />
+                            )}
+                        </div>
+
+                        {/* Desktop Table View */}
+                        <div className="hidden md:block">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className="border-gray-100">
+                                        <TableHead className="font-semibold">No</TableHead>
+                                        <TableHead className="font-semibold">Owner</TableHead>
+                                        <TableHead className="font-semibold">Type</TableHead>
+                                        <TableHead className="font-semibold">Balance</TableHead>
+                                        <TableHead className="font-semibold">Status</TableHead>
+                                        <TableHead className="font-semibold">Created At</TableHead>
+                                        <TableHead className="font-semibold text-center">Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {walletData && walletData.length > 0 ? walletData.map((wallet, index: number) => {
+                                        const owner = wallet.model ?? wallet.customer;
+                                        return (
+                                            <TableRow key={wallet.id} className="border-gray-50 hover:bg-gray-50 text-gray-500 text-sm">
+                                                <TableCell>{index + 1}</TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center space-x-3">
+                                                        <Avatar className="h-8 w-8">
+                                                            <AvatarImage src={owner?.profile ?? ""} alt={`${owner?.firstName} ${owner?.lastName}`} />
+                                                            <AvatarFallback className="text-xs">{owner?.firstName.charAt(0)}</AvatarFallback>
+                                                        </Avatar>
+                                                        <div>
+                                                            <p className="flex items-center text-sm font-medium text-gray-900">{owner?.firstName}&nbsp;{owner?.lastName}&nbsp; {owner?.status === "active" && (
+                                                                <CheckCircle className="h-3 w-3 text-green-600" />
+                                                            )}</p>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge variant="outline" className="text-xs">{wallet.customerId === null ? "Model" : "Customer"}</Badge>
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="space-y-1">
-                                                    <p className="text-sm font-medium text-gray-500">
-                                                        Total: ${wallet.totalBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                                    </p>
-                                                    <p className="text-sm font-medium text-gray-500">
-                                                        Recharge: ${wallet.totalRecharge.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                                    </p>
-                                                    <p className="text-sm font-medium text-gray-500">
-                                                        Deposits: ${wallet.totalDeposit.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                                    </p>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="flex items-center space-x-1">
-                                                    <StatusBadge status={wallet.status} />
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                {formatDate(wallet.createdAt)}
-                                            </TableCell>
-                                            <TableCell className="text-center">
-                                                <DropdownMenu>
-                                                    {canEdit && <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" className="relative h-8 w-8 rounded-full p-0">
-                                                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                                                                <MoreVertical className="h-3 w-3" />
-                                                                <span className="sr-only">More</span>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant="outline" className="text-xs">{wallet.customerId === null ? "Model" : "Customer"}</Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="space-y-1">
+                                                        <p className="text-sm font-medium text-gray-500">
+                                                            Total: {wallet.totalBalance.toLocaleString()} Kip
+                                                        </p>
+                                                        <p className="text-sm font-medium text-gray-500">
+                                                            Recharge: {wallet.totalRecharge.toLocaleString()} Kip
+                                                        </p>
+                                                        <p className="text-sm font-medium text-gray-500">
+                                                            Deposits: {wallet.totalDeposit.toLocaleString()} Kip
+                                                        </p>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center space-x-1">
+                                                        <StatusBadge status={wallet.status} />
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {formatDate(wallet.createdAt)}
+                                                </TableCell>
+                                                <TableCell className="text-center">
+                                                    <DropdownMenu>
+                                                        {canEdit && <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" className="relative h-8 w-8 rounded-full p-0">
+                                                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                                                                    <MoreVertical className="h-3 w-3" />
+                                                                    <span className="sr-only">More</span>
+                                                                </Button>
                                                             </Button>
-                                                        </Button>
-                                                    </DropdownMenuTrigger>}
-                                                    <DropdownMenuContent className="w-48" align="end" forceMount>
-                                                        {canAccess && <DropdownMenuItem className="text-sm">
-                                                            <Link to={`view/${wallet.id}?type=${wallet.customerId === null ? "model" : "customer"}`} className="flex space-x-2">
-                                                                <Eye className="mr-2 h-3 w-3" />
-                                                                <span>View details</span>
-                                                            </Link>
-                                                        </DropdownMenuItem>}
-                                                        {canEdit && <DropdownMenuItem className="text-sm">
-                                                            <Link to={`${wallet.id}`} className="flex space-x-2">
-                                                                <Edit className="mr-2 h-3 w-3" />
-                                                                <span>Edit wallet</span>
-                                                            </Link>
-                                                        </DropdownMenuItem>}
-                                                        {canEdit && <DropdownMenuItem className="text-sm">
-                                                            <Link to={`adjust/${wallet.id}`} className="flex space-x-2">
-                                                                <DollarSignIcon className="mr-2 h-3 w-3" />
-                                                                <span>Adjust balance</span>
-                                                            </Link>
-                                                        </DropdownMenuItem>}
-                                                        <DropdownMenuSeparator />
-                                                        {canEdit && <DropdownMenuItem className="text-sm text-orange-500">
-                                                            <Link to={`ban/${wallet.id}`} className="flex space-x-2">
-                                                                <Ban className="mr-2 h-3 w-3" />
-                                                                <span>Suspend wallet</span>
-                                                            </Link>
-                                                        </DropdownMenuItem>}
-                                                        {canDelete && <DropdownMenuItem className="text-sm text-red-500">
-                                                            <Link to={`delete/${wallet.id}`} className="flex space-x-2">
-                                                                <Trash2 className="mr-2 h-3 w-3" />
-                                                                <span>Delete wallet</span>
-                                                            </Link>
-                                                        </DropdownMenuItem>}
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            </TableCell>
-                                        </TableRow>
-                                    )
-                                }) : <TableRow>
-                                    <TableCell colSpan={7} className="text-center py-12">
-                                        <EmptyPage
-                                            title="No wallets found!"
-                                            description="There is no wallets in the database yet!"
-                                        />
-                                    </TableCell>
-                                </TableRow>}
-                            </TableBody>
-                        </Table>
+                                                        </DropdownMenuTrigger>}
+                                                        <DropdownMenuContent className="w-48" align="end" forceMount>
+                                                            {canAccess && <DropdownMenuItem className="text-sm">
+                                                                <Link to={`view/${wallet.id}?type=${wallet.customerId === null ? "model" : "customer"}`} className="flex space-x-2">
+                                                                    <Eye className="mr-2 h-3 w-3" />
+                                                                    <span>View details</span>
+                                                                </Link>
+                                                            </DropdownMenuItem>}
+                                                            {canEdit && <DropdownMenuItem className="text-sm">
+                                                                <Link to={`${wallet.id}`} className="flex space-x-2">
+                                                                    <Edit className="mr-2 h-3 w-3" />
+                                                                    <span>Edit wallet</span>
+                                                                </Link>
+                                                            </DropdownMenuItem>}
+                                                            {canEdit && <DropdownMenuItem className="text-sm">
+                                                                <Link to={`adjust/${wallet.id}`} className="flex space-x-2">
+                                                                    <DollarSignIcon className="mr-2 h-3 w-3" />
+                                                                    <span>Adjust balance</span>
+                                                                </Link>
+                                                            </DropdownMenuItem>}
+                                                            <DropdownMenuSeparator />
+                                                            {canEdit && <DropdownMenuItem className="text-sm text-orange-500">
+                                                                <Link to={`ban/${wallet.id}`} className="flex space-x-2">
+                                                                    <Ban className="mr-2 h-3 w-3" />
+                                                                    <span>Suspend wallet</span>
+                                                                </Link>
+                                                            </DropdownMenuItem>}
+                                                            {canDelete && <DropdownMenuItem className="text-sm text-red-500">
+                                                                <Link to={`delete/${wallet.id}`} className="flex space-x-2">
+                                                                    <Trash2 className="mr-2 h-3 w-3" />
+                                                                    <span>Delete wallet</span>
+                                                                </Link>
+                                                            </DropdownMenuItem>}
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </TableCell>
+                                            </TableRow>
+                                        )
+                                    }) : <TableRow>
+                                        <TableCell colSpan={7} className="text-center py-12">
+                                            <EmptyPage
+                                                title="No wallets found!"
+                                                description="There is no wallets in the database yet!"
+                                            />
+                                        </TableCell>
+                                    </TableRow>}
+                                </TableBody>
+                            </Table>
+                        </div>
 
                         <Pagination
                             currentPage={pagination.currentPage}
@@ -408,7 +502,7 @@ export default function Wallets() {
                                             </div>
                                         </div>
                                         <div className="text-right">
-                                            <p className="text-sm font-medium text-green-600">${earner.earnings.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                                            <p className="text-sm font-medium text-green-600">{earner.earnings.toLocaleString()} Kip</p>
                                             {earner.earnings > earner.balance ? <div className="flex items-center text-green-600">
                                                 <ArrowUpRight className="h-3 w-3" />
                                             </div> : <div className="flex items-center text-red-600">
@@ -447,7 +541,7 @@ export default function Wallets() {
                                                         transaction.identifier === 'deposit' ? 'text-green-600' : 'text-gray-900'
                                                         }`}>
                                                         {transaction.identifier === 'withdraw' || transaction.identifier === 'payment' ? '-' : '+'}
-                                                        ${transaction.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                        {transaction.amount.toLocaleString()} Kip
                                                     </span>
                                                     <span className="text-xs text-gray-400">• {timeAgo(transaction.createdAt)}</span>
                                                 </div>

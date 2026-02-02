@@ -6,7 +6,6 @@ import {
     Eye,
     Mars,
     Venus,
-    Video,
     Users,
     Check,
     UserCheck,
@@ -315,29 +314,32 @@ export default function Transactions() {
                                         <div className="space-y-2 text-sm">
                                             <div className="flex justify-between items-center">
                                                 <span className="text-gray-500">Amount:</span>
-                                                <span className={`font-bold ${transaction.identifier === 'withdraw' || transaction.identifier === 'payment' || transaction.identifier === 'booking_hold' ? 'text-red-600' : 'text-green-600'}`}>
-                                                    {transaction.identifier === 'withdraw' || transaction.identifier === 'payment' || transaction.identifier === 'booking_hold' ? '-' : '+'}
-                                                    ${transaction.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                <span className={`font-bold ${
+                                                    ['recharge', 'booking_refund', 'booking_earning', 'referral'].includes(transaction.identifier) ? 'text-green-600' :
+                                                    ['withdrawal', 'payment', 'subscription'].includes(transaction.identifier) ? 'text-red-600' :
+                                                    transaction.identifier === 'booking_hold' ? 'text-orange-600' : 'text-gray-900'
+                                                }`}>
+                                                    {['recharge', 'booking_refund', 'booking_earning', 'referral'].includes(transaction.identifier) ? '+' : '-'}
+                                                    {Math.abs(transaction.amount).toLocaleString()} Kip
                                                 </span>
                                             </div>
                                             {transaction.fee > 0 && (
                                                 <div className="flex justify-between items-center">
                                                     <span className="text-gray-500">Fee:</span>
-                                                    <span className="text-gray-600">${transaction.fee.toFixed(2)}</span>
+                                                    <span className="text-gray-600">{transaction.fee.toLocaleString()} Kip</span>
                                                 </div>
                                             )}
                                             <div className="flex justify-between items-center">
                                                 <span className="text-gray-500">Type:</span>
                                                 <Badge
                                                     variant="outline"
-                                                    className={`text-xs ${transaction.identifier === 'payment' ? 'text-blue-800 border-blue-200' :
-                                                        transaction.identifier === 'withdraw' || transaction.identifier === 'withdrawal' ? 'text-purple-800 border-purple-200' :
-                                                            transaction.identifier === 'recharge' ? 'text-green-800 border-green-200' :
-                                                                transaction.identifier === 'booking_hold' ? 'text-orange-800 border-orange-200' :
-                                                                    transaction.identifier === 'booking_refund' ? 'text-cyan-800 border-cyan-200' :
-                                                                        transaction.identifier === 'booking_earning' ? 'text-emerald-800 border-emerald-200' : 'text-gray-800'
-                                                        }`}
+                                                    className={`text-xs ${
+                                                        ['recharge', 'booking_refund', 'booking_earning', 'referral'].includes(transaction.identifier) ? 'text-green-800 border-green-200' :
+                                                        ['withdrawal', 'payment', 'subscription'].includes(transaction.identifier) ? 'text-red-800 border-red-200' :
+                                                        transaction.identifier === 'booking_hold' ? 'text-orange-800 border-orange-200' : 'text-gray-800'
+                                                    }`}
                                                 >
+                                                    {['recharge', 'booking_refund', 'booking_earning', 'referral'].includes(transaction.identifier) ? '+' : '-'}
                                                     {capitalizeFirstLetter(transaction.identifier?.replace('_', ' '))}
                                                 </Badge>
                                             </div>
@@ -462,23 +464,21 @@ export default function Transactions() {
                                                                 </div>
                                                             </div>
                                                         }
-
-                                                        <div className="pl-8">
-                                                            <p className="flex items-center justify-start text-xs text-gray-500"><Video className="h-3 w-3" />&nbsp; Video Call</p>
-                                                        </div>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
                                                     <div>
                                                         <div className="flex items-center justify-start gap-2">
-                                                            <p className={`text-sm font-medium ${transaction.identifier === 'withdraw' || transaction.identifier === 'payment' ? 'text-red-600' :
-                                                                transaction.identifier === 'recharge' ? 'text-green-600' : 'text-gray-900'
-                                                                }`}>
-                                                                {transaction.identifier === 'withdraw' || transaction.identifier === 'payment' ? '-' : '+'}
-                                                                ${transaction.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                            <p className={`text-sm font-medium ${
+                                                                ['recharge', 'booking_refund', 'booking_earning', 'referral'].includes(transaction.identifier) ? 'text-green-600' :
+                                                                ['withdrawal', 'payment', 'subscription'].includes(transaction.identifier) ? 'text-red-600' :
+                                                                transaction.identifier === 'booking_hold' ? 'text-orange-600' : 'text-gray-900'
+                                                            }`}>
+                                                                {['recharge', 'booking_refund', 'booking_earning', 'referral'].includes(transaction.identifier) ? '+' : '-'}
+                                                                {Math.abs(transaction.amount).toLocaleString()} Kip
                                                             </p>
                                                             {transaction.fee > 0 && (
-                                                                <p className="text-xs text-gray-500">(Fee: ${transaction.fee.toFixed(2)})</p>
+                                                                <p className="text-xs text-gray-500">(Fee: {transaction.fee.toLocaleString()} Kip)</p>
                                                             )}
                                                         </div>
                                                         <p className="text-xs text-gray-400">{formatDate1(transaction.createdAt)}</p>
@@ -487,12 +487,14 @@ export default function Transactions() {
                                                 <TableCell>
                                                     <Badge
                                                         variant="outline"
-                                                        className={`text-xs ${transaction.identifier === 'payment' ? 'text-blue-800 border-blue-200' :
-                                                            transaction.identifier === 'withdraw' ? 'text-purple-800 border-purple-200' :
-                                                                transaction.identifier === 'deposit' ? 'text-green-800 border-green-200' : 'text-gray-800'
-                                                            }`}
+                                                        className={`text-xs ${
+                                                            ['recharge', 'booking_refund', 'booking_earning', 'referral'].includes(transaction.identifier) ? 'text-green-800 border-green-200' :
+                                                            ['withdrawal', 'payment', 'subscription'].includes(transaction.identifier) ? 'text-red-800 border-red-200' :
+                                                            transaction.identifier === 'booking_hold' ? 'text-orange-800 border-orange-200' : 'text-gray-800'
+                                                        }`}
                                                     >
-                                                        {capitalizeFirstLetter(transaction.identifier)}
+                                                        {['recharge', 'booking_refund', 'booking_earning', 'referral'].includes(transaction.identifier) ? '+' : '-'}
+                                                        {capitalizeFirstLetter(transaction.identifier?.replace('_', ' '))}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>

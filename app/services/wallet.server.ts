@@ -171,19 +171,19 @@ export async function getWalletStatus() {
       },
       {
         title: "Active Balances",
-        value: `$${format(balance._sum.totalBalance || 0)}`,
+        value: `${format(balance._sum.totalBalance || 0)} Kip`,
         icon: "DollarSign",
         color: "text-green-600",
       },
       {
         title: "Total recharges",
-        value: `$${format(recharge._sum.totalRecharge || 0)}`,
+        value: `${format(recharge._sum.totalRecharge || 0)} Kip`,
         icon: "DollarSign",
         color: "text-red-600",
       },
       {
         title: "Total deposit",
-        value: `$${format(deposit._sum.totalDeposit || 0)}`,
+        value: `${format(deposit._sum.totalDeposit || 0)} Kip`,
         icon: "DollarSign",
         color: "text-red-600",
       },
@@ -492,5 +492,3 @@ export async function bannedWallet(id: string, userId: string) {
     });
   }
 }
-
-

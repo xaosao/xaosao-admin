@@ -1,5 +1,5 @@
 import { toast } from "react-toastify";
-import React, { useCallback, useRef } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { Form, json, Link, useLoaderData, useNavigate, useSearchParams } from "@remix-run/react";
 
 import EmptyPage from "~/components/ui/empty";
@@ -49,6 +49,7 @@ export default function ModelsApprovalPage() {
     const formRef = useRef<HTMLFormElement>(null);
     const hasPermission = useAuthStore((state) => state.hasPermission);
     const { models, pagination, filters, success } = useLoaderData<LoaderData>();
+    const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
     const updateFilters = useCallback((updates: Record<string, string>) => {
         const params = new URLSearchParams(searchParams);
@@ -214,89 +215,173 @@ export default function ModelsApprovalPage() {
                     </Form>
                 </CardHeader>
                 <CardContent className="p-0 mt-4">
-                    <Table>
-                        <TableHeader>
-                            <TableRow className="border-gray-100">
-                                <TableHead className="font-semibold">NO</TableHead>
-                                <TableHead className="font-semibold">Model info</TableHead>
-                                <TableHead className="font-semibold">Address</TableHead>
-                                <TableHead className="font-semibold">Status</TableHead>
-                                <TableHead className="font-semibold">Created at</TableHead>
-                                <TableHead className="font-semibold">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody >
-                            {models.length > 0 ? models.map((model, index: number) => {
-                                return (
-                                    <TableRow key={model.id} className="border-gray-50 hover:bg-gray-50 text-gray-500">
-                                        <TableCell>{index + 1}</TableCell>
-                                        <TableCell>
-                                            <div className="flex items-center space-x-3">
-                                                <div className="relative">
-                                                    <Avatar className="h-10 w-10">
-                                                        <AvatarImage src={model.profile} alt={model.firstName} />
-                                                        <AvatarFallback className="text-xs">{model.firstName.charAt(0)}</AvatarFallback>
-                                                    </Avatar>
+                    {/* Mobile Card View */}
+                    <div className="block md:hidden p-4 space-y-4">
+                        {models.length > 0 ? models.map((model, index: number) => (
+                            <div key={model.id} className="border rounded-lg p-4 bg-white shadow-sm">
+                                <div className="flex items-start space-x-3 mb-3">
+                                    <div
+                                        className="relative cursor-pointer"
+                                        onClick={() => model.profile && setSelectedImage(model.profile)}
+                                    >
+                                        <Avatar className="h-14 w-14 hover:ring-2 hover:ring-pink-300 transition-all">
+                                            <AvatarImage src={model.profile} alt={model.firstName} />
+                                            <AvatarFallback className="text-sm">{model.firstName.charAt(0)}</AvatarFallback>
+                                        </Avatar>
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-sm font-semibold text-gray-900">#{index + 1} {model.firstName} {model.lastName}</p>
+                                            <Badge
+                                                variant="outline"
+                                                className={`text-xs ${model.status === "active" ? "text-green-800 border-green-200" : "text-red-800 border-red-200"}`}
+                                            >
+                                                {capitalizeFirstLetter(model.status)}
+                                            </Badge>
+                                        </div>
+                                        <p className="text-xs text-gray-500">
+                                            {(model?.location as any)?.countryName} ({(model?.location as any)?.countryNameNative})
+                                        </p>
+                                        <p className="text-xs text-gray-500">Age: {calculateAgeFromDOB(model.dob)}</p>
+                                    </div>
+                                </div>
+
+                                {model.bio && (
+                                    <p className="text-xs text-gray-500 mb-3 italic">"{model.bio}"</p>
+                                )}
+
+                                <div className="grid grid-cols-2 gap-2 text-xs mb-3">
+                                    <div>
+                                        <span className="text-gray-400">Address:</span>
+                                        <p className="text-gray-700">{model.address || "N/A"}</p>
+                                    </div>
+                                    <div>
+                                        <span className="text-gray-400">Created:</span>
+                                        <p className="text-gray-700">{formatDate1(model.createdAt)}</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center justify-end gap-2 pt-2 border-t">
+                                    {canAccess && (
+                                        <Button variant="outline" size="sm" className="h-8 px-2" asChild>
+                                            <Link to={`/dashboard/models/view/${model.id}`}>
+                                                <EyeIcon className="h-3 w-3" />Review
+                                            </Link>
+                                        </Button>
+                                    )}
+                                    {canEdit && (
+                                        <>
+                                            <Button size="sm" className="h-8 px-2 bg-white hover:bg-green-50 text-green-500 border border-green-500" asChild>
+                                                <Link to={`${model.id}`}>
+                                                    <Check className="h-3 w-3" />Approve
+                                                </Link>
+                                            </Button>
+                                            <Button size="sm" className="h-8 px-2 bg-white hover:bg-red-50 text-red-500 border border-red-500" asChild>
+                                                <Link to={`reject/${model.id}`}>
+                                                    <X className="h-3 w-3" />Reject
+                                                </Link>
+                                            </Button>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        )) : (
+                            <EmptyPage
+                                title="No model found!"
+                                description="There is no model data in the database yet!"
+                            />
+                        )}
+                    </div>
+
+                    {/* Desktop Table View */}
+                    <div className="hidden md:block">
+                        <Table>
+                            <TableHeader>
+                                <TableRow className="border-gray-100">
+                                    <TableHead className="font-semibold">NO</TableHead>
+                                    <TableHead className="font-semibold">Model info</TableHead>
+                                    <TableHead className="font-semibold">Address</TableHead>
+                                    <TableHead className="font-semibold">Status</TableHead>
+                                    <TableHead className="font-semibold">Created at</TableHead>
+                                    <TableHead className="font-semibold">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody >
+                                {models.length > 0 ? models.map((model, index: number) => {
+                                    return (
+                                        <TableRow key={model.id} className="border-gray-50 hover:bg-gray-50 text-gray-500">
+                                            <TableCell>{index + 1}</TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center space-x-3">
+                                                    <div
+                                                        className="relative cursor-pointer"
+                                                        onClick={() => model.profile && setSelectedImage(model.profile)}
+                                                    >
+                                                        <Avatar className="h-10 w-10 hover:ring-2 hover:ring-pink-300 transition-all">
+                                                            <AvatarImage src={model.profile} alt={model.firstName} />
+                                                            <AvatarFallback className="text-xs">{model.firstName.charAt(0)}</AvatarFallback>
+                                                        </Avatar>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-medium text-gray-900">{model.firstName} &nbsp;{model.lastName}</p>
+                                                        <p className="text-xs text-gray-400">
+                                                            {(model?.location as any)?.countryName} ({(model?.location as any)?.countryNameNative})
+                                                            • Age: {calculateAgeFromDOB(model.dob)}</p>
+                                                        <p className="text-xs text-gray-400">{model.bio}</p>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <p className="text-sm font-medium text-gray-900">{model.firstName} &nbsp;{model.lastName}</p>
-                                                    <p className="text-xs text-gray-400">
-                                                        {(model?.location as any)?.countryName} ({(model?.location as any)?.countryNameNative})
-                                                        • Age: {calculateAgeFromDOB(model.dob)}</p>
-                                                    <p className="text-xs text-gray-400">{model.bio}</p>
+                                            </TableCell>
+                                            <TableCell>
+                                                {model.address}
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center space-x-1">
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={`text-xs ${model.status === "active" ? "text-green-800 border-green-200" : "text-red-800 border-red-200"
+                                                            }`}
+                                                    >
+                                                        {capitalizeFirstLetter(model.status)}
+                                                    </Badge>
                                                 </div>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            {model.address}
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex items-center space-x-1">
-                                                <Badge
-                                                    variant="outline"
-                                                    className={`text-xs ${model.status === "active" ? "text-green-800 border-green-200" : "text-red-800 border-red-200"
-                                                        }`}
-                                                >
-                                                    {capitalizeFirstLetter(model.status)}
-                                                </Badge>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            {formatDate1(model.createdAt)}
-                                        </TableCell>
-                                        <TableCell className="flex items-center justify-start gap-2">
-                                            {canAccess && <Button className="bg-white hover:bg-white hover:text-gray-500 text-gray-500 border px-2">
-                                                <Link to={`/dashboard/models/view/${model.id}`} className="flex items-center justify-center">
-                                                    <EyeIcon className="h-4 w-4 mr-1" />Review
-                                                </Link>
-                                            </Button>}
-                                            {canEdit && <Button className="bg-white hover:bg-white hover:opacity-90 text-green-500 border border-green-500 px-2">
-                                                <Link to={`${model.id}`} className="flex items-center justify-center">
-                                                    <Check className="h-4 w-4 mr-1" />
-                                                    Approve
-                                                </Link>
-                                            </Button>}
-                                            {canEdit && <Button className="bg-white hover:bg-white hover:opacity-90 text-red-500 border border-red-500 px-2">
-                                                <Link to={`reject/${model.id}`} className="flex items-center justify-center">
-                                                    <X className="h-3 w-3 mr-1" />
-                                                    Reject
-                                                </Link>
-                                            </Button>}
+                                            </TableCell>
+                                            <TableCell>
+                                                {formatDate1(model.createdAt)}
+                                            </TableCell>
+                                            <TableCell className="flex items-center justify-start gap-2">
+                                                {canAccess && <Button className="bg-white hover:bg-white hover:text-gray-500 text-gray-500 border px-2">
+                                                    <Link to={`/dashboard/models/view/${model.id}`} className="flex items-center justify-center">
+                                                        <EyeIcon className="h-4 w-4 mr-1" />Review
+                                                    </Link>
+                                                </Button>}
+                                                {canEdit && <Button className="bg-white hover:bg-white hover:opacity-90 text-green-500 border border-green-500 px-2">
+                                                    <Link to={`${model.id}`} className="flex items-center justify-center">
+                                                        <Check className="h-4 w-4 mr-1" />
+                                                        Approve
+                                                    </Link>
+                                                </Button>}
+                                                {canEdit && <Button className="bg-white hover:bg-white hover:opacity-90 text-red-500 border border-red-500 px-2">
+                                                    <Link to={`reject/${model.id}`} className="flex items-center justify-center">
+                                                        <X className="h-3 w-3 mr-1" />
+                                                        Reject
+                                                    </Link>
+                                                </Button>}
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                }) :
+                                    <TableRow>
+                                        <TableCell colSpan={8} className="text-center py-12">
+                                            <EmptyPage
+                                                title="No model found!"
+                                                description="There is no model data in the database yet!"
+                                            />
                                         </TableCell>
                                     </TableRow>
-                                );
-                            }) :
-                                <TableRow>
-                                    <TableCell colSpan={8} className="text-center py-12">
-                                        <EmptyPage
-                                            title="No model found!"
-                                            description="There is no model data in the database yet!"
-                                        />
-                                    </TableCell>
-                                </TableRow>
-                            }
-                        </TableBody>
-                    </Table>
+                                }
+                            </TableBody>
+                        </Table>
+                    </div>
 
                     <Pagination
                         currentPage={pagination.currentPage}
@@ -310,6 +395,27 @@ export default function ModelsApprovalPage() {
                     />
                 </CardContent>
             </Card>
+
+            {/* Full Screen Image Preview Modal */}
+            {selectedImage && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+                    onClick={() => setSelectedImage(null)}
+                >
+                    <button
+                        className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                        onClick={() => setSelectedImage(null)}
+                    >
+                        <X className="h-6 w-6 text-white" />
+                    </button>
+                    <img
+                        src={selectedImage}
+                        alt="Profile preview"
+                        className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                </div>
+            )}
         </div>
     );
 }

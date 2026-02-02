@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { json, LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData, useNavigate } from "@remix-run/react";
 
@@ -29,6 +30,7 @@ export default function CustomersDetails() {
     const navigate = useNavigate();
     const hasPermission = useAuthStore((state) => state.hasPermission);
     const { customer, customerLogs, ENV } = useLoaderData<LoaderData>();
+    const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
     function closeHandler() {
         navigate("..");
@@ -51,7 +53,10 @@ export default function CustomersDetails() {
                 <Card>
                     <CardHeader>
                         <CardTitle className="text-lg flex items-center">
-                            <div className="h-12 w-12 rounded mr-2">
+                            <div
+                                className="h-12 w-12 rounded mr-2 cursor-pointer hover:ring-2 hover:ring-pink-300 transition-all"
+                                onClick={() => customer.profile && setSelectedImage(customer.profile)}
+                            >
                                 {customer.profile ? (
                                     <img
                                         src={customer.profile}
@@ -173,6 +178,27 @@ export default function CustomersDetails() {
                     Close
                 </Button>
             </div>
+
+            {/* Full Screen Image Preview Modal */}
+            {selectedImage && (
+                <div
+                    className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm"
+                    onClick={() => setSelectedImage(null)}
+                >
+                    <button
+                        className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                        onClick={() => setSelectedImage(null)}
+                    >
+                        <X className="h-6 w-6 text-white" />
+                    </button>
+                    <img
+                        src={selectedImage}
+                        alt="Profile preview"
+                        className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                </div>
+            )}
         </Modal>
     );
 }

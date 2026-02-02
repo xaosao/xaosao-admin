@@ -356,25 +356,25 @@ export async function getCustomerStats() {
 
     const customerStats = [
       {
-        title: "Total Customers",
+        title: "Total",
         value: format(total),
         icon: "Users",
         color: "text-blue-600",
       },
       {
-        title: "Active customers",
+        title: "Active",
         value: format(active),
         icon: "UserCheck",
         color: "text-green-600",
       },
       {
-        title: "Suspended customers",
+        title: "Suspended",
         value: format(suspended),
         icon: "UserLock",
         color: "text-orange-600",
       },
       {
-        title: "Inactive customers",
+        title: "Inactive",
         value: format(deleted),
         icon: "UserX",
         color: "text-red-600",

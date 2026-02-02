@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { json, LoaderFunctionArgs } from "@remix-run/node"
 import { useLoaderData, useNavigate } from "@remix-run/react"
 
@@ -53,6 +54,7 @@ export default function ModelDetailsModal() {
     const navigate = useNavigate();
     const hasPermission = useAuthStore((state) => state.hasPermission);
     const { model, modelLogs } = useLoaderData<LoaderData>();
+    const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
     function closeHandler() {
         navigate("..");
@@ -126,10 +128,15 @@ export default function ModelDetailsModal() {
                 <CardContent className="p-4">
                     <div className="flex items-start space-x-4">
                         <div className="relative">
-                            <Avatar className="h-20 w-20">
-                                <AvatarImage src={model.profile ?? ""} alt={"profile"} />
-                                <AvatarFallback className="text-lg">{model.firstName?.charAt(0)}{model?.lastName?.charAt(0)}</AvatarFallback>
-                            </Avatar>
+                            <div
+                                className="cursor-pointer"
+                                onClick={() => model.profile && setSelectedImage(model.profile)}
+                            >
+                                <Avatar className="h-20 w-20 hover:ring-2 hover:ring-pink-300 transition-all">
+                                    <AvatarImage src={model.profile ?? ""} alt={"profile"} />
+                                    <AvatarFallback className="text-lg">{model.firstName?.charAt(0)}{model?.lastName?.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                            </div>
                             <div
                                 className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-4 border-white ${getAvailableStatusColor(model.available_status)}`}
                             ></div>
@@ -467,6 +474,27 @@ export default function ModelDetailsModal() {
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Full Screen Image Preview Modal */}
+            {selectedImage && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+                    onClick={() => setSelectedImage(null)}
+                >
+                    <button
+                        className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                        onClick={() => setSelectedImage(null)}
+                    >
+                        <X className="h-6 w-6 text-white" />
+                    </button>
+                    <img
+                        src={selectedImage}
+                        alt="Profile preview"
+                        className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                </div>
+            )}
         </div>
     )
 }

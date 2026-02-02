@@ -10,6 +10,17 @@ export async function getServices() {
       where: {
         status: { not: "deleted" },
       },
+      include: {
+        _count: {
+          select: {
+            ModelService: {
+              where: {
+                status: { not: "deleted" },
+              },
+            },
+          },
+        },
+      },
     });
   } catch (error) {
     console.error("GET_SERVICES_FAILED", error);
