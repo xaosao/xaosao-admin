@@ -104,6 +104,7 @@ export async function getBookings(options: BookingFilters = {}) {
               profile: true,
               dob: true,
               gender: true,
+              whatsapp: true,
             },
           },
           model: {
@@ -114,6 +115,7 @@ export async function getBookings(options: BookingFilters = {}) {
               profile: true,
               dob: true,
               gender: true,
+              whatsapp: true,
             },
           },
           modelService: {

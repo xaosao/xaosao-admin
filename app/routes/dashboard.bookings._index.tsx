@@ -370,6 +370,9 @@ export default function Bookings() {
                                         const canRefund = ["pending", "confirmed", "disputed"].includes(booking.status);
                                         const canComplete = ["pending", "confirmed", "disputed"].includes(booking.status);
 
+                                        // Show call buttons only for disputed or confirmed bookings
+                                        const showCallButtons = ["disputed", "confirmed"].includes(booking.status);
+
                                         return (
                                             <TableRow key={booking.id} className="border-gray-50 hover:bg-gray-50">
                                                 <TableCell>{(pagination.currentPage - 1) * pagination.limit + index + 1}</TableCell>
@@ -388,6 +391,16 @@ export default function Bookings() {
                                                                 <Users className="h-3 w-3 mr-1" />
                                                                 {booking.customer?.age ? `${booking.customer.age} years` : "N/A"}
                                                             </p>
+                                                            {/* Call Customer Button - Only for disputed/confirmed */}
+                                                            {showCallButtons && booking.customer?.whatsapp && (
+                                                                <a
+                                                                    href={`tel:${booking.customer.whatsapp}`}
+                                                                    className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 text-xs rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                                                                >
+                                                                    <Phone className="h-3 w-3" />
+                                                                    Call
+                                                                </a>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </TableCell>
@@ -406,6 +419,16 @@ export default function Bookings() {
                                                                 <UserCheck className="h-3 w-3 mr-1" />
                                                                 {booking.model?.age ? `${booking.model.age} years` : "N/A"}
                                                             </p>
+                                                            {/* Call Model Button - Only for disputed/confirmed */}
+                                                            {showCallButtons && booking.model?.whatsapp && (
+                                                                <a
+                                                                    href={`tel:${booking.model.whatsapp}`}
+                                                                    className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 text-xs rounded-full bg-purple-50 text-purple-600 hover:bg-purple-100 transition-colors"
+                                                                >
+                                                                    <Phone className="h-3 w-3" />
+                                                                    Call
+                                                                </a>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </TableCell>
@@ -456,7 +479,8 @@ export default function Bookings() {
                                                                     <span>View Details</span>
                                                                 </Link>
                                                             </DropdownMenuItem>
-                                                            {booking.customer?.whatsapp && (
+                                                            {/* Call buttons only for disputed/confirmed */}
+                                                            {showCallButtons && booking.customer?.whatsapp && (
                                                                 <DropdownMenuItem className="text-sm">
                                                                     <a href={`tel:${booking.customer.whatsapp}`} className="flex space-x-2 w-full">
                                                                         <Phone className="mr-2 h-3 w-3 text-blue-500" />
@@ -464,7 +488,7 @@ export default function Bookings() {
                                                                     </a>
                                                                 </DropdownMenuItem>
                                                             )}
-                                                            {booking.model?.whatsapp && (
+                                                            {showCallButtons && booking.model?.whatsapp && (
                                                                 <DropdownMenuItem className="text-sm">
                                                                     <a href={`tel:${booking.model.whatsapp}`} className="flex space-x-2 w-full">
                                                                         <Phone className="mr-2 h-3 w-3 text-purple-500" />
@@ -512,6 +536,8 @@ export default function Bookings() {
                                 const StatusIcon = statusInfo.icon;
                                 const canRefund = ["pending", "confirmed", "disputed"].includes(booking.status);
                                 const canComplete = ["pending", "confirmed", "disputed"].includes(booking.status);
+                                // Show call buttons only for disputed or confirmed bookings
+                                const showCallButtons = ["disputed", "confirmed"].includes(booking.status);
 
                                 return (
                                     <Card key={booking.id} className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
@@ -535,7 +561,8 @@ export default function Bookings() {
                                                                 <span>View Details</span>
                                                             </Link>
                                                         </DropdownMenuItem>
-                                                        {booking.customer?.whatsapp && (
+                                                        {/* Call buttons only for disputed/confirmed */}
+                                                        {showCallButtons && booking.customer?.whatsapp && (
                                                             <DropdownMenuItem className="text-sm">
                                                                 <a href={`tel:${booking.customer.whatsapp}`} className="flex space-x-2 w-full">
                                                                     <Phone className="mr-2 h-3 w-3 text-blue-500" />
@@ -543,7 +570,7 @@ export default function Bookings() {
                                                                 </a>
                                                             </DropdownMenuItem>
                                                         )}
-                                                        {booking.model?.whatsapp && (
+                                                        {showCallButtons && booking.model?.whatsapp && (
                                                             <DropdownMenuItem className="text-sm">
                                                                 <a href={`tel:${booking.model.whatsapp}`} className="flex space-x-2 w-full">
                                                                     <Phone className="mr-2 h-3 w-3 text-purple-500" />
@@ -574,40 +601,64 @@ export default function Bookings() {
                                             {/* Customer Info */}
                                             <div className="mb-3">
                                                 <p className="text-xs text-gray-500 mb-1">Customer</p>
-                                                <div className="flex items-center space-x-2">
-                                                    <Avatar className="h-9 w-9">
-                                                        <AvatarImage src={booking.customer?.profile ?? ""} />
-                                                        <AvatarFallback>{booking.customer?.firstName?.charAt(0) ?? "?"}</AvatarFallback>
-                                                    </Avatar>
-                                                    <div>
-                                                        <p className="text-sm font-medium text-gray-900">
-                                                            {booking.customer?.firstName ?? "Unknown"} {booking.customer?.lastName ?? ""}
-                                                        </p>
-                                                        <p className="flex items-center text-xs text-gray-500">
-                                                            <Users className="h-3 w-3 mr-1" />
-                                                            {booking.customer?.age ? `${booking.customer.age} years` : "N/A"}
-                                                        </p>
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center space-x-2">
+                                                        <Avatar className="h-9 w-9">
+                                                            <AvatarImage src={booking.customer?.profile ?? ""} />
+                                                            <AvatarFallback>{booking.customer?.firstName?.charAt(0) ?? "?"}</AvatarFallback>
+                                                        </Avatar>
+                                                        <div>
+                                                            <p className="text-sm font-medium text-gray-900">
+                                                                {booking.customer?.firstName ?? "Unknown"} {booking.customer?.lastName ?? ""}
+                                                            </p>
+                                                            <p className="flex items-center text-xs text-gray-500">
+                                                                <Users className="h-3 w-3 mr-1" />
+                                                                {booking.customer?.age ? `${booking.customer.age} years` : "N/A"}
+                                                            </p>
+                                                        </div>
                                                     </div>
+                                                    {/* Call Customer Button - Only for disputed/confirmed */}
+                                                    {showCallButtons && booking.customer?.whatsapp && (
+                                                        <a
+                                                            href={`tel:${booking.customer.whatsapp}`}
+                                                            className="inline-flex items-center gap-1 px-3 py-1.5 text-xs rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                                                        >
+                                                            <Phone className="h-3 w-3" />
+                                                            Call
+                                                        </a>
+                                                    )}
                                                 </div>
                                             </div>
 
                                             {/* Model Info */}
                                             <div className="mb-3">
                                                 <p className="text-xs text-gray-500 mb-1">Model</p>
-                                                <div className="flex items-center space-x-2">
-                                                    <Avatar className="h-9 w-9">
-                                                        <AvatarImage src={booking.model?.profile ?? ""} />
-                                                        <AvatarFallback>{booking.model?.firstName?.charAt(0) ?? "?"}</AvatarFallback>
-                                                    </Avatar>
-                                                    <div>
-                                                        <p className="text-sm font-medium text-gray-900">
-                                                            {booking.model?.firstName ?? "Unknown"} {booking.model?.lastName ?? ""}
-                                                        </p>
-                                                        <p className="flex items-center text-xs text-gray-500">
-                                                            <UserCheck className="h-3 w-3 mr-1" />
-                                                            {booking.model?.age ? `${booking.model.age} years` : "N/A"}
-                                                        </p>
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center space-x-2">
+                                                        <Avatar className="h-9 w-9">
+                                                            <AvatarImage src={booking.model?.profile ?? ""} />
+                                                            <AvatarFallback>{booking.model?.firstName?.charAt(0) ?? "?"}</AvatarFallback>
+                                                        </Avatar>
+                                                        <div>
+                                                            <p className="text-sm font-medium text-gray-900">
+                                                                {booking.model?.firstName ?? "Unknown"} {booking.model?.lastName ?? ""}
+                                                            </p>
+                                                            <p className="flex items-center text-xs text-gray-500">
+                                                                <UserCheck className="h-3 w-3 mr-1" />
+                                                                {booking.model?.age ? `${booking.model.age} years` : "N/A"}
+                                                            </p>
+                                                        </div>
                                                     </div>
+                                                    {/* Call Model Button - Only for disputed/confirmed */}
+                                                    {showCallButtons && booking.model?.whatsapp && (
+                                                        <a
+                                                            href={`tel:${booking.model.whatsapp}`}
+                                                            className="inline-flex items-center gap-1 px-3 py-1.5 text-xs rounded-full bg-purple-50 text-purple-600 hover:bg-purple-100 transition-colors"
+                                                        >
+                                                            <Phone className="h-3 w-3" />
+                                                            Call
+                                                        </a>
+                                                    )}
                                                 </div>
                                             </div>
 
