@@ -155,7 +155,7 @@ export async function getWalletStatus() {
       }),
       prisma.wallet.aggregate({
         _sum: {
-          totalDeposit: true,
+          totalWithdraw: true,
         },
       }),
     ]);
@@ -176,14 +176,14 @@ export async function getWalletStatus() {
         color: "text-green-600",
       },
       {
-        title: "Total recharges",
+        title: "Total Recharges",
         value: `${format(recharge._sum.totalRecharge || 0)} Kip`,
         icon: "DollarSign",
-        color: "text-red-600",
+        color: "text-green-600",
       },
       {
-        title: "Total deposit",
-        value: `${format(deposit._sum.totalDeposit || 0)} Kip`,
+        title: "Total Withdrawn",
+        value: `${format(deposit._sum.totalWithdraw || 0)} Kip`,
         icon: "DollarSign",
         color: "text-red-600",
       },
@@ -198,7 +198,7 @@ export async function getWalletStatus() {
 
 export async function getUserWalletStatus(id: string) {
   try {
-    const [balance, recharge, deposit] = await Promise.all([
+    const [balance, recharge, withdrawn] = await Promise.all([
       prisma.wallet.aggregate({
         where: { id: id }, // Filter for specific user
         _sum: {
@@ -214,14 +214,16 @@ export async function getUserWalletStatus(id: string) {
       prisma.wallet.aggregate({
         where: { id: id },
         _sum: {
-          totalDeposit: true,
+          totalWithdraw: true,
         },
       }),
     ]);
 
     const totalRecharge = recharge._sum.totalRecharge || 0;
-    const totalDeposit = deposit._sum.totalDeposit || 0;
-    const netFlow = totalRecharge - totalDeposit;
+    const totalWithdraw = withdrawn._sum.totalWithdraw || 0;
+    const totalBalance = balance._sum.totalBalance || 0;
+    // Available balance = totalBalance - totalWithdraw (for models)
+    const totalAvailable = totalBalance - totalWithdraw;
 
     const format = (val: number) =>
       new Intl.NumberFormat("en-US", {
@@ -231,8 +233,8 @@ export async function getUserWalletStatus(id: string) {
 
     const customerStats = [
       {
-        title: "Total Balances",
-        value: format(balance._sum.totalBalance || 0),
+        title: "Total Balance",
+        value: format(totalBalance),
         icon: "DollarSign",
         color: "text-green-600",
       },
@@ -243,14 +245,14 @@ export async function getUserWalletStatus(id: string) {
         color: "text-green-600",
       },
       {
-        title: "Total Deposits",
-        value: format(totalDeposit),
+        title: "Total Withdrawn",
+        value: format(totalWithdraw),
         icon: "ArrowDownRight",
         color: "text-red-600",
       },
       {
-        title: "Net Flow",
-        value: format(netFlow),
+        title: "Available",
+        value: format(totalAvailable),
         icon: "Activity",
         color: "text-purple-600",
       },
@@ -290,7 +292,8 @@ export async function getTopEarningWallet() {
       name: `${wallet.model?.firstName ?? ""} ${wallet.model?.lastName ?? ""}`,
       profile: wallet.model?.profile,
       earnings: wallet.totalBalance,
-      balance: wallet.totalDeposit,
+      withdrawn: wallet.totalWithdraw,
+      available: wallet.totalBalance - wallet.totalWithdraw,
     }));
   } catch (error) {
     console.error("GET_TOP_EARNING_WALLETS_FAILED", error);
@@ -377,7 +380,10 @@ export async function updateWallet(
       data: {
         totalBalance: data.totalBalance,
         totalRecharge: data.totalRecharge,
-        totalDeposit: data.totalDeposit,
+        totalWithdraw: data.totalWithdraw,
+        totalSpend: data.totalSpend,
+        totalRefunded: data.totalRefunded,
+        totalPending: data.totalPending,
         status: data.status,
         updatedAt: new Date(),
         updatedBy: {

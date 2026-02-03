@@ -1,9 +1,25 @@
 import nodemailer from "nodemailer";
 import Telbiz from "telbiz";
+import webpush from "web-push";
 import { prisma } from "./database.server";
 
 // Admin email for notifications
 const ADMIN_EMAIL = "xaosao95@gmail.com";
+
+// ========================================
+// VAPID Configuration for Push Notifications
+// ========================================
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
+const VAPID_EMAIL = process.env.VAPID_EMAIL || "mailto:xaosao95@gmail.com";
+
+// Only configure if keys are available
+if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(VAPID_EMAIL, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+  console.log("[Push Admin] Web Push configured with VAPID keys");
+} else {
+  console.warn("[Push Admin] VAPID keys not configured. Push notifications disabled.");
+}
 
 // Initialize Telbiz SMS client
 const tb = new Telbiz(
@@ -341,9 +357,17 @@ interface ModelNotificationData {
 export async function notifyModelApproved(model: ModelNotificationData): Promise<void> {
   const modelName = `${model.firstName} ${model.lastName || ""}`.trim();
 
-  // Send SMS only
+  // 1. Create in-app notification
+  await createModelNotification(model.id, {
+    type: "profile_approved",
+    title: "ບັນຊີໄດ້ຮັບການອະນຸມັດ!",
+    message: `ຍິນດີດ້ວຍ ${modelName}! ບັນຊີຂອງທ່ານໄດ້ຮັບການອະນຸມັດແລ້ວ. ທ່ານສາມາດຮັບການຈອງຈາກລູກຄ້າໄດ້ແລ້ວ.`,
+    data: {},
+  });
+
+  // 2. Send SMS
   if (model.whatsapp) {
-    const smsMessage = `XaoSao: ຍິນດີດ້ວຍ ${modelName}! ບັນຊີຂອງທ່ານໄດ້ຮັບການອະນຸມັດແລ້ວ. ກະລຸນາເຂົ້າສູ່ລະບົບເພື່ອເລີ່ມຕົ້ນ.`;
+    const smsMessage = `XaoSao: ຍິນດີດ້ວຍ ${modelName}! ບັນຊີຂອງທ່ານໄດ້ຮັບການອະນຸມັດແລ້ວ. ກະລຸນາເຂົ້າສູ່ລະບົບເພື່ອເລີ່ມຕົ້ນຮັບການຈອງ.`;
     console.log(`Sending approval SMS to ${model.whatsapp}: ${smsMessage}`);
     sendSMS(model.whatsapp.toString(), smsMessage).catch((err) =>
       console.error("Failed to send model approval SMS:", err)
@@ -351,6 +375,19 @@ export async function notifyModelApproved(model: ModelNotificationData): Promise
   } else {
     console.warn("Model has no whatsapp number, cannot send approval SMS");
   }
+
+  // 3. Send push notification
+  await sendPushToModel(model.id, {
+    title: "ບັນຊີໄດ້ຮັບການອະນຸມັດ! 🎉",
+    body: `ຍິນດີດ້ວຍ ${modelName}! ທ່ານສາມາດຮັບການຈອງຈາກລູກຄ້າໄດ້ແລ້ວ.`,
+    tag: `profile-approved-${model.id}`,
+    data: {
+      type: "profile_approved",
+      url: "/model",
+    },
+  });
+
+  console.log(`[Notification Admin] Model approval notifications sent to ${model.id}`);
 }
 
 export async function notifyModelRejected(model: ModelNotificationData): Promise<void> {
@@ -416,4 +453,637 @@ export async function notifyTransactionRejected(transaction: TransactionNotifica
   } else {
     console.warn("Model has no whatsapp number, cannot send transaction rejection SMS");
   }
+}
+
+// ========================================
+// Push Notification Helper
+// ========================================
+
+interface PushPayload {
+  title: string;
+  body: string;
+  icon?: string;
+  badge?: string;
+  tag?: string;
+  data?: Record<string, any>;
+}
+
+/**
+ * Send push notification to a model
+ */
+async function sendPushToModel(modelId: string, payload: PushPayload): Promise<void> {
+  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
+    console.warn("[Push Admin] VAPID keys not configured, skipping push");
+    return;
+  }
+
+  try {
+    // Check if model has push notifications enabled
+    const model = await prisma.model.findUnique({
+      where: { id: modelId },
+      select: { sendPushNoti: true },
+    });
+
+    if (!model?.sendPushNoti) {
+      console.log(`[Push Admin] Model ${modelId} has push notifications disabled`);
+      return;
+    }
+
+    // Get all subscriptions for this model
+    const subscriptions = await prisma.push_subscription.findMany({
+      where: { userType: "model", userId: modelId },
+    });
+
+    if (subscriptions.length === 0) {
+      console.log(`[Push Admin] No push subscriptions found for model ${modelId}`);
+      return;
+    }
+
+    // Prepare notification payload
+    const notificationPayload = JSON.stringify({
+      title: payload.title,
+      body: payload.body,
+      icon: payload.icon || "/icons/icon-192x192.png",
+      badge: payload.badge || "/icons/icon-72x72.png",
+      tag: payload.tag || `notification-${Date.now()}`,
+      data: {
+        ...payload.data,
+        url: payload.data?.url || "/model/notifications",
+      },
+    });
+
+    let sent = 0;
+    for (const sub of subscriptions) {
+      try {
+        await webpush.sendNotification(
+          {
+            endpoint: sub.endpoint,
+            keys: {
+              p256dh: sub.p256dh,
+              auth: sub.auth,
+            },
+          },
+          notificationPayload
+        );
+        sent++;
+      } catch (error: any) {
+        console.error(`[Push Admin] Failed to send to endpoint:`, error.statusCode || error.message);
+        // Remove invalid subscriptions
+        if (error.statusCode === 410 || error.statusCode === 404) {
+          await prisma.push_subscription.delete({
+            where: { id: sub.id },
+          }).catch(() => {});
+        }
+      }
+    }
+
+    console.log(`[Push Admin] Sent ${sent}/${subscriptions.length} push notifications to model ${modelId}`);
+  } catch (error) {
+    console.error("[Push Admin] Error sending push notification:", error);
+  }
+}
+
+// ========================================
+// In-App Notification Helper
+// ========================================
+
+type NotificationType =
+  | "profile_approved"
+  | "referral_bonus"
+  | "deposit_approved"
+  | "withdraw_approved"
+  | "welcome";
+
+interface NotificationPayload {
+  type: NotificationType;
+  title: string;
+  message: string;
+  data?: Record<string, any>;
+}
+
+/**
+ * Create an in-app notification for a model
+ */
+async function createModelNotification(modelId: string, payload: NotificationPayload): Promise<void> {
+  try {
+    await prisma.model_notification.create({
+      data: {
+        type: payload.type,
+        title: payload.title,
+        message: payload.message,
+        data: payload.data || {},
+        isRead: false,
+        modelId,
+      },
+    });
+    console.log(`[Notification Admin] Created ${payload.type} notification for model ${modelId}`);
+  } catch (error) {
+    console.error("[Notification Admin] Failed to create notification:", error);
+  }
+}
+
+// ========================================
+// Referral Bonus Notification
+// ========================================
+
+interface ReferralBonusNotificationData {
+  referrerId: string;
+  referrerName: string;
+  referrerWhatsapp: number | null;
+  referredModelName: string;
+  amount: number;
+  transactionId?: string;
+}
+
+/**
+ * Notify referrer model when they earn a referral bonus
+ * Sends SMS, push notification, and creates in-app notification
+ */
+export async function notifyReferralBonusReceived(data: ReferralBonusNotificationData): Promise<void> {
+  const { referrerId, referrerName, referrerWhatsapp, referredModelName, amount, transactionId } = data;
+  console.log(`[Notification Admin] notifyReferralBonusReceived called with:`, { referrerId, referrerName, referrerWhatsapp, referredModelName, amount });
+
+  // 1. Create in-app notification
+  console.log(`[Notification Admin] Creating in-app notification for referrer ${referrerId}`);
+  try {
+    await createModelNotification(referrerId, {
+      type: "referral_bonus",
+      title: "ໄດ້ຮັບໂບນັດແນະນຳ!",
+      message: `ທ່ານໄດ້ຮັບ ${amount.toLocaleString()} ກີບ ຈາກການແນະນຳ ${referredModelName}!`,
+      data: { amount, referredModelName, transactionId },
+    });
+    console.log(`[Notification Admin] In-app notification created successfully`);
+  } catch (err) {
+    console.error(`[Notification Admin] Failed to create in-app notification:`, err);
+  }
+
+  // 2. Send SMS to referrer
+  if (referrerWhatsapp) {
+    const smsMessage = `XaoSao: ຍິນດີດ້ວຍ ${referrerName}! ທ່ານໄດ້ຮັບ ${amount.toLocaleString()} ກີບ ຈາກການແນະນຳໂມເດວ ${referredModelName}. ກວດເບິ່ງ Wallet ຂອງທ່ານໃນແອັບ.`;
+    console.log(`[Notification Admin] Sending referral bonus SMS to ${referrerWhatsapp}: ${smsMessage}`);
+    sendSMS(referrerWhatsapp.toString(), smsMessage).catch((err) =>
+      console.error("[Notification Admin] Failed to send referral bonus SMS:", err)
+    );
+  } else {
+    console.log(`[Notification Admin] Referrer ${referrerId} has no whatsapp number, skipping SMS`);
+  }
+
+  // 3. Send push notification
+  await sendPushToModel(referrerId, {
+    title: "ໄດ້ຮັບໂບນັດແນະນຳ! 🎉",
+    body: `ທ່ານໄດ້ຮັບ ${amount.toLocaleString()} ກີບ ຈາກການແນະນຳ ${referredModelName}!`,
+    tag: `referral-bonus-${transactionId || Date.now()}`,
+    data: {
+      type: "referral_bonus",
+      url: "/model/settings/wallet",
+      amount,
+      referredModelName,
+    },
+  });
+
+  console.log(`[Notification Admin] Referral bonus notifications sent to ${referrerId}`);
+}
+
+/**
+ * Notify referrer when their referral is counted (for commission-eligible special/partner)
+ * No bonus paid, but referral is tracked
+ */
+export async function notifyReferralTracked(data: {
+  referrerId: string;
+  referrerName: string;
+  referrerWhatsapp: number | null;
+  referredModelName: string;
+  referrerType: string;
+  totalReferred: number;
+}): Promise<void> {
+  const { referrerId, referrerName, referrerWhatsapp, referredModelName, referrerType, totalReferred } = data;
+  console.log(`[Notification Admin] notifyReferralTracked called with:`, { referrerId, referrerName, referrerType, totalReferred });
+
+  const commissionRate = referrerType === "partner" ? "4%" : "2%";
+
+  // 1. Create in-app notification
+  console.log(`[Notification Admin] Creating in-app notification for referrer ${referrerId}`);
+  try {
+    await createModelNotification(referrerId, {
+      type: "referral_bonus",
+      title: "ແນະນຳໂມເດວສຳເລັດ!",
+      message: `${referredModelName} ໄດ້ຮັບການອະນຸມັດ! ທ່ານຈະໄດ້ຮັບ ${commissionRate} ຈາກການຈອງຂອງພວກເຂົາ.`,
+      data: { referredModelName, totalReferred },
+    });
+    console.log(`[Notification Admin] In-app notification created successfully`);
+  } catch (err) {
+    console.error(`[Notification Admin] Failed to create in-app notification:`, err);
+  }
+
+  // 2. Send SMS to referrer
+  if (referrerWhatsapp) {
+    const smsMessage = `XaoSao: ຍິນດີດ້ວຍ ${referrerName}! ${referredModelName} ໄດ້ຮັບການອະນຸມັດ. ທ່ານຈະໄດ້ຮັບ ${commissionRate} ຈາກການຈອງຂອງພວກເຂົາ.`;
+    console.log(`[Notification Admin] Sending referral tracked SMS to ${referrerWhatsapp}: ${smsMessage}`);
+    sendSMS(referrerWhatsapp.toString(), smsMessage).catch((err) =>
+      console.error("[Notification Admin] Failed to send referral tracked SMS:", err)
+    );
+  } else {
+    console.log(`[Notification Admin] Referrer ${referrerId} has no whatsapp number, skipping SMS`);
+  }
+
+  // 3. Send push notification
+  console.log(`[Notification Admin] Sending push notification to referrer ${referrerId}`);
+  await sendPushToModel(referrerId, {
+    title: "ແນະນຳໂມເດວສຳເລັດ! ✨",
+    body: `${referredModelName} ໄດ້ຮັບການອະນຸມັດ! ທ່ານຈະໄດ້ຮັບ ${commissionRate} ຈາກການຈອງຂອງພວກເຂົາ.`,
+    tag: `referral-tracked-${Date.now()}`,
+    data: {
+      type: "referral_bonus",
+      url: "/model/referral",
+      referredModelName,
+      totalReferred,
+    },
+  });
+
+  console.log(`[Notification Admin] Referral tracked notifications sent to ${referrerId}`);
+}
+
+// ========================================
+// Customer SMS Helper
+// ========================================
+
+/**
+ * Get customer's WhatsApp number
+ */
+async function getCustomerPhone(customerId: string): Promise<number | null> {
+  try {
+    const customer = await prisma.customer.findUnique({
+      where: { id: customerId },
+      select: { whatsapp: true },
+    });
+    return customer?.whatsapp || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Send SMS to a customer
+ */
+async function sendSMSToCustomer(customerId: string, message: string): Promise<void> {
+  const phone = await getCustomerPhone(customerId);
+  if (phone) {
+    sendSMS(phone.toString(), message).catch((err) =>
+      console.error("Failed to send SMS to customer:", err)
+    );
+  }
+}
+
+// ========================================
+// Customer Push Notification Helper
+// ========================================
+
+/**
+ * Send push notification to a customer
+ */
+async function sendPushToCustomer(customerId: string, payload: {
+  title: string;
+  body: string;
+  tag?: string;
+  data?: Record<string, any>;
+}): Promise<void> {
+  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
+    console.warn("[Push Admin] VAPID keys not configured, skipping push");
+    return;
+  }
+
+  try {
+    // Check if customer has push notifications enabled
+    const customer = await prisma.customer.findUnique({
+      where: { id: customerId },
+      select: { sendPushNoti: true },
+    });
+
+    if (!customer?.sendPushNoti) {
+      console.log(`[Push Admin] Customer ${customerId} has push notifications disabled`);
+      return;
+    }
+
+    // Get all subscriptions for this customer
+    const subscriptions = await prisma.push_subscription.findMany({
+      where: { userType: "customer", userId: customerId },
+    });
+
+    if (subscriptions.length === 0) {
+      console.log(`[Push Admin] No push subscriptions found for customer ${customerId}`);
+      return;
+    }
+
+    // Prepare notification payload
+    const notificationPayload = JSON.stringify({
+      title: payload.title,
+      body: payload.body,
+      icon: "/icons/icon-192x192.png",
+      badge: "/icons/icon-72x72.png",
+      tag: payload.tag || `notification-${Date.now()}`,
+      data: {
+        ...payload.data,
+        url: payload.data?.url || "/customer/notifications",
+      },
+    });
+
+    let sent = 0;
+    for (const sub of subscriptions) {
+      try {
+        await webpush.sendNotification(
+          {
+            endpoint: sub.endpoint,
+            keys: {
+              p256dh: sub.p256dh,
+              auth: sub.auth,
+            },
+          },
+          notificationPayload
+        );
+        sent++;
+      } catch (error: any) {
+        console.error(`[Push Admin] Failed to send to customer endpoint:`, error.statusCode || error.message);
+        // Remove invalid subscriptions
+        if (error.statusCode === 410 || error.statusCode === 404) {
+          await prisma.push_subscription.delete({
+            where: { id: sub.id },
+          }).catch(() => {});
+        }
+      }
+    }
+
+    console.log(`[Push Admin] Sent ${sent}/${subscriptions.length} push notifications to customer ${customerId}`);
+  } catch (error) {
+    console.error("[Push Admin] Error sending push notification to customer:", error);
+  }
+}
+
+// ========================================
+// Customer In-App Notification Helper
+// ========================================
+
+type CustomerNotificationType =
+  | "booking_created"
+  | "booking_confirmed"
+  | "booking_rejected"
+  | "booking_cancelled"
+  | "booking_completed"
+  | "payment_released"
+  | "payment_refunded"
+  | "deposit_approved"
+  | "deposit_rejected";
+
+interface CustomerNotificationPayload {
+  type: CustomerNotificationType;
+  title: string;
+  message: string;
+  data?: Record<string, any>;
+}
+
+/**
+ * Create an in-app notification for a customer
+ */
+async function createCustomerNotification(customerId: string, payload: CustomerNotificationPayload): Promise<void> {
+  try {
+    await prisma.customer_notification.create({
+      data: {
+        type: payload.type,
+        title: payload.title,
+        message: payload.message,
+        data: payload.data || {},
+        isRead: false,
+        customerId,
+      },
+    });
+    console.log(`[Notification Admin] Created ${payload.type} notification for customer ${customerId}`);
+  } catch (error) {
+    console.error("[Notification Admin] Failed to create customer notification:", error);
+  }
+}
+
+// ========================================
+// Admin Booking Complete/Refund Notifications
+// ========================================
+
+interface AdminBookingCompleteData {
+  bookingId: string;
+  customerId: string;
+  modelId: string;
+  serviceName: string;
+  modelName: string;
+  customerName: string;
+  totalAmount: number;
+  commissionAmount: number;
+  netAmount: number;
+  referrer?: {
+    id: string;
+    firstName: string;
+    whatsapp: number | null;
+    commissionAmount: number;
+  } | null;
+}
+
+/**
+ * Send notifications when admin completes a booking
+ * Notifies: Customer, Model, and Referrer (if eligible)
+ */
+export async function notifyAdminBookingCompleted(data: AdminBookingCompleteData): Promise<void> {
+  const {
+    bookingId,
+    customerId,
+    modelId,
+    serviceName,
+    modelName,
+    customerName,
+    totalAmount,
+    netAmount,
+    referrer,
+  } = data;
+
+  console.log(`[Notification Admin] Sending booking complete notifications for booking ${bookingId}`);
+
+  // 1. Notify Customer - Payment has been released
+  await createCustomerNotification(customerId, {
+    type: "payment_released",
+    title: "Booking Completed",
+    message: `Your booking for "${serviceName}" with ${modelName} has been completed. Payment of ${totalAmount.toLocaleString()} LAK has been released.`,
+    data: { bookingId, modelId },
+  });
+
+  // Send SMS to customer
+  const customerSmsMessage = `XaoSao: ການຈອງ "${serviceName}" ຂອງທ່ານກັບ ${modelName} ສຳເລັດແລ້ວ. ການຊຳລະເງິນ ${totalAmount.toLocaleString()} LAK ໄດ້ຖືກປ່ອຍແລ້ວ.`;
+  sendSMSToCustomer(customerId, customerSmsMessage);
+
+  // Send push to customer
+  sendPushToCustomer(customerId, {
+    title: "Booking Completed",
+    body: `Your "${serviceName}" booking with ${modelName} is complete`,
+    tag: `booking-complete-${bookingId}`,
+    data: {
+      type: "payment_released",
+      bookingId,
+      url: "/customer/dates-history",
+    },
+  });
+
+  // 2. Notify Model - Payment has been received
+  await createModelNotification(modelId, {
+    type: "deposit_approved",
+    title: "ໄດ້ຮັບເງິນແລ້ວ!",
+    message: `ທ່ານໄດ້ຮັບ ${netAmount.toLocaleString()} LAK ຈາກການຈອງ "${serviceName}" ກັບ ${customerName}.`,
+    data: { bookingId, customerId, amount: netAmount },
+  });
+
+  // Send SMS to model
+  const modelPhone = await getModelPhone(modelId);
+  if (modelPhone) {
+    const modelSmsMessage = `XaoSao: ທ່ານໄດ້ຮັບ ${netAmount.toLocaleString()} LAK ຈາກການຈອງ "${serviceName}" ກັບ ${customerName}. ກວດເບິ່ງ Wallet ຂອງທ່ານ.`;
+    sendSMS(modelPhone.toString(), modelSmsMessage).catch((err) =>
+      console.error("Failed to send SMS to model:", err)
+    );
+  }
+
+  // Send push to model
+  await sendPushToModel(modelId, {
+    title: "ໄດ້ຮັບເງິນແລ້ວ! 💰",
+    body: `${netAmount.toLocaleString()} LAK ຈາກການຈອງ "${serviceName}"`,
+    tag: `payment-released-${bookingId}`,
+    data: {
+      type: "payment_released",
+      bookingId,
+      url: "/model/settings/wallet",
+    },
+  });
+
+  // 3. Notify Referrer (if eligible and has commission)
+  if (referrer && referrer.commissionAmount > 0) {
+    await createModelNotification(referrer.id, {
+      type: "referral_bonus",
+      title: "ໄດ້ຮັບຄ່ານາຍໜ້າ!",
+      message: `ທ່ານໄດ້ຮັບ ${referrer.commissionAmount.toLocaleString()} LAK ຄ່ານາຍໜ້າຈາກການຈອງຂອງ ${modelName}.`,
+      data: { bookingId, modelId, amount: referrer.commissionAmount },
+    });
+
+    // Send SMS to referrer
+    if (referrer.whatsapp) {
+      const referrerSmsMessage = `XaoSao: ຍິນດີດ້ວຍ ${referrer.firstName}! ທ່ານໄດ້ຮັບ ${referrer.commissionAmount.toLocaleString()} LAK ຄ່ານາຍໜ້າຈາກການຈອງຂອງ ${modelName}. ກວດເບິ່ງ Wallet ຂອງທ່ານ.`;
+      sendSMS(referrer.whatsapp.toString(), referrerSmsMessage).catch((err) =>
+        console.error("[SMS] Failed to send referral commission SMS:", err)
+      );
+    }
+
+    // Send push to referrer
+    await sendPushToModel(referrer.id, {
+      title: "ໄດ້ຮັບຄ່ານາຍໜ້າ! 🎉",
+      body: `${referrer.commissionAmount.toLocaleString()} LAK ຈາກການຈອງຂອງ ${modelName}`,
+      tag: `referral-commission-${bookingId}`,
+      data: {
+        type: "referral_bonus",
+        bookingId,
+        url: "/model/settings/wallet",
+      },
+    });
+  }
+
+  console.log(`[Notification Admin] Admin booking complete notifications sent for booking ${bookingId}`);
+}
+
+/**
+ * Helper to get model's phone number
+ */
+async function getModelPhone(modelId: string): Promise<number | null> {
+  try {
+    const model = await prisma.model.findUnique({
+      where: { id: modelId },
+      select: { whatsapp: true },
+    });
+    return model?.whatsapp || null;
+  } catch {
+    return null;
+  }
+}
+
+interface AdminBookingRefundData {
+  bookingId: string;
+  customerId: string;
+  modelId: string;
+  serviceName: string;
+  modelName: string;
+  customerName: string;
+  refundAmount: number;
+  reason?: string;
+}
+
+/**
+ * Send notifications when admin refunds a booking
+ * Notifies: Customer and Model
+ */
+export async function notifyAdminBookingRefunded(data: AdminBookingRefundData): Promise<void> {
+  const {
+    bookingId,
+    customerId,
+    modelId,
+    serviceName,
+    modelName,
+    customerName,
+    refundAmount,
+    reason,
+  } = data;
+
+  console.log(`[Notification Admin] Sending booking refund notifications for booking ${bookingId}`);
+
+  // 1. Notify Customer - Payment has been refunded
+  await createCustomerNotification(customerId, {
+    type: "payment_refunded",
+    title: "Booking Refunded",
+    message: `Your booking for "${serviceName}" has been refunded. ${refundAmount.toLocaleString()} LAK has been returned to your wallet.${reason ? ` Reason: ${reason}` : ""}`,
+    data: { bookingId, modelId, amount: refundAmount },
+  });
+
+  // Send SMS to customer
+  const customerSmsMessage = `XaoSao: ການຈອງ "${serviceName}" ຂອງທ່ານໄດ້ຖືກຄືນເງິນແລ້ວ. ${refundAmount.toLocaleString()} LAK ໄດ້ຖືກສົ່ງຄືນໃສ່ Wallet ຂອງທ່ານ.${reason ? ` ເຫດຜົນ: ${reason}` : ""}`;
+  sendSMSToCustomer(customerId, customerSmsMessage);
+
+  // Send push to customer
+  sendPushToCustomer(customerId, {
+    title: "Booking Refunded",
+    body: `${refundAmount.toLocaleString()} LAK refunded for "${serviceName}"`,
+    tag: `booking-refund-${bookingId}`,
+    data: {
+      type: "payment_refunded",
+      bookingId,
+      url: "/customer/wallets",
+    },
+  });
+
+  // 2. Notify Model - Booking has been refunded
+  await createModelNotification(modelId, {
+    type: "deposit_approved",
+    title: "ການຈອງຖືກຄືນເງິນ",
+    message: `ການຈອງ "${serviceName}" ກັບ ${customerName} ໄດ້ຖືກຄືນເງິນໃຫ້ລູກຄ້າແລ້ວ.${reason ? ` ເຫດຜົນ: ${reason}` : ""}`,
+    data: { bookingId, customerId },
+  });
+
+  // Send SMS to model
+  const modelPhone = await getModelPhone(modelId);
+  if (modelPhone) {
+    const modelSmsMessage = `XaoSao: ການຈອງ "${serviceName}" ກັບ ${customerName} ໄດ້ຖືກຄືນເງິນໃຫ້ລູກຄ້າແລ້ວ.${reason ? ` ເຫດຜົນ: ${reason}` : ""}`;
+    sendSMS(modelPhone.toString(), modelSmsMessage).catch((err) =>
+      console.error("Failed to send SMS to model:", err)
+    );
+  }
+
+  // Send push to model
+  await sendPushToModel(modelId, {
+    title: "ການຈອງຖືກຄືນເງິນ",
+    body: `"${serviceName}" ກັບ ${customerName} ຖືກຄືນເງິນແລ້ວ`,
+    tag: `booking-refund-model-${bookingId}`,
+    data: {
+      type: "booking_cancelled",
+      bookingId,
+      url: "/model/dating",
+    },
+  });
+
+  console.log(`[Notification Admin] Admin booking refund notifications sent for booking ${bookingId}`);
 }

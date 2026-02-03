@@ -107,12 +107,48 @@ export default function EditWalletModal() {
                                 <Textfield
                                     required
                                     type="number"
-                                    id="total_deposit"
-                                    name="total_deposit"
-                                    title="Total Deposit"
+                                    id="total_withdraw"
+                                    name="total_withdraw"
+                                    title="Total Withdrawn"
                                     color="text-gray-500"
-                                    placeholder="Enter total deposit...."
-                                    defaultValue={wallet.totalDeposit}
+                                    placeholder="Enter total withdrawn...."
+                                    defaultValue={wallet.totalWithdraw}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Textfield
+                                    required
+                                    type="number"
+                                    id="total_spend"
+                                    name="total_spend"
+                                    title="Total Spent"
+                                    color="text-gray-500"
+                                    placeholder="Enter total spent...."
+                                    defaultValue={wallet.totalSpend}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Textfield
+                                    required
+                                    type="number"
+                                    id="total_refunded"
+                                    name="total_refunded"
+                                    title="Total Refunded"
+                                    color="text-gray-500"
+                                    placeholder="Enter total refunded...."
+                                    defaultValue={wallet.totalRefunded}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Textfield
+                                    required
+                                    type="number"
+                                    id="total_pending"
+                                    name="total_pending"
+                                    title="Total Pending"
+                                    color="text-gray-500"
+                                    placeholder="Enter total pending...."
+                                    defaultValue={wallet.totalPending}
                                 />
                             </div>
                         </div>
@@ -182,7 +218,10 @@ export async function action({ params, request }: ActionFunctionArgs) {
             const input: IWalletInputs = {
                 totalBalance: Number(wallet.total_balance),
                 totalRecharge: Number(wallet.total_recharge),
-                totalDeposit: Number(wallet.total_deposit),
+                totalWithdraw: Number(wallet.total_withdraw),
+                totalSpend: Number(wallet.total_spend),
+                totalRefunded: Number(wallet.total_refunded),
+                totalPending: Number(wallet.total_pending),
                 status: wallet.status as UserStatus,
             };
 

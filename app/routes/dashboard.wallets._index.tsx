@@ -295,8 +295,8 @@ export default function Wallets() {
                                                 <p className="text-gray-700 font-medium">{wallet.totalRecharge.toLocaleString()} Kip</p>
                                             </div>
                                             <div>
-                                                <span className="text-gray-400">Deposits:</span>
-                                                <p className="text-gray-700 font-medium">{wallet.totalDeposit.toLocaleString()} Kip</p>
+                                                <span className="text-gray-400">Withdrawn:</span>
+                                                <p className="text-gray-700 font-medium">{(wallet.totalWithdraw || 0).toLocaleString()} Kip</p>
                                             </div>
                                             <div>
                                                 <span className="text-gray-400">Created:</span>
@@ -396,7 +396,7 @@ export default function Wallets() {
                                                             Recharge: {wallet.totalRecharge.toLocaleString()} Kip
                                                         </p>
                                                         <p className="text-sm font-medium text-gray-500">
-                                                            Deposits: {wallet.totalDeposit.toLocaleString()} Kip
+                                                            Withdrawn: {(wallet.totalWithdraw || 0).toLocaleString()} Kip
                                                         </p>
                                                     </div>
                                                 </TableCell>

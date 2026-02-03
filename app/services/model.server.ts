@@ -490,6 +490,7 @@ export async function updateModel(
         location: locationDetails,
         available_status: data.available_status,
         ...(data.profile && { profile: data.profile }),
+        ...(data.type && { type: data.type }),
         updatedAt: new Date(),
       },
     });

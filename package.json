@@ -41,6 +41,7 @@
     "tailwind-merge": "^3.3.1",
     "tailwindcss-animate": "^1.0.7",
     "telbiz": "^1.0.8",
+    "web-push": "^3.6.7",
     "zod": "^4.0.5",
     "zustand": "^5.0.7"
   },
@@ -49,6 +50,7 @@
     "@types/nodemailer": "^7.0.4",
     "@types/react": "^18.2.20",
     "@types/react-dom": "^18.2.7",
+    "@types/web-push": "^3.6.4",
     "@typescript-eslint/eslint-plugin": "^6.7.4",
     "@typescript-eslint/parser": "^6.7.4",
     "autoprefixer": "^10.4.19",

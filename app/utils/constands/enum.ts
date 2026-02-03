@@ -39,6 +39,12 @@ export const gender: any = [
   { label: "Other", value: "other" },
 ];
 
+export const model_type: any = [
+  { label: "Normal", value: "normal" },
+  { label: "Special", value: "special" },
+  { label: "Partner", value: "partner" },
+];
+
 export const adjustment: any = [
   { label: "Add Funds", value: "add fund" },
   { label: "Subtract Funds", value: "substract fund" },

@@ -1,4 +1,4 @@
-import { CheckCircle, AlertTriangle, UserCheck, Calculator } from "lucide-react";
+import { CheckCircle, AlertTriangle, UserCheck, Calculator, Users } from "lucide-react";
 import { Form, json, useLoaderData, useNavigate, useNavigation } from "@remix-run/react";
 
 // components
@@ -13,12 +13,25 @@ import { useAuthStore } from "~/store/permissionStore";
 import { requireUserPermission, requireUserSession } from "~/services/auth.server";
 import { ActionFunctionArgs, LoaderFunctionArgs, redirect } from "@remix-run/node";
 import { getBookingById, completeBooking } from "~/services/booking.server";
+import { prisma } from "~/services/database.server";
 
 interface LoaderData {
     booking: any;
     commission: number;
     commissionAmount: number;
     netAmount: number;
+    // Referral commission info
+    referrer: {
+        id: string;
+        firstName: string;
+        lastName: string | null;
+        type: string;
+        profile: string | null;
+        totalReferredModels: number;
+        isEligible: boolean;
+        commissionRate: number;
+        commissionAmount: number;
+    } | null;
 }
 
 export default function CompleteBookingModal() {
@@ -26,7 +39,7 @@ export default function CompleteBookingModal() {
     const navigation = useNavigation();
     const hasPermission = useAuthStore((state) => state.hasPermission);
     const isSubmitting = navigation.state !== "idle" && navigation.formMethod === "PATCH";
-    const { booking, commission, commissionAmount, netAmount } = useLoaderData<LoaderData>();
+    const { booking, commission, commissionAmount, netAmount, referrer } = useLoaderData<LoaderData>();
     const model = booking?.model;
 
     const totalAmount = booking.price;
@@ -103,6 +116,19 @@ export default function CompleteBookingModal() {
                                             <span className="text-gray-600">Service Commission ({commission}%):</span>
                                             <span className="font-medium text-red-600">- {commissionAmount.toLocaleString()} LAK</span>
                                         </div>
+                                        {/* Show commission breakdown if referrer is eligible */}
+                                        {referrer?.isEligible && (
+                                            <div className="ml-4 pl-2 border-l-2 border-blue-200 space-y-1">
+                                                <div className="flex justify-between text-xs">
+                                                    <span className="text-gray-500">→ Platform ({commission - referrer.commissionRate}%):</span>
+                                                    <span className="text-gray-600">{(commissionAmount - referrer.commissionAmount).toLocaleString()} LAK</span>
+                                                </div>
+                                                <div className="flex justify-between text-xs">
+                                                    <span className="text-purple-600">→ Referrer ({referrer.commissionRate}%):</span>
+                                                    <span className="text-purple-600">{referrer.commissionAmount.toLocaleString()} LAK</span>
+                                                </div>
+                                            </div>
+                                        )}
                                         <div className="border-t border-blue-200 pt-2 mt-2">
                                             <div className="flex justify-between text-sm">
                                                 <span className="font-semibold text-gray-700">Model Receives:</span>
@@ -115,6 +141,50 @@ export default function CompleteBookingModal() {
                         </CardContent>
                     </Card>
 
+                    {/* Referral Commission - Only show if model has referrer */}
+                    {referrer && (
+                        <Card className={`${referrer.isEligible ? 'border-purple-200 bg-purple-50' : 'border-gray-200 bg-gray-50'}`}>
+                            <CardContent className="p-4">
+                                <div className="flex items-start space-x-3">
+                                    <Users className={`h-5 w-5 mt-0.5 ${referrer.isEligible ? 'text-purple-600' : 'text-gray-400'}`} />
+                                    <div className="flex-1">
+                                        <h4 className={`text-sm font-semibold ${referrer.isEligible ? 'text-purple-800' : 'text-gray-600'}`}>
+                                            Referral Commission {referrer.isEligible ? '(From Service Commission)' : ''}
+                                        </h4>
+                                        <div className="mt-2 flex items-center space-x-3">
+                                            <Avatar className="h-8 w-8">
+                                                <AvatarImage src={referrer.profile ?? ""} />
+                                                <AvatarFallback>{referrer.firstName?.charAt(0) ?? "?"}</AvatarFallback>
+                                            </Avatar>
+                                            <div>
+                                                <p className="text-sm text-gray-700">{referrer.firstName} {referrer.lastName ?? ""}</p>
+                                                <p className="text-xs text-gray-500">
+                                                    {referrer.type === 'partner' ? 'Partner' : referrer.type === 'special' ? 'Special' : 'Normal'} Model
+                                                    {' · '}{referrer.totalReferredModels} referrals
+                                                </p>
+                                            </div>
+                                        </div>
+                                        {referrer.isEligible ? (
+                                            <div className="mt-3 p-2 bg-purple-100 rounded">
+                                                <div className="flex justify-between text-sm">
+                                                    <span className="text-purple-700">Referral Commission ({referrer.commissionRate}% of booking):</span>
+                                                    <span className="font-semibold text-purple-800">{referrer.commissionAmount.toLocaleString()} LAK</span>
+                                                </div>
+                                                <p className="text-xs text-purple-600 mt-1">
+                                                    Deducted from {commission}% service commission → Platform receives {commission - referrer.commissionRate}%
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <div className="mt-2 text-xs text-gray-500">
+                                                Not eligible for commission (needs 2+ referrals or special/partner type)
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+
                     {/* Warning */}
                     <Card className="border-yellow-200 bg-yellow-50">
                         <CardContent className="p-4">
@@ -125,7 +195,14 @@ export default function CompleteBookingModal() {
                                     <ul className="text-sm text-yellow-700 mt-1 space-y-1">
                                         <li>• Booking status will be changed to "completed"</li>
                                         <li>• {netAmount.toLocaleString()} LAK will be added to model's wallet</li>
-                                        <li>• {commissionAmount.toLocaleString()} LAK commission will be retained by platform</li>
+                                        {referrer?.isEligible ? (
+                                            <>
+                                                <li>• {(commissionAmount - referrer.commissionAmount).toLocaleString()} LAK commission retained by platform</li>
+                                                <li>• {referrer.commissionAmount.toLocaleString()} LAK referral commission to {referrer.firstName}</li>
+                                            </>
+                                        ) : (
+                                            <li>• {commissionAmount.toLocaleString()} LAK commission retained by platform</li>
+                                        )}
                                         <li>• This action cannot be undone</li>
                                     </ul>
                                 </div>
@@ -173,11 +250,53 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     const commissionAmount = Math.floor((totalAmount * commissionRate) / 100);
     const netAmount = totalAmount - commissionAmount;
 
+    // Check if model has a referrer and get referrer info
+    let referrer = null;
+    if (booking.model?.referredById) {
+        const referrerModel = await prisma.model.findUnique({
+            where: { id: booking.model.referredById },
+            select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                type: true,
+                profile: true,
+                totalReferredModels: true,
+            }
+        });
+
+        if (referrerModel) {
+            // Check if referrer is eligible for commission
+            // Must be special/partner type AND have >= 2 referred models
+            const MIN_REFERRED_MODELS = 2;
+            const isSpecialOrPartner = referrerModel.type === "special" || referrerModel.type === "partner";
+            const hasMinReferrals = (referrerModel.totalReferredModels || 0) >= MIN_REFERRED_MODELS;
+            const isEligible = isSpecialOrPartner && hasMinReferrals;
+
+            // Commission rates: 2% for special, 4% for partner
+            const referralCommissionRate = referrerModel.type === "partner" ? 4 : 2;
+            const referralCommissionAmount = isEligible ? Math.floor((totalAmount * referralCommissionRate) / 100) : 0;
+
+            referrer = {
+                id: referrerModel.id,
+                firstName: referrerModel.firstName,
+                lastName: referrerModel.lastName,
+                type: referrerModel.type,
+                profile: referrerModel.profile,
+                totalReferredModels: referrerModel.totalReferredModels || 0,
+                isEligible,
+                commissionRate: referralCommissionRate,
+                commissionAmount: referralCommissionAmount,
+            };
+        }
+    }
+
     return json({
         booking,
         commission: commissionRate,
         commissionAmount,
         netAmount,
+        referrer,
     });
 }
 

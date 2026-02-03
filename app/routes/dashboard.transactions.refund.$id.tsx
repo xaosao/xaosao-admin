@@ -129,10 +129,41 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     if (!transaction) {
         throw new Response("Transaction not found", { status: 404 });
     }
-    // Only allow refund for held booking_hold transactions
-    if (transaction.status !== "held" || transaction.identifier !== "booking_hold") {
+
+    // Must be a booking_hold transaction
+    if (transaction.identifier !== "booking_hold") {
+        throw new Response("Only booking hold transactions can be refunded", { status: 400 });
+    }
+
+    // Don't allow if already refunded
+    if (transaction.status === "refunded") {
+        throw new Response("This transaction has already been refunded", { status: 400 });
+    }
+
+    // Extract booking ID from reason to check booking status
+    const reasonMatch = transaction.reason?.match(/[Bb]ooking #(\w+)/);
+    if (reasonMatch) {
+        const { prisma } = await import("~/services/database.server");
+        const booking = await prisma.service_booking.findUnique({
+            where: { id: reasonMatch[1] },
+            select: { status: true }
+        });
+
+        // Allow refund for held transactions OR when booking is confirmed/disputed
+        const allowedBookingStatuses = ["confirmed", "disputed"];
+        if (transaction.status !== "held" && booking && !allowedBookingStatuses.includes(booking.status)) {
+            throw new Response("Transaction is not eligible for refund. Booking must be confirmed or disputed.", { status: 400 });
+        }
+
+        // Don't allow if booking already completed or refunded
+        if (booking && (booking.status === "completed" || booking.status === "refunded")) {
+            throw new Response("Cannot refund - booking has already been " + booking.status, { status: 400 });
+        }
+    } else if (transaction.status !== "held") {
+        // If we can't find booking info and transaction is not held, don't allow
         throw new Response("Transaction is not eligible for refund", { status: 400 });
     }
+
     return json(transaction);
 }
 

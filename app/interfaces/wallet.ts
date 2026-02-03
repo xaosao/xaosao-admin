@@ -3,7 +3,13 @@ import { UserStatus } from "./base";
 export interface IWalletInputs {
   totalBalance: number;
   totalRecharge: number;
-  totalDeposit: number;
+  // New wallet schema fields
+  totalWithdraw: number;
+  totalSpend: number;
+  totalRefunded: number;
+  totalPending: number;
+  // Deprecated field (kept for backwards compatibility)
+  totalDeposit?: number;
   status: UserStatus;
   model?: string;
   customer?: string;

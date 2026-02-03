@@ -40,10 +40,17 @@ export interface IModels extends BaseEntity {
   defaultTheme?: string;
   twofactorEnabled?: boolean;
 
+  // Model type for tiered commission system
+  type?: "normal" | "special" | "partner";
+
   // Referral fields
   referralCode?: string;
+  customerReferralCode?: string;
   referredById?: string;
   referralRewardPaid?: boolean;
+  totalReferredModels?: number;
+  totalReferredCustomers?: number;
+  totalReferralEarnings?: number;
   referredBy?: {
     id: string;
     firstName: string;
@@ -69,6 +76,7 @@ export interface IModelUpdateInput {
   status: UserStatus;
   available_status: AvailableStatus;
   profile?: string;
+  type?: "normal" | "special" | "partner";
 }
 
 export interface IModelInput extends IModelUpdateInput {

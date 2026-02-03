@@ -139,7 +139,10 @@ export async function action({ params, request }: ActionFunctionArgs) {
             const input: IWalletInputs = {
                 totalBalance: Number(wallet.total_balance),
                 totalRecharge: Number(wallet.total_recharge),
-                totalDeposit: Number(wallet.total_deposit),
+                totalWithdraw: Number(wallet.total_withdraw || 0),
+                totalSpend: Number(wallet.total_spend || 0),
+                totalRefunded: Number(wallet.total_refunded || 0),
+                totalPending: Number(wallet.total_pending || 0),
                 status: wallet.status as UserStatus,
             };
 

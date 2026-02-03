@@ -472,10 +472,25 @@ const walletSchema = z.object({
     .refine((val) => String(Math.floor(val)).length <= 8, {
       message: "Total recharges must be at most 8 digits",
     }),
-  totalDeposit: z
+  totalWithdraw: z
     .number()
     .refine((val) => String(Math.floor(val)).length <= 8, {
-      message: "Total deposits must be at most 8 digits",
+      message: "Total withdrawn must be at most 8 digits",
+    }),
+  totalSpend: z
+    .number()
+    .refine((val) => String(Math.floor(val)).length <= 8, {
+      message: "Total spent must be at most 8 digits",
+    }),
+  totalRefunded: z
+    .number()
+    .refine((val) => String(Math.floor(val)).length <= 8, {
+      message: "Total refunded must be at most 8 digits",
+    }),
+  totalPending: z
+    .number()
+    .refine((val) => String(Math.floor(val)).length <= 8, {
+      message: "Total pending must be at most 8 digits",
     }),
 });
 

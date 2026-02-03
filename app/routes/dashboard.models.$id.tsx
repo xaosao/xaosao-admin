@@ -19,7 +19,7 @@ import { AvailableStatus, Gender, UserStatus } from "~/interfaces/base"
 import { validateUpdateModelInputs } from "~/services/validation.server"
 import { requireUserPermission, requireUserSession } from "~/services/auth.server"
 import { deleteFileFromBunny, uploadFileToBunnyServer } from "~/services/upload.server"
-import { available_status, extractFilenameFromCDNSafe, gender, getCurrentIP, status } from "~/utils"
+import { available_status, extractFilenameFromCDNSafe, gender, getCurrentIP, model_type, status } from "~/utils"
 
 export default function UpdateModelPage() {
     const navigate = useNavigate();
@@ -174,6 +174,20 @@ export default function UpdateModelPage() {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
+                            <SelectTextfield
+                                required
+                                title="Model Type"
+                                name="type"
+                                option={model_type}
+                                defaultValue={model.type || "normal"}
+                            />
+                            <p className="text-xs text-gray-500">
+                                Normal: 50K/referral • Special: 2% booking, 20% subscription • Partner: 4% booking, 40% subscription
+                            </p>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
                             <Textfield
                                 required
                                 type="number"
@@ -303,6 +317,7 @@ export async function action({ params, request }: ActionFunctionArgs) {
                 status: model.status as UserStatus,
                 available_status: model.available_status as AvailableStatus,
                 profile: model.profile,
+                type: model.type as "normal" | "special" | "partner",
             };
             await validateUpdateModelInputs(input);
             const res = await updateModel(modelId, input, userId, ip, accessKey);
