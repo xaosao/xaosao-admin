@@ -24,6 +24,7 @@ import {
     X,
     ArrowLeft,
     Check,
+    MessageCircle,
 } from "lucide-react";
 
 // Utils and services
@@ -50,6 +51,29 @@ export default function ModelsApprovalPage() {
     const hasPermission = useAuthStore((state) => state.hasPermission);
     const { models, pagination, filters, success } = useLoaderData<LoaderData>();
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+    // Open WhatsApp chat with welcome message to verify model's number
+    const openWhatsAppChat = (whatsappNumber: number | string, modelName: string) => {
+        if (!whatsappNumber) {
+            toast.error("This model has no WhatsApp number");
+            return;
+        }
+        // Format phone number (remove any non-digit characters)
+        const phoneNumber = String(whatsappNumber).replace(/\D/g, "");
+        // Welcome message for verification
+        const message = encodeURIComponent(
+            `ສະບາຍດີ ${modelName}! 👋\n\n` +
+            `ນີ້ແມ່ນທີມງານ XaoSao Admin.\n` +
+            `ພວກເຮົາກຳລັງກວດສອບບັນຊີຂອງທ່ານ.\n\n` +
+            `ກະລຸນາຕອບກັບຂໍ້ຄວາມນີ້ເພື່ອຢືນຢັນເບີ WhatsApp ຂອງທ່ານ.\n\n` +
+            `---\n` +
+            `Hello ${modelName}! 👋\n` +
+            `This is XaoSao Admin team.\n` +
+            `We are verifying your account.\n\n` +
+            `Please reply to this message to confirm your WhatsApp number.`
+        );
+        window.open(`https://wa.me/${phoneNumber}?text=${message}`, "_blank");
+    };
 
     const updateFilters = useCallback((updates: Record<string, string>) => {
         const params = new URLSearchParams(searchParams);
@@ -265,12 +289,20 @@ export default function ModelsApprovalPage() {
                                     {canAccess && (
                                         <Button variant="outline" size="sm" className="h-8 px-2" asChild>
                                             <Link to={`/dashboard/models/view/${model.id}`}>
-                                                <EyeIcon className="h-3 w-3" />Review
+                                                <EyeIcon className="h-3 w-3" />
                                             </Link>
                                         </Button>
                                     )}
                                     {canEdit && (
                                         <>
+                                            <Button
+                                                size="sm"
+                                                className="h-8 px-2 bg-green-500 hover:bg-green-600 text-white"
+                                                onClick={() => openWhatsAppChat(model.whatsapp, model.firstName)}
+                                                title="Verify WhatsApp number"
+                                            >
+                                                <MessageCircle className="h-3 w-3" />
+                                            </Button>
                                             <Button size="sm" className="h-8 px-2 bg-white hover:bg-green-50 text-green-500 border border-green-500" asChild>
                                                 <Link to={`${model.id}`}>
                                                     <Check className="h-3 w-3" />Approve
@@ -353,6 +385,14 @@ export default function ModelsApprovalPage() {
                                                     <Link to={`/dashboard/models/view/${model.id}`} className="flex items-center justify-center">
                                                         <EyeIcon className="h-4 w-4 mr-1" />Review
                                                     </Link>
+                                                </Button>}
+                                                {canEdit && <Button
+                                                    className="bg-green-500 hover:bg-green-600 text-white px-2"
+                                                    onClick={() => openWhatsAppChat(model.whatsapp, model.firstName)}
+                                                    title="Verify WhatsApp number before approval"
+                                                >
+                                                    <MessageCircle className="h-4 w-4 mr-1" />
+                                                    Chat
                                                 </Button>}
                                                 {canEdit && <Button className="bg-white hover:bg-white hover:opacity-90 text-green-500 border border-green-500 px-2">
                                                     <Link to={`${model.id}`} className="flex items-center justify-center">
