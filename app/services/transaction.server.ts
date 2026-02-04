@@ -575,12 +575,31 @@ export async function approveTransaction(
         );
 
         // Deduct subscription price from customer wallet
+        // IMPORTANT: Increment totalSpend, NOT decrement totalBalance
+        // Customer wallet fields:
+        // - totalBalance: all recharged (unchanged)
+        // - totalSpend: all spent (incremented here)
+        // - totalAvailable = totalBalance - totalSpend + totalRefunded
         await prisma.wallet.update({
           where: { id: walletId },
           data: {
-            totalBalance: {
-              decrement: pendingSubscription.plan.price,
+            totalSpend: {
+              increment: pendingSubscription.plan.price,
             },
+          },
+        });
+
+        // Create transaction record for subscription payment
+        await prisma.transaction_history.create({
+          data: {
+            identifier: "subscription",
+            amount: pendingSubscription.plan.price,
+            paymentSlip: null,
+            status: "approved",
+            comission: 0,
+            fee: 0,
+            customerId: transaction.customerId,
+            reason: `Subscription payment for ${pendingSubscription.plan.name} (Plan ID: ${pendingSubscription.plan.id})`,
           },
         });
 

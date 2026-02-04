@@ -214,7 +214,6 @@ export default function UpdateModelPage() {
                     </div>
                     <div className="space-y-2">
                         <Textfield
-                            required
                             multiline
                             rows={2}
                             type="text"
@@ -223,7 +222,7 @@ export default function UpdateModelPage() {
                             title="Bio"
                             color="text-gray-500"
                             placeholder="Enter your bio..."
-                            defaultValue={model.bio}
+                            defaultValue={model.bio ?? ""}
                         />
                     </div>
                 </div>
@@ -313,7 +312,7 @@ export async function action({ params, request }: ActionFunctionArgs) {
                 dob: model.dob,
                 whatsapp: Number(model.whatsapp),
                 address: model.address,
-                bio: model.bio,
+                bio: model.bio?.trim() || null,
                 status: model.status as UserStatus,
                 available_status: model.available_status as AvailableStatus,
                 profile: model.profile,

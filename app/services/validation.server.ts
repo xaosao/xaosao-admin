@@ -418,12 +418,11 @@ const modelUpdateSchema = z.object({
   dob: z.coerce.date().refine((date) => !isNaN(date.getTime()), {
     message: "Invalid date format. Please enter a valid date.",
   }),
-  bio: refineSafe(
-    z
-      .string()
-      .min(5, "Invalid description. Must be at least 3 characters.")
-      .max(255, "Invalid description. Must be at most 255 characters long.")
-  ),
+  bio: z
+    .string()
+    .max(255, "Invalid description. Must be at most 255 characters long.")
+    .optional()
+    .nullable(),
   whatsapp: z
     .number()
     .min(1000000000, "Phone number must be exactly 10 digits.")
