@@ -18,6 +18,7 @@ export async function getModels(
   options: {
     search?: string;
     status?: string;
+    type?: string;
     fromDate?: string;
     toDate?: string;
     page?: number;
@@ -28,6 +29,7 @@ export async function getModels(
     const {
       search = "",
       status = "all",
+      type = "all",
       fromDate,
       toDate,
       page = 1,
@@ -54,6 +56,11 @@ export async function getModels(
 
     if (status !== "all") {
       whereClause.status = status;
+    }
+
+    // Filter by model type (normal, special, partner)
+    if (type !== "all") {
+      whereClause.type = type;
     }
 
     if (fromDate || toDate) {

@@ -46,6 +46,7 @@ export interface IBaseFilters {
 export interface IFilters extends IBaseFilters {
   status: string;
   search: string;
+  type?: string;
 }
 
 export interface ISessionFilters extends IBaseFilters {

@@ -10,6 +10,7 @@ export async function getWallets(
     type?: string;
     order?: string;
     status?: string;
+    search?: string;
     fromDate?: string;
     toDate?: string;
     page?: number;
@@ -21,6 +22,7 @@ export async function getWallets(
       type = "all",
       order = "desc",
       status = "all",
+      search = "",
       fromDate,
       toDate,
       page = 1,
@@ -37,6 +39,29 @@ export async function getWallets(
 
     if (status && status !== "all") {
       whereClause.status = status;
+    }
+
+    // Search by model or customer first name and last name
+    if (search && search.trim()) {
+      const searchTerm = search.trim();
+      whereClause.OR = [
+        {
+          model: {
+            OR: [
+              { firstName: { contains: searchTerm, mode: "insensitive" } },
+              { lastName: { contains: searchTerm, mode: "insensitive" } },
+            ],
+          },
+        },
+        {
+          customer: {
+            OR: [
+              { firstName: { contains: searchTerm, mode: "insensitive" } },
+              { lastName: { contains: searchTerm, mode: "insensitive" } },
+            ],
+          },
+        },
+      ];
     }
 
     if (fromDate || toDate) {

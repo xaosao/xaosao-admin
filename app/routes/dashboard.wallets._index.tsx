@@ -37,6 +37,8 @@ import {
     ArrowDownLeft,
     DollarSignIcon,
     Calculator,
+    Search,
+    X,
 } from "lucide-react";
 
 // utils and service
@@ -74,7 +76,15 @@ export default function Wallets() {
         navigate(`?${params.toString()}`, { replace: true });
     }, [searchParams, navigate]);
 
+    const clearFilters = useCallback(() => {
+        if (formRef.current) {
+            formRef.current.reset();
+        }
+        navigate("", { replace: true });
+    }, [navigate]);
+
     const handleSearchSubmit = useCallback((formData: FormData) => {
+        const search = formData.get("search") as string;
         const type = formData.get("type") as string;
         const order = formData.get("order") as string;
         const status = formData.get("status") as string;
@@ -83,6 +93,7 @@ export default function Wallets() {
         const showBy = formData.get("showBy") as string;
 
         updateFilters({
+            search: search || "",
             type: type || "all",
             order: order || "desc",
             status: status || "all",
@@ -171,6 +182,16 @@ export default function Wallets() {
                             className="flex flex-col md:flex-row md:items-center md:space-y-0 space-y-2"
                         >
                             <div className="flex flex-1 items-center space-x-1">
+                                <div className="relative w-48 hidden sm:block">
+                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                                    <input
+                                        type="text"
+                                        name="search"
+                                        placeholder="Search by name..."
+                                        className="pl-9 border-gray-200 focus:border-pink-300 focus:ring-pink-300 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                        defaultValue={filters.search}
+                                    />
+                                </div>
                                 <div className="hidden sm:block w-28">
                                     <select
                                         name="type"
@@ -211,6 +232,26 @@ export default function Wallets() {
                                 </div>
                             </div>
                             <div className="flex items-center justify-end w-full md:w-auto mt-2 md:mt-0 md:ml-4 space-x-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={clearFilters}
+                                    className="flex items-center space-x-1"
+                                >
+                                    <X className="h-3 w-3" />
+                                    <span>Clear</span>
+                                </Button>
+                                <div className="block sm:hidden relative w-32">
+                                    <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                                    <input
+                                        type="text"
+                                        name="search"
+                                        placeholder="Search..."
+                                        className="pl-8 border-gray-200 focus:border-pink-300 focus:ring-pink-300 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                        defaultValue={filters.search}
+                                    />
+                                </div>
                                 <div className="block sm:hidden w-28">
                                     <select
                                         name="type"
@@ -583,6 +624,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const success = url.searchParams.get("success");
 
     // Extract search parameters
+    const search = searchParams.get("search") || "";
     const type = searchParams.get("type") || "all";
     const order = searchParams.get("order") || "desc";
     const status = searchParams.get("status") || "all";
@@ -593,6 +635,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     const [walletData, walletStatus, topEarning, recentTransaction] = await Promise.all([
         getWallets({
+            search,
             type,
             order,
             status,
@@ -614,6 +657,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         topEarning,
         recentTransaction,
         filters: {
+            search,
             type,
             order,
             status,

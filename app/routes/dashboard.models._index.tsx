@@ -98,6 +98,7 @@ export default function Models() {
     const handleSearchSubmit = useCallback((formData: FormData) => {
         const search = formData.get("search") as string;
         const status = formData.get("status") as string;
+        const type = formData.get("type") as string;
         const from = formData.get("from") as string;
         const to = formData.get("to") as string;
         const showBy = formData.get("showBy") as string;
@@ -105,6 +106,7 @@ export default function Models() {
         updateFilters({
             search: search || "",
             status: status || "all",
+            type: type || "all",
             from: from || "",
             to: to || "",
             showBy: showBy || "10",
@@ -232,6 +234,18 @@ export default function Models() {
                                     <option value="deleted">Deleted</option>
                                 </select>
                             </div>
+                            <div className="w-32 hidden sm:block">
+                                <select
+                                    name="type"
+                                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    defaultValue={filters.type || "all"}
+                                >
+                                    <option value="all">All Types</option>
+                                    <option value="normal">Normal</option>
+                                    <option value="special">Special</option>
+                                    <option value="partner">Partner</option>
+                                </select>
+                            </div>
                             <div className="w-full flex items-center space-x-2">
                                 <input
                                     type="date"
@@ -284,6 +298,18 @@ export default function Models() {
                                     <option value="inactive">Inactive</option>
                                     <option value="suspended">Suspended</option>
                                     <option value="deleted">Deleted</option>
+                                </select>
+                            </div>
+                            <div className="w-32 block sm:hidden">
+                                <select
+                                    name="type"
+                                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    defaultValue={filters.type || "all"}
+                                >
+                                    <option value="all">All Types</option>
+                                    <option value="normal">Normal</option>
+                                    <option value="special">Special</option>
+                                    <option value="partner">Partner</option>
                                 </select>
                             </div>
                             <div className="w-28">
@@ -583,6 +609,7 @@ export async function loader({ request }: { request: Request }) {
     // Extract search parameters
     const search = searchParams.get("search") || "";
     const status = searchParams.get("status") || "all";
+    const type = searchParams.get("type") || "all";
     const fromDate = searchParams.get("from") || "";
     const toDate = searchParams.get("to") || "";
     const page = parseInt(searchParams.get("page") || "1", 10);
@@ -594,6 +621,7 @@ export async function loader({ request }: { request: Request }) {
             getModels({
                 search,
                 status,
+                type,
                 fromDate,
                 toDate,
                 page,
@@ -612,6 +640,7 @@ export async function loader({ request }: { request: Request }) {
             filters: {
                 search,
                 status,
+                type,
                 fromDate,
                 toDate,
                 page,
