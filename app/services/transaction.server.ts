@@ -5,6 +5,8 @@ import { ITransactionInput } from "~/routes/dashboard.transactions.reject.$id";
 import {
   notifyTransactionApproved,
   notifyTransactionRejected,
+  notifyCustomerRechargeApproved,
+  notifyCustomerRechargeRejected,
 } from "./email.server";
 
 function isValidObjectId(id: string): boolean {
@@ -240,6 +242,9 @@ export async function rejectTransaction(
         customer: {
           select: {
             id: true,
+            firstName: true,
+            lastName: true,
+            whatsapp: true,
           },
         },
       },
@@ -294,14 +299,26 @@ export async function rejectTransaction(
         onSuccess: res,
       });
 
-      // Send email and SMS notification to the model
-      notifyTransactionRejected({
-        id: res.id,
-        amount: res.amount,
-        identifier: res.identifier,
-        model: res.model,
-        rejectReason: res.rejectReason,
-      });
+      // Send notifications based on transaction type
+      if (res.model && res.modelId) {
+        // Model withdrawal rejection - notify model
+        notifyTransactionRejected({
+          id: res.id,
+          amount: res.amount,
+          identifier: res.identifier,
+          model: res.model,
+          rejectReason: res.rejectReason,
+        });
+      } else if (res.customer && res.customerId) {
+        // Customer recharge rejection - notify customer
+        notifyCustomerRechargeRejected({
+          id: res.id,
+          amount: res.amount,
+          customerId: res.customer.id,
+          customer: res.customer,
+          rejectReason: res.rejectReason,
+        });
+      }
     }
     return res;
   } catch (error) {
@@ -541,6 +558,15 @@ export async function approveTransaction(
       include: {
         model: {
           select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            whatsapp: true,
+          },
+        },
+        customer: {
+          select: {
+            id: true,
             firstName: true,
             lastName: true,
             whatsapp: true,
@@ -691,13 +717,25 @@ export async function approveTransaction(
       onSuccess: updatedTransaction,
     });
 
-    // Send email and SMS notification to the model
-    notifyTransactionApproved({
-      id: updatedTransaction.id,
-      amount: updatedTransaction.amount,
-      identifier: updatedTransaction.identifier,
-      model: updatedTransaction.model,
-    });
+    // Send notifications based on transaction type
+    if (type === "model" && updatedTransaction.model) {
+      // Model withdrawal approval - notify model
+      notifyTransactionApproved({
+        id: updatedTransaction.id,
+        amount: updatedTransaction.amount,
+        identifier: updatedTransaction.identifier,
+        model: updatedTransaction.model,
+        modelId: updatedTransaction.model.id,
+      });
+    } else if (type === "customer" && updatedTransaction.customer) {
+      // Customer recharge approval - notify customer
+      notifyCustomerRechargeApproved({
+        id: updatedTransaction.id,
+        amount: updatedTransaction.amount,
+        customerId: updatedTransaction.customer.id,
+        customer: updatedTransaction.customer,
+      });
+    }
 
     return updatedTransaction;
   } catch (error) {

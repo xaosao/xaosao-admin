@@ -1,15 +1,23 @@
 import { prisma } from "./database.server";
 import { createAuditLogs } from "./log.server";
-import { notifyReferralBonusReceived, notifyReferralTracked } from "./email.server";
+import { notifyReferralBonusReceived, notifyReferralTracked, notifyBookingCommissionEarned } from "./email.server";
 
 // Referral reward amount in Kip (for normal model type only)
 export const REFERRAL_REWARD_AMOUNT = 50000;
 
-// Minimum referred models required for commission eligibility (testing: 2, production: 20)
-export const MIN_REFERRED_MODELS_FOR_COMMISSION = 2;
+// Minimum referred models required for commission eligibility
+// Local: 2, Production: 20
+export const MIN_REFERRED_MODELS_FOR_COMMISSION = parseInt(
+  process.env.MIN_REFERRED_MODELS_FOR_COMMISSION || "2",
+  10
+);
 
-// Minimum earnings required for partner-level commission (testing: 100,000 Kip, production: 10,000,000 Kip)
-export const MIN_EARNINGS_FOR_PARTNER_COMMISSION = 100000;
+// Minimum earnings required for partner-level commission
+// Local: 10,000 Kip, Production: 1,000,000 Kip
+export const MIN_EARNINGS_FOR_PARTNER_COMMISSION = parseInt(
+  process.env.MIN_EARNINGS_FOR_PARTNER_COMMISSION || "10000",
+  10
+);
 
 // Commission rates for booking referrals
 export const BOOKING_COMMISSION_RATE_SPECIAL = 0.02; // 2% for special
@@ -207,7 +215,7 @@ export async function processReferralReward(approvedModelId: string, adminUserId
     }
 
     // Update wallet balance and create transaction in a transaction
-    const [updatedWallet, transaction, updatedModel] = await prisma.$transaction([
+    const [updatedWallet, transaction, updatedModel, updatedReferrer] = await prisma.$transaction([
       // Add reward to referrer's wallet
       prisma.wallet.update({
         where: { id: referrerWallet.id },
@@ -232,6 +240,13 @@ export async function processReferralReward(approvedModelId: string, adminUserId
       prisma.model.update({
         where: { id: approvedModelId },
         data: { referralRewardPaid: true },
+      }),
+      // Update referrer's total referral earnings (for partner commission eligibility)
+      prisma.model.update({
+        where: { id: referrer.id },
+        data: {
+          totalReferralEarnings: (referrer.totalReferralEarnings || 0) + REFERRAL_REWARD_AMOUNT,
+        },
       }),
     ]);
 
@@ -404,7 +419,9 @@ export async function processBookingReferralCommission(
       select: {
         id: true,
         firstName: true,
+        lastName: true,
         type: true,
+        whatsapp: true,
         totalReferralEarnings: true,
       },
     });
@@ -489,6 +506,26 @@ export async function processBookingReferralCommission(
     });
 
     console.log(`Booking commission paid: ${commissionAmount.toLocaleString()} Kip to ${referrer.type} model ${referrer.id}`);
+
+    // Send notification to referrer about commission earned
+    const referrerName = `${referrer.firstName} ${referrer.lastName || ""}`.trim();
+    console.log(`[Referral] Calling notifyBookingCommissionEarned for referrer ${referrer.id}`);
+    try {
+      await notifyBookingCommissionEarned({
+        referrerId: referrer.id,
+        referrerName,
+        referrerWhatsapp: referrer.whatsapp,
+        bookedModelName: bookedModel.firstName,
+        bookingId,
+        bookingPrice,
+        commissionAmount,
+        commissionRate,
+        transactionId: transaction.id,
+      });
+      console.log(`[Referral] notifyBookingCommissionEarned completed successfully`);
+    } catch (notifyError) {
+      console.error(`[Referral] notifyBookingCommissionEarned failed:`, notifyError);
+    }
 
     return {
       success: true,

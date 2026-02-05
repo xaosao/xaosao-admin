@@ -421,12 +421,25 @@ interface TransactionNotificationData {
   rejectReason?: string | null;
 }
 
-export async function notifyTransactionApproved(transaction: TransactionNotificationData): Promise<void> {
+export async function notifyTransactionApproved(transaction: TransactionNotificationData & { modelId?: string }): Promise<void> {
   if (!transaction.model) return;
 
+  const modelId = transaction.modelId;
+  const modelName = `${transaction.model.firstName} ${transaction.model.lastName || ""}`.trim();
   const transactionType = transaction.identifier === "withdrawal" ? "ການຖອນເງິນ" : transaction.identifier;
+  const transactionTypeTitle = transaction.identifier === "withdrawal" ? "ການຖອນເງິນໄດ້ຮັບອະນຸມັດ!" : "ທຸລະກຳໄດ້ຮັບອະນຸມັດ!";
 
-  // Send SMS only
+  // 1. Create in-app notification
+  if (modelId) {
+    await createModelNotification(modelId, {
+      type: "withdraw_approved",
+      title: transactionTypeTitle,
+      message: `${transactionType} ${transaction.amount.toLocaleString()} LAK ຂອງທ່ານໄດ້ຮັບການອະນຸມັດແລ້ວ.`,
+      data: { transactionId: transaction.id, amount: transaction.amount },
+    });
+  }
+
+  // 2. Send SMS
   if (transaction.model.whatsapp) {
     const smsMessage = `XaoSao: ${transactionType} ${transaction.amount.toLocaleString()} LAK ຂອງທ່ານໄດ້ຮັບການອະນຸມັດແລ້ວ!`;
     console.log(`Sending transaction approval SMS to ${transaction.model.whatsapp}: ${smsMessage}`);
@@ -436,6 +449,22 @@ export async function notifyTransactionApproved(transaction: TransactionNotifica
   } else {
     console.warn("Model has no whatsapp number, cannot send transaction approval SMS");
   }
+
+  // 3. Send push notification
+  if (modelId) {
+    await sendPushToModel(modelId, {
+      title: transactionTypeTitle,
+      body: `${transactionType} ${transaction.amount.toLocaleString()} LAK ໄດ້ຮັບອະນຸມັດແລ້ວ!`,
+      tag: `transaction-approved-${transaction.id}`,
+      data: {
+        type: "withdraw_approved",
+        url: "/model/settings/wallet",
+        amount: transaction.amount,
+      },
+    });
+  }
+
+  console.log(`[Notification Admin] Model withdrawal approval notifications sent to ${modelId || "unknown"}`);
 }
 
 export async function notifyTransactionRejected(transaction: TransactionNotificationData): Promise<void> {
@@ -453,6 +482,109 @@ export async function notifyTransactionRejected(transaction: TransactionNotifica
   } else {
     console.warn("Model has no whatsapp number, cannot send transaction rejection SMS");
   }
+}
+
+// ========================================
+// Customer Recharge/Deposit Notifications
+// ========================================
+
+interface CustomerRechargeNotificationData {
+  id: string;
+  amount: number;
+  customerId: string;
+  customer: {
+    firstName: string;
+    lastName: string | null;
+    whatsapp: number | null;
+  };
+}
+
+/**
+ * Notify customer when their recharge/deposit is approved
+ * Sends in-app notification, SMS, and push notification
+ */
+export async function notifyCustomerRechargeApproved(data: CustomerRechargeNotificationData): Promise<void> {
+  const { id, amount, customerId, customer } = data;
+  const customerName = `${customer.firstName} ${customer.lastName || ""}`.trim();
+
+  console.log(`[Notification Admin] Sending recharge approval notifications to customer ${customerId}`);
+
+  // 1. Create in-app notification
+  await createCustomerNotification(customerId, {
+    type: "deposit_approved",
+    title: "ເງິນເຂົ້າບັນຊີແລ້ວ!",
+    message: `ການເຕີມເງິນ ${amount.toLocaleString()} LAK ຂອງທ່ານໄດ້ຮັບການອະນຸມັດແລ້ວ. ຍອດເງິນໄດ້ເພີ່ມໃສ່ Wallet ຂອງທ່ານແລ້ວ.`,
+    data: { transactionId: id, amount },
+  });
+
+  // 2. Send SMS
+  if (customer.whatsapp) {
+    const smsMessage = `XaoSao: ສະບາຍດີ ${customerName}! ການເຕີມເງິນ ${amount.toLocaleString()} LAK ຂອງທ່ານໄດ້ຮັບການອະນຸມັດແລ້ວ. ກວດເບິ່ງ Wallet ຂອງທ່ານໃນແອັບ.`;
+    console.log(`Sending recharge approval SMS to ${customer.whatsapp}: ${smsMessage}`);
+    sendSMS(customer.whatsapp.toString(), smsMessage).catch((err) =>
+      console.error("Failed to send recharge approval SMS:", err)
+    );
+  } else {
+    console.warn(`Customer ${customerId} has no whatsapp number, cannot send recharge approval SMS`);
+  }
+
+  // 3. Send push notification
+  await sendPushToCustomer(customerId, {
+    title: "ເງິນເຂົ້າບັນຊີແລ້ວ! 💰",
+    body: `${amount.toLocaleString()} LAK ໄດ້ເພີ່ມໃສ່ Wallet ຂອງທ່ານແລ້ວ`,
+    tag: `recharge-approved-${id}`,
+    data: {
+      type: "deposit_approved",
+      url: "/customer/wallets",
+      amount,
+    },
+  });
+
+  console.log(`[Notification Admin] Customer recharge approval notifications sent to ${customerId}`);
+}
+
+/**
+ * Notify customer when their recharge/deposit is rejected
+ * Sends in-app notification, SMS, and push notification
+ */
+export async function notifyCustomerRechargeRejected(data: CustomerRechargeNotificationData & { rejectReason?: string | null }): Promise<void> {
+  const { id, amount, customerId, customer, rejectReason } = data;
+  const customerName = `${customer.firstName} ${customer.lastName || ""}`.trim();
+
+  console.log(`[Notification Admin] Sending recharge rejection notifications to customer ${customerId}`);
+
+  // 1. Create in-app notification
+  await createCustomerNotification(customerId, {
+    type: "deposit_rejected",
+    title: "ການເຕີມເງິນບໍ່ໄດ້ຮັບອະນຸມັດ",
+    message: `ການເຕີມເງິນ ${amount.toLocaleString()} LAK ຂອງທ່ານບໍ່ໄດ້ຮັບການອະນຸມັດ.${rejectReason ? ` ເຫດຜົນ: ${rejectReason}` : ""} ກະລຸນາຕິດຕໍ່ຝ່າຍຊ່ວຍເຫຼືອ.`,
+    data: { transactionId: id, amount, rejectReason },
+  });
+
+  // 2. Send SMS
+  if (customer.whatsapp) {
+    const smsMessage = `XaoSao: ການເຕີມເງິນ ${amount.toLocaleString()} LAK ຂອງທ່ານບໍ່ໄດ້ຮັບການອະນຸມັດ.${rejectReason ? ` ເຫດຜົນ: ${rejectReason}` : ""} ຕິດຕໍ່: 2093033918`;
+    console.log(`Sending recharge rejection SMS to ${customer.whatsapp}: ${smsMessage}`);
+    sendSMS(customer.whatsapp.toString(), smsMessage).catch((err) =>
+      console.error("Failed to send recharge rejection SMS:", err)
+    );
+  } else {
+    console.warn(`Customer ${customerId} has no whatsapp number, cannot send recharge rejection SMS`);
+  }
+
+  // 3. Send push notification
+  await sendPushToCustomer(customerId, {
+    title: "ການເຕີມເງິນບໍ່ໄດ້ຮັບອະນຸມັດ",
+    body: `${amount.toLocaleString()} LAK - ກະລຸນາຕິດຕໍ່ຝ່າຍຊ່ວຍເຫຼືອ`,
+    tag: `recharge-rejected-${id}`,
+    data: {
+      type: "deposit_rejected",
+      url: "/customer/wallets",
+      amount,
+    },
+  });
+
+  console.log(`[Notification Admin] Customer recharge rejection notifications sent to ${customerId}`);
 }
 
 // ========================================
@@ -701,6 +833,82 @@ export async function notifyReferralTracked(data: {
   });
 
   console.log(`[Notification Admin] Referral tracked notifications sent to ${referrerId}`);
+}
+
+/**
+ * Notify referrer model when they earn commission from a booking
+ * Sends SMS, push notification, and creates in-app notification
+ */
+export async function notifyBookingCommissionEarned(data: {
+  referrerId: string;
+  referrerName: string;
+  referrerWhatsapp: number | null;
+  bookedModelName: string;
+  bookingId: string;
+  bookingPrice: number;
+  commissionAmount: number;
+  commissionRate: number;
+  transactionId: string;
+}): Promise<void> {
+  const {
+    referrerId,
+    referrerName,
+    referrerWhatsapp,
+    bookedModelName,
+    bookingId,
+    bookingPrice,
+    commissionAmount,
+    commissionRate,
+    transactionId,
+  } = data;
+  console.log(`[Notification Admin] notifyBookingCommissionEarned called with:`, {
+    referrerId,
+    referrerName,
+    bookedModelName,
+    commissionAmount,
+    commissionRate,
+  });
+
+  // 1. Create in-app notification
+  console.log(`[Notification Admin] Creating in-app notification for referrer ${referrerId}`);
+  try {
+    await createModelNotification(referrerId, {
+      type: "commission_earned",
+      title: "ໄດ້ຮັບຄ່ານາຍໜ້າການຈອງ!",
+      message: `ທ່ານໄດ້ຮັບ ${commissionAmount.toLocaleString()} ກີບ (${commissionRate * 100}%) ຈາກການຈອງຂອງ ${bookedModelName}!`,
+      data: { commissionAmount, commissionRate, bookedModelName, bookingId, bookingPrice, transactionId },
+    });
+    console.log(`[Notification Admin] In-app notification created successfully`);
+  } catch (err) {
+    console.error(`[Notification Admin] Failed to create in-app notification:`, err);
+  }
+
+  // 2. Send SMS to referrer
+  if (referrerWhatsapp) {
+    const smsMessage = `XaoSao: ຍິນດີດ້ວຍ ${referrerName}! ທ່ານໄດ້ຮັບ ${commissionAmount.toLocaleString()} ກີບ (${commissionRate * 100}%) ຈາກການຈອງຂອງ ${bookedModelName}. ກວດເບິ່ງ Wallet ຂອງທ່ານໃນແອັບ.`;
+    console.log(`[Notification Admin] Sending booking commission SMS to ${referrerWhatsapp}: ${smsMessage}`);
+    sendSMS(referrerWhatsapp.toString(), smsMessage).catch((err) =>
+      console.error("[Notification Admin] Failed to send booking commission SMS:", err)
+    );
+  } else {
+    console.log(`[Notification Admin] Referrer ${referrerId} has no whatsapp number, skipping SMS`);
+  }
+
+  // 3. Send push notification
+  console.log(`[Notification Admin] Sending push notification to referrer ${referrerId}`);
+  await sendPushToModel(referrerId, {
+    title: "ໄດ້ຮັບຄ່ານາຍໜ້າການຈອງ! 💰",
+    body: `ທ່ານໄດ້ຮັບ ${commissionAmount.toLocaleString()} ກີບ (${commissionRate * 100}%) ຈາກການຈອງຂອງ ${bookedModelName}!`,
+    tag: `booking-commission-${transactionId}`,
+    data: {
+      type: "commission_earned",
+      url: "/model/settings/wallet",
+      commissionAmount,
+      bookingId,
+    },
+  });
+
+  console.log(`[Notification Admin] Booking commission notifications sent to ${referrerId}`);
 }
 
 // ========================================
