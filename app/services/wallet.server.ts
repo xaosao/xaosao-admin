@@ -498,3 +498,190 @@ export async function bannedWallet(id: string, userId: string) {
     });
   }
 }
+
+export interface WalletSummaryTransaction {
+  id: string;
+  identifier: string;
+  amount: number;
+  status: string;
+  createdAt: Date;
+  reason: string | null;
+}
+
+export interface WalletSummaryResult {
+  wallet: {
+    id: string;
+    status: string;
+    modelId: string | null;
+    customerId: string | null;
+  };
+  owner: {
+    id: string;
+    firstName: string;
+    lastName: string | null;
+    profile: string | null;
+  } | null;
+  ownerType: "model" | "customer";
+  earnings: {
+    transactions: WalletSummaryTransaction[];
+    total: number;
+  };
+  withdrawals: {
+    transactions: WalletSummaryTransaction[];
+    total: number;
+  };
+  availableBalance: number;
+}
+
+/**
+ * Get wallet summary with all earnings and withdrawals calculated from actual transactions.
+ * Excludes failed, rejected, and disputed transactions.
+ *
+ * For Models:
+ * - Earnings: booking_earning, booking_referral, subscription_referral, referral (approved/released status)
+ * - Withdrawals: withdrawal (approved status)
+ *
+ * For Customers:
+ * - Incoming: recharge, booking_refund, call_refund, call_refund_unused (approved status)
+ * - Outgoing: subscription, booking_hold (approved/released status)
+ */
+export async function getWalletSummary(
+  walletId: string
+): Promise<WalletSummaryResult> {
+  try {
+    const wallet = await prisma.wallet.findFirst({
+      where: { id: walletId },
+      include: {
+        model: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            profile: true,
+          },
+        },
+        customer: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            profile: true,
+          },
+        },
+      },
+    });
+
+    if (!wallet) {
+      throw new Error("Wallet not found!");
+    }
+
+    const isModel = wallet.modelId !== null;
+    const owner = isModel ? wallet.model : wallet.customer;
+    const ownerId = isModel ? wallet.modelId : wallet.customerId;
+
+    if (!ownerId) {
+      throw new Error("Wallet owner not found!");
+    }
+
+    // Define transaction identifiers and statuses based on wallet type
+    const earningIdentifiers = isModel
+      ? ["booking_earning", "booking_referral", "subscription_referral", "referral"]
+      : ["recharge", "booking_refund", "call_refund", "call_refund_unused"];
+
+    const earningStatuses = isModel
+      ? ["approved", "released"]
+      : ["approved"];
+
+    const withdrawalIdentifiers = isModel
+      ? ["withdrawal"]
+      : ["subscription", "booking_hold"];
+
+    const withdrawalStatuses = isModel
+      ? ["approved"]
+      : ["approved", "released"];
+
+    // Build the where clause for the owner
+    const ownerWhereClause = isModel
+      ? { modelId: ownerId }
+      : { customerId: ownerId };
+
+    // Fetch earnings transactions
+    const earningsTransactions = await prisma.transaction_history.findMany({
+      where: {
+        ...ownerWhereClause,
+        identifier: { in: earningIdentifiers },
+        status: { in: earningStatuses },
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        identifier: true,
+        amount: true,
+        status: true,
+        createdAt: true,
+        reason: true,
+      },
+    });
+
+    // Fetch withdrawals/outgoing transactions
+    const withdrawalsTransactions = await prisma.transaction_history.findMany({
+      where: {
+        ...ownerWhereClause,
+        identifier: { in: withdrawalIdentifiers },
+        status: { in: withdrawalStatuses },
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        identifier: true,
+        amount: true,
+        status: true,
+        createdAt: true,
+        reason: true,
+      },
+    });
+
+    // Calculate totals (use absolute values to handle any negative amounts)
+    const earningsTotal = earningsTransactions.reduce(
+      (sum, t) => sum + Math.abs(t.amount),
+      0
+    );
+    const withdrawalsTotal = withdrawalsTransactions.reduce(
+      (sum, t) => sum + Math.abs(t.amount),
+      0
+    );
+
+    // Available balance = earnings - withdrawals
+    const availableBalance = earningsTotal - withdrawalsTotal;
+
+    return {
+      wallet: {
+        id: wallet.id,
+        status: wallet.status,
+        modelId: wallet.modelId,
+        customerId: wallet.customerId,
+      },
+      owner: owner
+        ? {
+            id: owner.id,
+            firstName: owner.firstName,
+            lastName: owner.lastName,
+            profile: owner.profile,
+          }
+        : null,
+      ownerType: isModel ? "model" : "customer",
+      earnings: {
+        transactions: earningsTransactions,
+        total: earningsTotal,
+      },
+      withdrawals: {
+        transactions: withdrawalsTransactions,
+        total: withdrawalsTotal,
+      },
+      availableBalance,
+    };
+  } catch (error) {
+    console.error("GET_WALLET_SUMMARY_FAILED", error);
+    throw new Error("Failed to fetch wallet summary!");
+  }
+}

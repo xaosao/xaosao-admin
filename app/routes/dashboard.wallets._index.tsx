@@ -23,7 +23,6 @@ import {
     TableRow
 } from "~/components/ui/table";
 import {
-    X,
     Eye,
     Ban,
     Edit,
@@ -37,6 +36,7 @@ import {
     ArrowUpRight,
     ArrowDownLeft,
     DollarSignIcon,
+    Calculator,
 } from "lucide-react";
 
 // utils and service
@@ -304,11 +304,18 @@ export default function Wallets() {
                                             </div>
                                         </div>
 
-                                        <div className="flex items-center justify-end gap-2 pt-2 border-t">
+                                        <div className="flex items-center justify-end gap-2 pt-2 border-t flex-wrap">
                                             {canAccess && (
                                                 <Button variant="outline" size="sm" className="h-8 px-2" asChild>
                                                     <Link to={`view/${wallet.id}?type=${wallet.customerId === null ? "model" : "customer"}`}>
                                                         <Eye className="h-3 w-3" />View
+                                                    </Link>
+                                                </Button>
+                                            )}
+                                            {canEdit && (
+                                                <Button variant="outline" size="sm" className="h-8 px-2 text-purple-600 border-purple-200 hover:bg-purple-50" asChild>
+                                                    <Link to={`summary/${wallet.id}`}>
+                                                        <Calculator className="h-3 w-3" />Summary
                                                     </Link>
                                                 </Button>
                                             )}
@@ -423,6 +430,12 @@ export default function Wallets() {
                                                                 <Link to={`view/${wallet.id}?type=${wallet.customerId === null ? "model" : "customer"}`} className="flex space-x-2">
                                                                     <Eye className="mr-2 h-3 w-3" />
                                                                     <span>View details</span>
+                                                                </Link>
+                                                            </DropdownMenuItem>}
+                                                            {canEdit && <DropdownMenuItem className="text-sm text-purple-600">
+                                                                <Link to={`summary/${wallet.id}`} className="flex space-x-2">
+                                                                    <Calculator className="mr-2 h-3 w-3" />
+                                                                    <span>Summary</span>
                                                                 </Link>
                                                             </DropdownMenuItem>}
                                                             {canEdit && <DropdownMenuItem className="text-sm">
