@@ -65,9 +65,10 @@ export async function ensureReferralCode(modelId: string): Promise<string> {
  * Process referral reward when a referred model is approved
  * This should be called when admin approves a model
  *
- * - Normal models: Get 50,000 Kip flat bonus per referral
- * - Special/Partner models who are commission-eligible: NO flat bonus, but earn % from bookings
- * - Special/Partner models who are NOT yet commission-eligible: Get 50,000 Kip flat bonus
+ * Logic:
+ * - Count <= threshold: Pay 50K AND upgrade to special if count >= threshold
+ * - Count > threshold: No 50K (referrer should already be special/partner)
+ * - Special/Partner referrers: No 50K (they earn commission instead)
  */
 export async function processReferralReward(approvedModelId: string, adminUserId: string) {
   console.log(`[Referral] processReferralReward called for model ${approvedModelId} by admin ${adminUserId}`);
@@ -90,23 +91,23 @@ export async function processReferralReward(approvedModelId: string, adminUserId
     });
 
     if (!approvedModel) {
-      console.log(`Referral reward skipped: Model ${approvedModelId} not found`);
+      console.log(`[Referral] Skipped: Model ${approvedModelId} not found`);
       return { success: false, reason: "Model not found" };
     }
 
     // Check if model was referred
     if (!approvedModel.referredById) {
-      console.log(`Referral reward skipped: Model ${approvedModelId} has no referrer`);
+      console.log(`[Referral] Skipped: Model ${approvedModelId} has no referrer`);
       return { success: false, reason: "No referrer" };
     }
 
     // Check if reward was already paid/processed
     if (approvedModel.referralRewardPaid) {
-      console.log(`Referral reward skipped: Reward already processed for ${approvedModelId}`);
+      console.log(`[Referral] Skipped: Reward already processed for ${approvedModelId}`);
       return { success: false, reason: "Reward already processed" };
     }
 
-    // Get the referrer with their details for notifications
+    // Get the referrer with their details
     const referrer = await prisma.model.findUnique({
       where: { id: approvedModel.referredById },
       select: {
@@ -121,81 +122,140 @@ export async function processReferralReward(approvedModelId: string, adminUserId
     });
 
     if (!referrer) {
-      console.log(`Referral reward skipped: Referrer ${approvedModel.referredById} not found`);
+      console.log(`[Referral] Skipped: Referrer ${approvedModel.referredById} not found`);
       return { success: false, reason: "Referrer not found" };
     }
 
-    console.log(`[Referral] Found referrer: ${referrer.id}, type: ${referrer.type}, whatsapp: ${referrer.whatsapp}, totalReferredModels: ${referrer.totalReferredModels}`);
+    // Count ACTUAL active referred models from database (more accurate than cached field)
+    const actualReferredCount = await prisma.model.count({
+      where: {
+        referredById: referrer.id,
+        status: "active",
+      },
+    });
 
-    const referrerName = `${referrer.firstName} ${referrer.lastName || ""}`.trim();
-    const referredModelName = approvedModel.firstName;
+    const newTotalReferred = actualReferredCount;
 
-    // Increment the referrer's total referred models count
-    const newTotalReferred = (referrer.totalReferredModels || 0) + 1;
+    // Log important values for debugging
+    console.log(`[Referral] Processing referral for model ${approvedModelId}`);
+    console.log(`[Referral] Referrer: ${referrer.id}, Type: ${referrer.type}`);
+    console.log(`[Referral] Actual referred count: ${newTotalReferred}, Threshold: ${MIN_REFERRED_MODELS_FOR_COMMISSION}`);
+
+    // Update the cached field to match actual count
     await prisma.model.update({
       where: { id: referrer.id },
       data: { totalReferredModels: newTotalReferred },
     });
 
-    // Check if referrer is commission-eligible (special/partner with minimum referrals)
-    // After incrementing, check if they now meet commission eligibility
-    const isSpecialOrPartner = referrer.type === "special" || referrer.type === "partner";
-    const meetsMinReferrals = newTotalReferred >= MIN_REFERRED_MODELS_FOR_COMMISSION;
-    const meetsPartnerEarnings = referrer.type !== "partner" ||
-      (referrer.totalReferralEarnings || 0) >= MIN_EARNINGS_FOR_PARTNER_COMMISSION;
-    const isCommissionEligible = isSpecialOrPartner && meetsMinReferrals && meetsPartnerEarnings;
+    const referrerName = `${referrer.firstName} ${referrer.lastName || ""}`.trim();
+    const referredModelName = approvedModel.firstName;
 
-    if (isCommissionEligible) {
-      // Commission-eligible referrer: NO flat bonus, they earn % from bookings
-      // Just mark as processed and send notification about referral tracked
+    // ==========================================
+    // AUTO-UPGRADE LOGIC
+    // ==========================================
+    // If referrer is "normal" and count >= threshold, upgrade to "special"
+    let currentReferrerType = referrer.type;
+    let wasUpgraded = false;
+
+    if (currentReferrerType === "normal" && newTotalReferred >= MIN_REFERRED_MODELS_FOR_COMMISSION) {
+      console.log(`[Referral] Upgrading referrer ${referrer.id} from normal to special. Count: ${newTotalReferred}, Threshold: ${MIN_REFERRED_MODELS_FOR_COMMISSION}`);
+
+      // Upgrade the referrer to special
+      await prisma.model.update({
+        where: { id: referrer.id },
+        data: { type: "special" },
+      });
+
+      currentReferrerType = "special";
+      wasUpgraded = true;
+
+      await createAuditLogs({
+        ...auditBase,
+        action: "AUTO_UPGRADE_MODEL_TYPE",
+        description: `Model ${referrer.id} auto-upgraded from normal to special. Total referred: ${newTotalReferred} (threshold: ${MIN_REFERRED_MODELS_FOR_COMMISSION})`,
+        status: "success",
+        onSuccess: {
+          referrerId: referrer.id,
+          previousType: "normal",
+          newType: "special",
+          totalReferredModels: newTotalReferred,
+          threshold: MIN_REFERRED_MODELS_FOR_COMMISSION,
+        },
+      });
+
+      console.log(`[Referral] Referrer ${referrer.id} upgraded from normal to special!`);
+
+      // Send upgrade notification via SMS
+      if (referrer.whatsapp) {
+        try {
+          const { sendSMS } = await import("./sms.server");
+          const upgradeMessage = `XaoSao: ຍິນດີດ້ວຍ ${referrer.firstName}! ທ່ານໄດ້ຮັບການອັບເກຣດເປັນ Special Model ແລ້ວ. ຕອນນີ້ທ່ານຈະໄດ້ຮັບຄ່ານາຍໜ້າ 20% ຈາກການສະໝັກສະມາຊິກ ແລະ 2% ຈາກການຈອງຂອງລູກຄ້າທີ່ທ່ານແນະນຳ.`;
+          await sendSMS(referrer.whatsapp.toString(), upgradeMessage);
+          console.log(`[Referral] Upgrade notification sent to ${referrer.whatsapp}`);
+        } catch (smsError) {
+          console.error(`[Referral] Failed to send upgrade SMS:`, smsError);
+        }
+      }
+    }
+
+    // ==========================================
+    // BONUS PAYMENT LOGIC
+    // ==========================================
+    const isSpecialOrPartner = currentReferrerType === "special" || currentReferrerType === "partner";
+    const shouldPayBonus = newTotalReferred <= MIN_REFERRED_MODELS_FOR_COMMISSION;
+
+    console.log(`[Referral] isSpecialOrPartner: ${isSpecialOrPartner}, shouldPayBonus: ${shouldPayBonus}`);
+
+    // If referrer is special/partner AND past the bonus threshold, no bonus
+    if (isSpecialOrPartner && !shouldPayBonus) {
+      // Mark as processed (no bonus paid)
       await prisma.model.update({
         where: { id: approvedModelId },
-        data: { referralRewardPaid: true }, // Mark as processed (no bonus paid)
+        data: { referralRewardPaid: true },
       });
 
       await createAuditLogs({
         ...auditBase,
-        description: `Referral tracked for commission-eligible ${referrer.type} model ${referrer.id}. No flat bonus paid (earns booking commission instead).`,
+        description: `Referral tracked for ${currentReferrerType} referrer ${referrer.id}. No bonus for model #${newTotalReferred} (past threshold of ${MIN_REFERRED_MODELS_FOR_COMMISSION}).`,
         status: "success",
         onSuccess: {
           referrerId: referrer.id,
-          referrerType: referrer.type,
           referredId: approvedModelId,
-          totalReferred: newTotalReferred,
+          referrerType: currentReferrerType,
+          newTotalReferred,
+          threshold: MIN_REFERRED_MODELS_FOR_COMMISSION,
           bonusPaid: false,
-          reason: "Commission-eligible: earns % from bookings",
+          wasUpgraded,
         },
       });
 
-      // Send notification about referral tracked (not bonus)
-      console.log(`[Referral] Calling notifyReferralTracked for commission-eligible referrer ${referrer.id}`);
+      console.log(`[Referral] No 50K bonus for model #${newTotalReferred} (referrer is ${currentReferrerType}, past threshold).`);
+
+      // Send notification about referral tracked (no bonus)
       try {
         await notifyReferralTracked({
           referrerId: referrer.id,
           referrerName,
           referrerWhatsapp: referrer.whatsapp,
           referredModelName,
-          referrerType: referrer.type,
+          referrerType: currentReferrerType,
           totalReferred: newTotalReferred,
         });
-        console.log(`[Referral] notifyReferralTracked completed successfully`);
       } catch (notifyError) {
         console.error(`[Referral] notifyReferralTracked failed:`, notifyError);
       }
 
-      console.log(`Referral tracked for ${referrer.type} model ${referrer.id}. No bonus paid (commission-eligible).`);
-
       return {
         success: true,
         referrerId: referrer.id,
-        amount: 0, // No bonus paid
+        amount: 0,
         bonusPaid: false,
-        reason: "Commission-eligible",
+        upgraded: wasUpgraded,
+        newType: wasUpgraded ? currentReferrerType : undefined,
       };
     }
 
-    // NOT commission-eligible: Pay 50,000 Kip flat bonus
-    // Get the referrer's wallet
+    // Pay 50K bonus (count <= threshold)
     const referrerWallet = await prisma.wallet.findFirst({
       where: {
         modelId: approvedModel.referredById,
@@ -204,7 +264,7 @@ export async function processReferralReward(approvedModelId: string, adminUserId
     });
 
     if (!referrerWallet) {
-      console.log(`Referral reward skipped: Referrer ${approvedModel.referredById} has no wallet`);
+      console.log(`[Referral] Skipped: Referrer ${approvedModel.referredById} has no wallet`);
       await createAuditLogs({
         ...auditBase,
         description: `Referral reward failed: Referrer ${approvedModel.referredById} has no active wallet`,
@@ -214,9 +274,8 @@ export async function processReferralReward(approvedModelId: string, adminUserId
       return { success: false, reason: "Referrer wallet not found" };
     }
 
-    // Update wallet balance and create transaction in a transaction
+    // Update wallet balance and create transaction
     const [updatedWallet, transaction, updatedModel, updatedReferrer] = await prisma.$transaction([
-      // Add reward to referrer's wallet
       prisma.wallet.update({
         where: { id: referrerWallet.id },
         data: {
@@ -224,7 +283,6 @@ export async function processReferralReward(approvedModelId: string, adminUserId
           totalRecharge: referrerWallet.totalRecharge + REFERRAL_REWARD_AMOUNT,
         },
       }),
-      // Create transaction record
       prisma.transaction_history.create({
         data: {
           identifier: "referral",
@@ -236,12 +294,10 @@ export async function processReferralReward(approvedModelId: string, adminUserId
           reason: `Referral reward for inviting ${approvedModel.firstName} (ID: ${approvedModelId})`,
         },
       }),
-      // Mark reward as paid
       prisma.model.update({
         where: { id: approvedModelId },
         data: { referralRewardPaid: true },
       }),
-      // Update referrer's total referral earnings (for partner commission eligibility)
       prisma.model.update({
         where: { id: referrer.id },
         data: {
@@ -252,21 +308,24 @@ export async function processReferralReward(approvedModelId: string, adminUserId
 
     await createAuditLogs({
       ...auditBase,
-      description: `Referral reward of ${REFERRAL_REWARD_AMOUNT} Kip paid to model ${approvedModel.referredById} for referring ${approvedModelId}`,
+      description: `Referral reward of ${REFERRAL_REWARD_AMOUNT} Kip paid to model ${approvedModel.referredById}. Model #${newTotalReferred}/${MIN_REFERRED_MODELS_FOR_COMMISSION}.${wasUpgraded ? ` Upgraded to ${currentReferrerType}!` : ''}`,
       status: "success",
       onSuccess: {
         referrerId: approvedModel.referredById,
         referredId: approvedModelId,
+        referrerType: currentReferrerType,
         amount: REFERRAL_REWARD_AMOUNT,
         transactionId: transaction.id,
         newBalance: updatedWallet.totalBalance,
+        totalReferred: newTotalReferred,
+        threshold: MIN_REFERRED_MODELS_FOR_COMMISSION,
+        upgraded: wasUpgraded,
       },
     });
 
-    console.log(`Referral reward paid: ${REFERRAL_REWARD_AMOUNT} Kip to model ${approvedModel.referredById}`);
+    console.log(`[Referral] Reward paid: ${REFERRAL_REWARD_AMOUNT} Kip to model ${approvedModel.referredById}. Model #${newTotalReferred}/${MIN_REFERRED_MODELS_FOR_COMMISSION}${wasUpgraded ? ` (upgraded to ${currentReferrerType})` : ''}`);
 
     // Send notification about bonus received
-    console.log(`[Referral] Calling notifyReferralBonusReceived for referrer ${referrer.id}, whatsapp: ${referrer.whatsapp}`);
     try {
       await notifyReferralBonusReceived({
         referrerId: referrer.id,
@@ -276,7 +335,6 @@ export async function processReferralReward(approvedModelId: string, adminUserId
         amount: REFERRAL_REWARD_AMOUNT,
         transactionId: transaction.id,
       });
-      console.log(`[Referral] notifyReferralBonusReceived completed successfully`);
     } catch (notifyError) {
       console.error(`[Referral] notifyReferralBonusReceived failed:`, notifyError);
     }
@@ -287,9 +345,12 @@ export async function processReferralReward(approvedModelId: string, adminUserId
       amount: REFERRAL_REWARD_AMOUNT,
       transactionId: transaction.id,
       bonusPaid: true,
+      totalReferred: newTotalReferred,
+      upgraded: wasUpgraded,
+      newType: wasUpgraded ? currentReferrerType : undefined,
     };
   } catch (error) {
-    console.error("Error processing referral reward:", error);
+    console.error("[Referral] Error processing referral reward:", error);
     await createAuditLogs({
       ...auditBase,
       description: `Referral reward processing failed for model ${approvedModelId}`,
