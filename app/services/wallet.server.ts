@@ -567,8 +567,8 @@ export interface WalletSummaryResult {
  * - Withdrawals: withdrawal (approved status)
  *
  * For Customers:
- * - Incoming: recharge, booking_refund, call_refund, call_refund_unused (approved status)
- * - Outgoing: subscription, booking_hold (approved/released status)
+ * - Incoming: recharge (top-up only, approved status)
+ * - Outgoing: subscription (approved), booking_hold (held/released status)
  */
 export async function getWalletSummary(
   walletId: string
@@ -609,9 +609,11 @@ export async function getWalletSummary(
     }
 
     // Define transaction identifiers and statuses based on wallet type
+    // For customers: only count "recharge" (top-up) as incoming, NOT refunds
+    // Refunds are returned spending, not new incoming funds
     const earningIdentifiers = isModel
       ? ["booking_earning", "booking_referral", "subscription_referral", "referral"]
-      : ["recharge", "booking_refund", "call_refund", "call_refund_unused"];
+      : ["recharge"];
 
     const earningStatuses = isModel
       ? ["approved", "released"]
@@ -621,9 +623,10 @@ export async function getWalletSummary(
       ? ["withdrawal"]
       : ["subscription", "booking_hold"];
 
+    // For customers: booking_hold uses "held" status, subscription uses "approved"
     const withdrawalStatuses = isModel
       ? ["approved"]
-      : ["approved", "released"];
+      : ["approved", "released", "held"];
 
     // Build the where clause for the owner
     const ownerWhereClause = isModel
