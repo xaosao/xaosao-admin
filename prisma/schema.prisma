@@ -147,6 +147,12 @@ model customer {
   twofactorOTP       String? //@unique
   twofactorExpiry    DateTime? @default(now())
   twofactorEnabled   Boolean?  @default(false)
+
+  // Phone verification for registration
+  isPhoneVerified       Boolean   @default(false)
+  verificationOTP       String?
+  verificationOTPExpiry DateTime?
+
   location           Json?
   profile            String?
   interests          Json? // 2
@@ -156,9 +162,12 @@ model customer {
   education          String? // 6
   sendMailNoti       Boolean   @default(true) // 7
   sendSMSNoti        Boolean   @default(true) // 8 - default ON for new users
-  sendPushNoti       Boolean   @default(true) // 9 - default ON for new users
+  sendPushNoti       Boolean   @default(false) // 9 - default OFF, modal will prompt to enable
   defaultLanguage    String    @default("en") // 10
   defaultTheme       String    @default("light") // 11
+
+  // Referral tracking - which model referred this customer
+  referredByModelId  String?   @db.ObjectId // Model who referred this customer (for special/partner commission)
 
   status    String   @default("active")
   createdAt DateTime @default(now())
@@ -220,7 +229,7 @@ model model {
   education           String? // 6
   sendMailNoti        Boolean   @default(true) // 7
   sendSMSNoti         Boolean   @default(true) // 8 - default ON for new users
-  sendPushNoti        Boolean   @default(true) // 9 - default ON for new users
+  sendPushNoti        Boolean   @default(false) // 9 - default OFF, modal will prompt to enable
   defaultLanguage     String    @default("en") // 10
   defaultTheme        String    @default("light") // 11
 
@@ -229,14 +238,14 @@ model model {
 
   // Referral system fields
   referralCode             String? // Unique referral code for this model (for referring other models)
-  customerReferralCode     String? // Unique referral code for referring customers
+  customerReferralCode     String? // Unique referral code for referring customers (only for special/partner)
   referredById             String? @db.ObjectId // ID of the model who referred this model
   referralRewardPaid       Boolean @default(false) // Whether referral reward has been paid to referrer
 
   // Tracking for commission eligibility conditions
   totalReferredModels      Int     @default(0) // Count of models referred by this model
   totalReferredCustomers   Int     @default(0) // Count of customers referred by this model
-  totalReferralEarnings    Float   @default(0) // Total earnings from booking referral commissions
+  totalReferralEarnings    Float   @default(0) // Total earnings from booking referral commissions (for partner condition)
 
   status    ModelStatus @default(pending)
   createdAt DateTime    @default(now())
@@ -363,15 +372,18 @@ model images {
 }
 
 model banks {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  qr_code   String
-  isDefault Boolean  @default(false)
-  status    String   @default("active")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  qr_code           String
+  bank_account_name String
+  isDefault         Boolean  @default(false)
+  status            String   @default("active")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   model   model?  @relation(fields: [modelId], references: [id])
   modelId String? @db.ObjectId
+
+  @@unique([modelId, bank_account_name])
 }
 
 // customer like model

@@ -43,6 +43,22 @@ npx prisma generate
 npx prisma db push
 ```
 
+## Migration Scripts
+
+### Wallet Balance Migration
+
+Recalculates all wallet balances based on transaction history to populate the new wallet fields (totalSpend, totalWithdraw, totalRefunded, totalPending).
+
+```bash
+npx tsx scripts/migrate-wallet-balances.ts
+```
+
+Or with ts-node:
+
+```bash
+npx ts-node scripts/migrate-wallet-balances.ts
+```
+
 ## Tech Stack
 
 - **Framework**: [Remix](https://remix.run)
