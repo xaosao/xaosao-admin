@@ -4,7 +4,7 @@
  * This script recalculates all wallet balances based on transaction history
  * to populate the new wallet fields (totalSpend, totalWithdraw, totalRefunded)
  *
- * Customer available balance = totalBalance (recharge) - totalSpend (subscription + booking_hold)
+ * Customer available balance = totalBalance (recharge) - totalSpend (subscription + booking_hold) + totalRefunded
  * Model available balance = totalBalance (earnings) - totalWithdraw
  *
  * Run with: npx ts-node scripts/migrate-wallet-balances.ts
@@ -72,12 +72,13 @@ async function migrateCustomerWallets(): Promise<WalletUpdate[]> {
     });
     const totalBalance = rechargeResult._sum.amount || 0;
 
-    // Calculate totalSpend from booking holds (released/held) + subscriptions
+    // Calculate totalSpend from booking holds (held/released/refunded) + subscriptions
+    // Include "refunded" status so that refunds properly cancel out
     const holdResult = await prisma.transaction_history.aggregate({
       where: {
         customerId: wallet.customerId,
         identifier: "booking_hold",
-        status: { in: ["held", "released"] }, // Only count active holds
+        status: { in: ["held", "released", "refunded"] },
       },
       _sum: { amount: true },
     });
@@ -107,9 +108,9 @@ async function migrateCustomerWallets(): Promise<WalletUpdate[]> {
     });
     const totalRefunded = refundResult._sum.amount || 0;
 
-    // Calculate totalAvailable: totalBalance (recharge) - totalSpend (subscription + booking_hold)
-    // Note: Refunds are NOT added back - they represent returned spending, not new funds
-    const totalAvailable = totalBalance - totalSpend;
+    // Calculate totalAvailable: totalBalance - totalSpend + totalRefunded
+    // Refunds are added back because they restore previously spent funds
+    const totalAvailable = totalBalance - totalSpend + totalRefunded;
 
     const update: WalletUpdate = {
       id: wallet.id,
@@ -124,7 +125,7 @@ async function migrateCustomerWallets(): Promise<WalletUpdate[]> {
         totalWithdraw: 0, // Customers don't withdraw
         totalRefunded,
         totalPending: 0, // Customers don't have pending
-        totalAvailable, // Computed: totalBalance - totalSpend
+        totalAvailable, // Computed: totalBalance - totalSpend + totalRefunded
       },
     };
 
@@ -135,7 +136,7 @@ async function migrateCustomerWallets(): Promise<WalletUpdate[]> {
     console.log(`  New totalBalance (recharges): ${totalBalance.toLocaleString()}`);
     console.log(`  New totalSpend: ${totalSpend.toLocaleString()}`);
     console.log(`  New totalRefunded: ${totalRefunded.toLocaleString()}`);
-    console.log(`  ➜ totalAvailable: ${totalAvailable.toLocaleString()} (totalBalance - totalSpend)`);
+    console.log(`  ➜ totalAvailable: ${totalAvailable.toLocaleString()} (totalBalance - totalSpend + totalRefunded)`);
     console.log("");
 
     // Update the wallet
@@ -299,8 +300,8 @@ async function main() {
   console.log("\nThis script will recalculate all wallet balances based on");
   console.log("transaction history to populate the new wallet fields.\n");
   console.log("New Schema:");
-  console.log("  Customer: totalBalance (recharge), totalSpend (subscription + booking_hold)");
-  console.log("    ➜ totalAvailable = totalBalance - totalSpend");
+  console.log("  Customer: totalBalance (recharge), totalSpend (subscription + booking_hold), totalRefunded");
+  console.log("    ➜ totalAvailable = totalBalance - totalSpend + totalRefunded");
   console.log("  Model: totalBalance, totalWithdraw, totalPending");
   console.log("    ➜ totalAvailable = totalBalance - totalWithdraw");
   console.log("");

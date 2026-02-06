@@ -217,6 +217,50 @@ export default function WalletSummaryModal() {
                 </div>
             </div>
 
+            {/* Refunds Section (Customers only) */}
+            {!isModel && summary.refunds.transactions.length > 0 && (
+                <div className="border border-amber-200 rounded-lg overflow-hidden mb-4">
+                    <div className="bg-amber-500 text-white px-4 py-2 flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                            <TrendingUp className="h-4 w-4" />
+                            <span className="font-semibold text-sm">Refunds</span>
+                        </div>
+                        <span className="text-xs">
+                            {summary.refunds.transactions.length} transactions
+                        </span>
+                    </div>
+                    <div className="max-h-[20vh] overflow-y-auto">
+                        <div className="divide-y divide-amber-100">
+                            {summary.refunds.transactions.map((transaction) => (
+                                <div key={transaction.id} className="px-4 py-2 hover:bg-amber-50">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-sm font-medium text-gray-900">
+                                                {identifierLabels[transaction.identifier] || transaction.identifier}
+                                            </p>
+                                            <p className="text-xs text-gray-500">
+                                                {formatDate(transaction.createdAt)}
+                                            </p>
+                                        </div>
+                                        <p className="text-sm font-semibold text-amber-600">
+                                            +{formatCurrency(Math.abs(transaction.amount))}
+                                        </p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="bg-amber-50 px-4 py-2 border-t border-amber-200">
+                        <div className="flex items-center justify-between">
+                            <span className="font-semibold text-sm text-gray-700">Total Refunds</span>
+                            <span className="font-bold text-amber-600">
+                                {formatCurrency(summary.refunds.total)}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Available Balance */}
             <div className={`rounded-lg p-4 ${summary.availableBalance >= 0 ? "bg-blue-50 border border-blue-200" : "bg-red-50 border border-red-200"}`}>
                 <div className="flex items-center justify-between">
@@ -229,7 +273,11 @@ export default function WalletSummaryModal() {
                     </span>
                 </div>
                 <p className="text-xs text-gray-500 mt-2">
-                    Calculated as: Total {side1Title} ({formatCurrency(summary.earnings.total)}) - Total {side2Title} ({formatCurrency(summary.withdrawals.total)})
+                    {isModel ? (
+                        <>Calculated as: Total {side1Title} ({formatCurrency(summary.earnings.total)}) - Total {side2Title} ({formatCurrency(summary.withdrawals.total)})</>
+                    ) : (
+                        <>Calculated as: Total {side1Title} ({formatCurrency(summary.earnings.total)}) - Total {side2Title} ({formatCurrency(summary.withdrawals.total)}) + Total Refunds ({formatCurrency(summary.refunds.total)})</>
+                    )}
                 </p>
             </div>
 

@@ -555,6 +555,10 @@ export interface WalletSummaryResult {
     transactions: WalletSummaryTransaction[];
     total: number;
   };
+  refunds: {
+    transactions: WalletSummaryTransaction[];
+    total: number;
+  };
   availableBalance: number;
 }
 
@@ -565,10 +569,13 @@ export interface WalletSummaryResult {
  * For Models:
  * - Earnings: booking_earning, booking_referral, subscription_referral, referral (approved/released status)
  * - Withdrawals: withdrawal (approved status)
+ * - Available: earnings - withdrawals
  *
  * For Customers:
  * - Incoming: recharge (top-up only, approved status)
- * - Outgoing: subscription (approved), booking_hold (held/released status)
+ * - Outgoing: subscription (approved), booking_hold (held/released/refunded status)
+ * - Refunds: booking_refund, call_refund, call_refund_unused (approved status)
+ * - Available: incoming - outgoing + refunds
  */
 export async function getWalletSummary(
   walletId: string
@@ -623,10 +630,11 @@ export async function getWalletSummary(
       ? ["withdrawal"]
       : ["subscription", "booking_hold"];
 
-    // For customers: booking_hold uses "held" status, subscription uses "approved"
+    // For customers: booking_hold uses "held/released/refunded" status, subscription uses "approved"
+    // Include "refunded" so that booking_hold + booking_refund properly cancel out
     const withdrawalStatuses = isModel
       ? ["approved"]
-      : ["approved", "released", "held"];
+      : ["approved", "released", "held", "refunded"];
 
     // Build the where clause for the owner
     const ownerWhereClause = isModel
@@ -679,8 +687,39 @@ export async function getWalletSummary(
       0
     );
 
-    // Available balance = earnings - withdrawals
-    const availableBalance = earningsTotal - withdrawalsTotal;
+    // Fetch refunds for customers only (booking_refund, call_refund, call_refund_unused)
+    // Refunds restore previously spent funds, so they're added back to available balance
+    const refundIdentifiers = ["booking_refund", "call_refund", "call_refund_unused"];
+    const refundsTransactions = !isModel
+      ? await prisma.transaction_history.findMany({
+          where: {
+            ...ownerWhereClause,
+            identifier: { in: refundIdentifiers },
+            status: "approved",
+          },
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            identifier: true,
+            amount: true,
+            status: true,
+            createdAt: true,
+            reason: true,
+          },
+        })
+      : [];
+
+    const refundsTotal = refundsTransactions.reduce(
+      (sum, t) => sum + Math.abs(t.amount),
+      0
+    );
+
+    // Available balance calculation:
+    // For customers: earnings - withdrawals + refunds (refunds restore previously spent funds)
+    // For models: earnings - withdrawals (no refunds)
+    const availableBalance = isModel
+      ? earningsTotal - withdrawalsTotal
+      : earningsTotal - withdrawalsTotal + refundsTotal;
 
     return {
       wallet: {
@@ -705,6 +744,10 @@ export async function getWalletSummary(
       withdrawals: {
         transactions: withdrawalsTransactions,
         total: withdrawalsTotal,
+      },
+      refunds: {
+        transactions: refundsTransactions,
+        total: refundsTotal,
       },
       availableBalance,
     };
