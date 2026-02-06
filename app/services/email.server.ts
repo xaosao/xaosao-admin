@@ -310,7 +310,7 @@ export async function sendDailySummary(): Promise<boolean> {
 // SMS Notification Helper
 // ========================================
 
-async function sendSMS(phone: string, message: string): Promise<boolean> {
+export async function sendSMS(phone: string, message: string): Promise<boolean> {
   try {
     if (!process.env.TELBIZ_CLIENT_ID || !process.env.TELBIZ_SECRETKEY) {
       console.warn("Telbiz credentials not configured. SMS not sent.");

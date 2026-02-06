@@ -188,7 +188,7 @@ export async function processReferralReward(approvedModelId: string, adminUserId
       // Send upgrade notification via SMS
       if (referrer.whatsapp) {
         try {
-          const { sendSMS } = await import("./sms.server");
+          const { sendSMS } = await import("./email.server");
           const upgradeMessage = `XaoSao: ຍິນດີດ້ວຍ ${referrer.firstName}! ທ່ານໄດ້ຮັບການອັບເກຣດເປັນ Special Model ແລ້ວ. ຕອນນີ້ທ່ານຈະໄດ້ຮັບຄ່ານາຍໜ້າ 20% ຈາກການສະໝັກສະມາຊິກ ແລະ 2% ຈາກການຈອງຂອງລູກຄ້າທີ່ທ່ານແນະນຳ.`;
           await sendSMS(referrer.whatsapp.toString(), upgradeMessage);
           console.log(`[Referral] Upgrade notification sent to ${referrer.whatsapp}`);
