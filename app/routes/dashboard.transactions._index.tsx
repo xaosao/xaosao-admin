@@ -15,6 +15,7 @@ import {
     ArrowDownLeft,
     RotateCcw,
     CheckCircle,
+    EyeOff,
 } from "lucide-react";
 
 // components
@@ -36,6 +37,9 @@ import {
     TableHeader,
     TableRow
 } from "~/components/ui/table";
+
+// hooks
+import { usePolling } from "~/hooks/usePolling";
 
 // service and utils
 import { useAuthStore } from "~/store/permissionStore";
@@ -61,6 +65,7 @@ export default function Transactions() {
     const formRef = useRef<HTMLFormElement>(null);
     const hasPermission = useAuthStore((state) => state.hasPermission);
     const { transactions, transactionStatus, pagination, filters, success } = useLoaderData<LoaderData>();
+    usePolling(15_000); // Auto-refresh every 15 seconds
 
     const updateFilters = useCallback((updates: Record<string, string>) => {
         const params = new URLSearchParams(searchParams);
@@ -286,7 +291,21 @@ export default function Transactions() {
                                                     </p>
                                                 </div>
                                             </div>
-                                            <StatusBadge status={transaction.status} />
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                                <StatusBadge status={transaction.status} />
+                                                {transaction.customerHidden && (
+                                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded-full bg-orange-50 text-orange-600 border border-orange-200">
+                                                        <EyeOff className="h-2.5 w-2.5" />
+                                                        Customer hidden
+                                                    </span>
+                                                )}
+                                                {transaction.modelHidden && (
+                                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded-full bg-orange-50 text-orange-600 border border-orange-200">
+                                                        <EyeOff className="h-2.5 w-2.5" />
+                                                        Model hidden
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
 
                                         {/* Payment Flow (for payment type) */}
@@ -498,7 +517,25 @@ export default function Transactions() {
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <StatusBadge status={transaction.status} />
+                                                    <div className="space-y-1">
+                                                        <StatusBadge status={transaction.status} />
+                                                        {(transaction.customerHidden || transaction.modelHidden) && (
+                                                            <div className="flex flex-col items-start gap-0.5">
+                                                                {transaction.customerHidden && (
+                                                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded-full bg-orange-50 text-orange-600 border border-orange-200">
+                                                                        <EyeOff className="h-2.5 w-2.5" />
+                                                                        Customer hidden
+                                                                    </span>
+                                                                )}
+                                                                {transaction.modelHidden && (
+                                                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded-full bg-orange-50 text-orange-600 border border-orange-200">
+                                                                        <EyeOff className="h-2.5 w-2.5" />
+                                                                        Model hidden
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </TableCell>
                                                 <TableCell>
                                                     <DropdownMenu>

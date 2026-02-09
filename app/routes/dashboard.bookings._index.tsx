@@ -15,6 +15,7 @@ import {
     XCircle,
     CalendarDays,
     Phone,
+    EyeOff,
 } from "lucide-react";
 
 // components
@@ -34,6 +35,9 @@ import {
     TableHeader,
     TableRow
 } from "~/components/ui/table";
+
+// hooks
+import { usePolling } from "~/hooks/usePolling";
 
 // service and utils
 import { useAuthStore } from "~/store/permissionStore";
@@ -66,6 +70,7 @@ export default function Bookings() {
     const formRef = useRef<HTMLFormElement>(null);
     const hasPermission = useAuthStore((state) => state.hasPermission);
     const { bookings, stats, pagination, filters, success, error } = useLoaderData<LoaderData>();
+    usePolling(15_000); // Auto-refresh every 15 seconds
 
     const updateFilters = useCallback((updates: Record<string, string>) => {
         const params = new URLSearchParams(searchParams);
@@ -455,10 +460,27 @@ export default function Bookings() {
                                                             {statusInfo.label}
                                                         </span>
                                                         {/* Customer/Model check-in badges */}
-                                                        <div className="flex flex-col items-start gap-1">
+                                                        {/* <div className="flex flex-col items-start gap-1">
                                                             {getCheckInBadge(booking.customerCheckedInAt, "Customer")}
                                                             {getCheckInBadge(booking.modelCheckedInAt, "Model")}
-                                                        </div>
+                                                        </div> */}
+                                                        {/* Hidden indicators */}
+                                                        {(booking.customerHidden || booking.modelHidden) && (
+                                                            <div className="flex flex-col items-start gap-0.5">
+                                                                {booking.customerHidden && (
+                                                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded-full bg-orange-50 text-orange-600 border border-orange-200">
+                                                                        <EyeOff className="h-2.5 w-2.5" />
+                                                                        Customer hidden
+                                                                    </span>
+                                                                )}
+                                                                {booking.modelHidden && (
+                                                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded-full bg-orange-50 text-orange-600 border border-orange-200">
+                                                                        <EyeOff className="h-2.5 w-2.5" />
+                                                                        Model hidden
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </TableCell>
                                                 {/* Actions */}
@@ -544,10 +566,24 @@ export default function Bookings() {
                                         <CardContent className="p-4">
                                             {/* Header: Status & Actions */}
                                             <div className="flex items-center justify-between mb-3">
-                                                <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full border ${statusInfo.color}`}>
-                                                    <StatusIcon className="h-3 w-3" />
-                                                    {statusInfo.label}
-                                                </span>
+                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                    <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full border ${statusInfo.color}`}>
+                                                        <StatusIcon className="h-3 w-3" />
+                                                        {statusInfo.label}
+                                                    </span>
+                                                    {booking.customerHidden && (
+                                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded-full bg-orange-50 text-orange-600 border border-orange-200">
+                                                            <EyeOff className="h-2.5 w-2.5" />
+                                                            Customer hidden
+                                                        </span>
+                                                    )}
+                                                    {booking.modelHidden && (
+                                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded-full bg-orange-50 text-orange-600 border border-orange-200">
+                                                            <EyeOff className="h-2.5 w-2.5" />
+                                                            Model hidden
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
                                                         <Button variant="ghost" size="sm" className="h-7 w-7 p-0">

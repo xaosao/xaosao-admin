@@ -95,6 +95,8 @@ export async function getBookings(options: BookingFilters = {}) {
           paymentStatus: true,
           customerCheckedInAt: true,
           modelCheckedInAt: true,
+          customerHidden: true,
+          modelHidden: true,
           createdAt: true,
           customer: {
             select: {

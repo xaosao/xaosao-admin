@@ -27,6 +27,9 @@ import {
     MessageCircle,
 } from "lucide-react";
 
+// hooks
+import { usePolling } from "~/hooks/usePolling";
+
 // Utils and services
 import { IStatusItem } from "~/interfaces";
 import { IModels } from "~/interfaces/model";
@@ -50,6 +53,7 @@ export default function ModelsApprovalPage() {
     const formRef = useRef<HTMLFormElement>(null);
     const hasPermission = useAuthStore((state) => state.hasPermission);
     const { models, pagination, filters, success } = useLoaderData<LoaderData>();
+    usePolling(30_000); // Auto-refresh every 30 seconds
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
     // Open WhatsApp chat with welcome message to verify model's number

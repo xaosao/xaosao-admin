@@ -694,11 +694,50 @@ interface NotificationPayload {
 }
 
 /**
+ * Trigger real-time SSE notification on the client process.
+ * The admin and client run as separate processes with separate in-memory emitters,
+ * so we need to make an HTTP call to the client's trigger endpoint.
+ */
+async function triggerClientSSE(
+  userType: "customer" | "model",
+  userId: string,
+  notification: Record<string, any>
+): Promise<void> {
+  try {
+    const clientBackendUrl = process.env.CLIENT_BACKEND_URL;
+    const sseApiSecret = process.env.SSE_API_SECRET;
+
+    if (!clientBackendUrl || !sseApiSecret) {
+      console.warn("[SSE Trigger] CLIENT_BACKEND_URL or SSE_API_SECRET not configured, skipping");
+      return;
+    }
+
+    const response = await fetch(`${clientBackendUrl}/api/trigger-notification`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Secret": sseApiSecret,
+      },
+      body: JSON.stringify({ userType, userId, notification }),
+    });
+
+    if (response.ok) {
+      console.log(`[SSE Trigger] Sent ${userType} notification to client for user ${userId}`);
+    } else {
+      const error = await response.text();
+      console.error(`[SSE Trigger] Failed (${response.status}):`, error);
+    }
+  } catch (error) {
+    console.error("[SSE Trigger] Failed to trigger client notification:", error);
+  }
+}
+
+/**
  * Create an in-app notification for a model
  */
 async function createModelNotification(modelId: string, payload: NotificationPayload): Promise<void> {
   try {
-    await prisma.model_notification.create({
+    const notification = await prisma.model_notification.create({
       data: {
         type: payload.type,
         title: payload.title,
@@ -709,6 +748,16 @@ async function createModelNotification(modelId: string, payload: NotificationPay
       },
     });
     console.log(`[Notification Admin] Created ${payload.type} notification for model ${modelId}`);
+
+    // Trigger real-time SSE on the client process
+    triggerClientSSE("model", modelId, {
+      id: notification.id,
+      type: payload.type,
+      title: payload.title,
+      message: payload.message,
+      data: payload.data,
+      createdAt: notification.createdAt,
+    });
   } catch (error) {
     console.error("[Notification Admin] Failed to create notification:", error);
   }
@@ -1053,7 +1102,7 @@ interface CustomerNotificationPayload {
  */
 async function createCustomerNotification(customerId: string, payload: CustomerNotificationPayload): Promise<void> {
   try {
-    await prisma.customer_notification.create({
+    const notification = await prisma.customer_notification.create({
       data: {
         type: payload.type,
         title: payload.title,
@@ -1064,6 +1113,16 @@ async function createCustomerNotification(customerId: string, payload: CustomerN
       },
     });
     console.log(`[Notification Admin] Created ${payload.type} notification for customer ${customerId}`);
+
+    // Trigger real-time SSE on the client process
+    triggerClientSSE("customer", customerId, {
+      id: notification.id,
+      type: payload.type,
+      title: payload.title,
+      message: payload.message,
+      data: payload.data,
+      createdAt: notification.createdAt,
+    });
   } catch (error) {
     console.error("[Notification Admin] Failed to create customer notification:", error);
   }
