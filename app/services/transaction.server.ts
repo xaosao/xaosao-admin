@@ -620,7 +620,7 @@ export async function approveTransaction(
           data: {
             identifier: "subscription",
             amount: pendingSubscription.plan.price,
-            paymentSlip: null,
+            paymentSlip: [],
             status: "approved",
             comission: 0,
             fee: 0,

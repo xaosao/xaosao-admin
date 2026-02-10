@@ -1,4 +1,4 @@
-import { AlertTriangle, Mars, UserCheck, Users, Venus, X } from "lucide-react"
+import { AlertTriangle, Ban, Mars, UserCheck, Users, Venus, X } from "lucide-react"
 import { ActionFunctionArgs, LoaderFunctionArgs, redirect } from "@remix-run/node"
 import { Form, json, useLoaderData, useNavigate, useNavigation } from "@remix-run/react"
 
@@ -116,29 +116,50 @@ export default function RejectTransactionModal() {
                             </div>
                         </CardContent>
                     </Card>
-                    <Form method="patch" className="space-y-4">
-                        <div className="space-y-2">
-                            <Textfield
-                                required
-                                type="text"
-                                id="reason"
-                                name="reject_reason"
-                                multiline
-                                rows={2}
-                                title="Rejected reason"
-                                color="text-gray-500"
-                                placeholder="Enter reject reason...."
-                            />
+                    {transaction.customerHidden ? (
+                        <div className="space-y-4">
+                            <Card className="border-orange-200 bg-orange-50">
+                                <CardContent className="p-4">
+                                    <div className="flex items-start space-x-3">
+                                        <Ban className="h-5 w-5 text-orange-600 mt-0.5" />
+                                        <div>
+                                            <h4 className="text-sm font-semibold text-orange-800">Transaction Cancelled by Customer</h4>
+                                            <p className="text-sm text-orange-700 mt-1">This transaction has been cancelled by the customer. It cannot be approved or rejected.</p>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                            <div className="flex justify-end pt-4">
+                                <Button type="button" variant="outline" onClick={closeHandler}>
+                                    Close
+                                </Button>
+                            </div>
                         </div>
-                        <div className="flex justify-end space-x-2 pt-4">
-                            <Button type="button" variant="outline" onClick={closeHandler} disabled={isSubmitting}>
-                                Cancel
-                            </Button>
-                            <Button type="submit" disabled={isSubmitting} className="bg-red-600 hover:bg-red-700 text-white">
-                                {isSubmitting ? "Rejecting..." : "Reject"}
-                            </Button>
-                        </div>
-                    </Form>
+                    ) : (
+                        <Form method="patch" className="space-y-4">
+                            <div className="space-y-2">
+                                <Textfield
+                                    required
+                                    type="text"
+                                    id="reason"
+                                    name="reject_reason"
+                                    multiline
+                                    rows={2}
+                                    title="Rejected reason"
+                                    color="text-gray-500"
+                                    placeholder="Enter reject reason...."
+                                />
+                            </div>
+                            <div className="flex justify-end space-x-2 pt-4">
+                                <Button type="button" variant="outline" onClick={closeHandler} disabled={isSubmitting}>
+                                    Cancel
+                                </Button>
+                                <Button type="submit" disabled={isSubmitting} className="bg-red-600 hover:bg-red-700 text-white">
+                                    {isSubmitting ? "Rejecting..." : "Reject"}
+                                </Button>
+                            </div>
+                        </Form>
+                    )}
                 </div>
             </div>
         </Modal>

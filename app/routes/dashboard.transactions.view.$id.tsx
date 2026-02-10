@@ -25,11 +25,10 @@ export default function TransactionDetails() {
     const hasPermission = useAuthStore((state) => state.hasPermission);
     const owner = transaction.model || transaction.customer;
     const [showQrFullscreen, setShowQrFullscreen] = useState(false);
+    const [fullscreenSlip, setFullscreenSlip] = useState<string | null>(null);
 
-    const handleDownloadSlip = async () => {
-        if (transaction?.paymentSlip) {
-            downloadImage(transaction.paymentSlip, `payment-slip-${transaction.identifier}.jpg`);
-        }
+    const handleDownloadSlip = async (slipUrl: string, index: number) => {
+        downloadImage(slipUrl, `payment-slip-${transaction.identifier}-${index + 1}.jpg`);
     };
 
     function closeHandler() {
@@ -269,27 +268,39 @@ export default function TransactionDetails() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        {transaction?.paymentSlip ? (
+                        {transaction?.paymentSlip && transaction.paymentSlip.length > 0 ? (
                             <div className="space-y-3">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center space-x-3">
                                         <FileText className="h-6 w-6 text-blue-600" />
                                         <div>
-                                            <p className="text-sm ">Payment Slip Available</p>
+                                            <p className="text-sm">Payment Slip{transaction.paymentSlip.length > 1 ? 's' : ''} Available ({transaction.paymentSlip.length})</p>
                                             <p className="text-xs text-gray-500">Uploaded with transaction</p>
                                         </div>
                                     </div>
-                                    <Button variant="outline" size="sm" onClick={handleDownloadSlip}>
-                                        <Download className="h-4 w-4 mr-1" />
-                                        Download
-                                    </Button>
                                 </div>
-                                <div className="rounded-lg bg-gray-50 p-4">
-                                    <img
-                                        src={transaction.paymentSlip}
-                                        alt="Payment Slip"
-                                        className="mx-auto rounded-md max-h-64 object-contain"
-                                    />
+                                <div className={`grid gap-4 ${transaction.paymentSlip.length === 1 ? 'grid-cols-1' : 'grid-cols-2 lg:grid-cols-3'}`}>
+                                    {transaction.paymentSlip.map((slip: string, index: number) => (
+                                        <div key={index} className="rounded-lg bg-gray-50 p-3 space-y-2">
+                                            <div
+                                                className="relative cursor-pointer group"
+                                                onClick={() => setFullscreenSlip(slip)}
+                                            >
+                                                <img
+                                                    src={slip}
+                                                    alt={`Payment Slip ${index + 1}`}
+                                                    className="mx-auto rounded-md max-h-64 object-contain transition-opacity group-hover:opacity-80"
+                                                />
+                                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <Maximize2 className="h-8 w-8 text-gray-700 bg-white/80 rounded-full p-1.5" />
+                                                </div>
+                                            </div>
+                                            <Button variant="outline" size="sm" className="w-full" onClick={() => handleDownloadSlip(slip, index)}>
+                                                <Download className="h-4 w-4 mr-1" />
+                                                Download
+                                            </Button>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         ) : (
@@ -326,6 +337,29 @@ export default function TransactionDetails() {
                         <img
                             src={transaction.bank.qr_code}
                             alt="Bank QR Code - Fullscreen"
+                            className="max-w-full max-h-[85vh] object-contain rounded-lg"
+                        />
+                        <p className="text-center text-white/70 mt-4 text-sm">Click anywhere to close</p>
+                    </div>
+                </div>
+            )}
+
+            {/* Fullscreen Payment Slip Modal */}
+            {fullscreenSlip && (
+                <div
+                    className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center cursor-pointer"
+                    onClick={() => setFullscreenSlip(null)}
+                >
+                    <div className="relative max-w-[90vw] max-h-[90vh]">
+                        <button
+                            className="absolute -top-10 right-0 text-white hover:text-gray-300 transition-colors"
+                            onClick={() => setFullscreenSlip(null)}
+                        >
+                            <X className="h-8 w-8" />
+                        </button>
+                        <img
+                            src={fullscreenSlip}
+                            alt="Payment Slip - Fullscreen"
                             className="max-w-full max-h-[85vh] object-contain rounded-lg"
                         />
                         <p className="text-center text-white/70 mt-4 text-sm">Click anywhere to close</p>
