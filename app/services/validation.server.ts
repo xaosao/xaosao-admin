@@ -202,8 +202,8 @@ const adminSchema = z.object({
   address: refineSafe(
     z
       .string()
-      .min(10, "Invalid username. Must be at least 10 characters.")
-      .max(100, "Invalid username. Must be at most 100 characters long.")
+      .min(1, "Address is required.")
+      .max(200, "Address must be at most 200 characters long.")
   ),
 });
 
@@ -262,8 +262,8 @@ const adminUpdateSchema = z.object({
   address: refineSafe(
     z
       .string()
-      .min(10, "Invalid username. Must be at least 10 characters.")
-      .max(100, "Invalid username. Must be at most 100 characters long.")
+      .min(1, "Address is required.")
+      .max(200, "Address must be at most 200 characters long.")
   ),
 });
 
