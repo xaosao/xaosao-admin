@@ -18,6 +18,7 @@ import {
     UserPen,
     CheckSquare,
     Shield,
+    MessageCircle,
 } from "lucide-react";
 
 import EmptyPage from "~/components/ui/empty";
@@ -71,6 +72,23 @@ export default function Models() {
     const hasPermission = useAuthStore((state) => state.hasPermission);
     const { models, modelStatus, count, pagination, filters, success } = useLoaderData<LoaderData>();
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+    // Open WhatsApp chat with model
+    const openWhatsAppChat = (whatsappNumber: number | string, modelName: string) => {
+        if (!whatsappNumber) {
+            toast.error("This model has no WhatsApp number");
+            return;
+        }
+        const phoneNumber = String(whatsappNumber).replace(/\D/g, "");
+        const message = encodeURIComponent(
+            `ສະບາຍດີ ${modelName}! 👋\n\n` +
+            `ນີ້ແມ່ນທີມງານ XaoSao Admin.\n\n` +
+            `---\n` +
+            `Hello ${modelName}! 👋\n` +
+            `This is XaoSao Admin team.`
+        );
+        window.open(`https://wa.me/${phoneNumber}?text=${message}`, "_blank");
+    };
 
     const updateFilters = useCallback((updates: Record<string, string>) => {
         const params = new URLSearchParams(searchParams);
@@ -410,6 +428,14 @@ export default function Models() {
                                                     <Shield className="h-3 w-3 mr-1" />Status
                                                 </Link>
                                             </Button>
+                                            <Button
+                                                size="sm"
+                                                className="h-8 px-2 bg-green-500 hover:bg-green-600 text-white"
+                                                onClick={() => openWhatsAppChat(model.whatsapp, model.firstName)}
+                                                title="Chat via WhatsApp"
+                                            >
+                                                <MessageCircle className="h-3 w-3 mr-1" />Chat
+                                            </Button>
                                         </>
                                     )}
                                     {canDelete && (
@@ -526,6 +552,10 @@ export default function Models() {
                                                                 <Shield className="mr-2 h-3 w-3" />
                                                                 <span>Update status</span>
                                                             </Link>
+                                                        </DropdownMenuItem>}
+                                                        {canEdit && <DropdownMenuItem className="text-sm cursor-pointer" onClick={() => openWhatsAppChat(model.whatsapp, model.firstName)}>
+                                                            <MessageCircle className="mr-2 h-3 w-3 text-green-500" />
+                                                            <span>Chat</span>
                                                         </DropdownMenuItem>}
                                                         {model.ModelService && model.ModelService.length > 0 && canEdit && <DropdownMenuItem className="text-sm">
                                                             <Link to={`edit/${model.id}`} className="flex space-x-2 w-full">
