@@ -336,7 +336,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     const userId = await requireUserSession(request);
     await requireUserPermission({
         userId,
-        group: "transaction",
+        group: "booking",
         action: "view",
     });
 

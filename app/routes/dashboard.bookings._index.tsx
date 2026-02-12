@@ -759,10 +759,9 @@ export default function Bookings() {
 
 export async function loader({ request }: { request: Request }) {
     const userId = await requireUserSession(request);
-    // Use transaction permission for now (can add booking permission later)
     await requireUserPermission({
         userId,
-        group: "transaction",
+        group: "booking",
         action: "view",
     });
 

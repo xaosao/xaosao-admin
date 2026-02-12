@@ -10,6 +10,7 @@ import {
   FileText,
   DollarSign,
   CalendarDays,
+  Landmark,
 } from "lucide-react";
 
 export const status: any = [
@@ -117,13 +118,19 @@ export const singleNavigation = [
     name: "Bookings",
     href: "/dashboard/bookings",
     icon: CalendarDays,
-    permission: { group: "transaction", action: "view" },
+    permission: { group: "booking", action: "view" },
   },
   {
     name: "Revenue",
     href: "/dashboard/revenue",
     icon: DollarSign,
     permission: { group: "revenue", action: "view" },
+  },
+  {
+    name: "Finance",
+    href: "/dashboard/finance",
+    icon: Landmark,
+    permission: { group: "finance", action: "view" },
   },
   {
     name: "Reviews",
@@ -135,7 +142,7 @@ export const singleNavigation = [
     name: "Audit Logs",
     href: "/dashboard/logs",
     icon: FileText,
-    permission: { group: "audit-log", action: "view" },
+    permission: { group: "log", action: "view" },
   },
   {
     name: "Settings",
