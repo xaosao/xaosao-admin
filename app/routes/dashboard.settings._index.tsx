@@ -9,9 +9,11 @@ import { Switch } from "~/components/ui/switch"
 import { Button } from "~/components/ui/button"
 import { Separator } from "~/components/ui/separator"
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card"
+import { ForbiddenCard } from "~/components/ui/forbidden-card"
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar"
 
 // service, utils and interface
+import { useAuthStore } from "~/store/permissionStore";
 import { extractFilenameFromCDNSafe } from "~/utils"
 import { ISettingInputs, ISettingResponse } from "~/interfaces"
 import { getSettings, updateSettings } from "~/services/setting.server"
@@ -32,7 +34,9 @@ export default function SettingsPage() {
     const { settings, success } = useLoaderData<LoaderData>();
     const isSubmitting = navigation.state !== "idle" && navigation.formMethod === "PATCH"
     const validationErrors = useActionData<Partial<Record<keyof ISettingInputs, string>>>();
-
+    const hasPermission = useAuthStore((state) => state.hasPermission);
+    const canAccess = hasPermission("setting", "view");
+    const canEdit = hasPermission("setting", "edit");
 
     function handleImageUpload() {
         fileInputRef.current?.click()
@@ -66,6 +70,17 @@ export default function SettingsPage() {
             navigate(newUrl.pathname + newUrl.search, { replace: true });
         }
     }, [success, navigate]);
+
+    if (!canAccess) {
+        return (
+            <div className="h-full flex items-center justify-center">
+                <ForbiddenCard
+                    title="Unallowed for your role"
+                    subtitle="This admin area requires additional permissions. Please request access or go back."
+                />
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-4">
@@ -263,12 +278,14 @@ export default function SettingsPage() {
                         </div>
                     )}
                 </div>
-                <div className="w-full flex items-center justify-end mt-4">
-                    <Button type="submit" className="bg-dark-pink hover:opacity-90 text-white" disabled={isSubmitting}>
-                        {isSubmitting ? <LoaderCircle className="w-4 h-4 mr-2 animate-spin" /> : ""}
-                        {isSubmitting ? "Saving..." : "Save Change"}
-                    </Button>
-                </div>
+                {canEdit && (
+                    <div className="w-full flex items-center justify-end mt-4">
+                        <Button type="submit" className="bg-dark-pink hover:opacity-90 text-white" disabled={isSubmitting}>
+                            {isSubmitting ? <LoaderCircle className="w-4 h-4 mr-2 animate-spin" /> : ""}
+                            {isSubmitting ? "Saving..." : "Save Change"}
+                        </Button>
+                    </div>
+                )}
             </Form>
         </div>
     )

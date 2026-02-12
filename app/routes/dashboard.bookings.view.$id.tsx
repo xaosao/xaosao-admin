@@ -56,7 +56,7 @@ export default function ViewBookingModal() {
         navigate("..");
     }
 
-    const canAccess = hasPermission("booking", "view") || hasPermission("transaction", "view");
+    const canAccess = hasPermission("booking", "view");
 
     if (!canAccess) {
         return (

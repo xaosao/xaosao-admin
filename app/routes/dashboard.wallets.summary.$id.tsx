@@ -295,8 +295,8 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     const userId = await requireUserSession(request);
     await requireUserPermission({
         userId,
-        group: "admin",
-        action: "edit",
+        group: "wallet",
+        action: "view",
     });
 
     const walletId = params.id;

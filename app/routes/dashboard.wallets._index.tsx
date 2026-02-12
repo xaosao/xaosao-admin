@@ -114,9 +114,9 @@ export default function Wallets() {
         }
     }, [success, navigate]);
 
-    const canAccess = hasPermission("admin", "view");
-    const canEdit = hasPermission("admin", "edit");
-    const canDelete = hasPermission("admin", "delete");
+    const canAccess = hasPermission("wallet", "view");
+    const canEdit = hasPermission("wallet", "edit");
+    const canDelete = hasPermission("wallet", "delete");
 
     if (!canAccess) {
         return (

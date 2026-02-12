@@ -92,6 +92,7 @@ export default function FinancePage() {
         useLoaderData<LoaderData>();
 
     const canAccess = hasPermission("finance", "view");
+    const canEdit = hasPermission("finance", "edit");
 
     const updateFilters = useCallback(
         (updates: Record<string, string>) => {
@@ -146,15 +147,17 @@ export default function FinancePage() {
                             ]}
                         />
                     </div>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex sm:hidden h-8 text-sm"
-                        onClick={handleCSVExport}
-                    >
-                        <Download className="h-3 w-3 mr-1" />
-                        Export CSV
-                    </Button>
+                    {canEdit && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex sm:hidden h-8 text-sm"
+                            onClick={handleCSVExport}
+                        >
+                            <Download className="h-3 w-3 mr-1" />
+                            Export CSV
+                        </Button>
+                    )}
                 </div>
                 <div className="flex flex-col sm:flex-row items-center gap-2">
                     {/* Period Toggle */}
@@ -180,15 +183,17 @@ export default function FinancePage() {
                         ))}
                     </div>
                     {/* CSV Export */}
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="hidden sm:flex h-8 text-sm"
-                        onClick={handleCSVExport}
-                    >
-                        <Download className="h-3 w-3 mr-1" />
-                        Export CSV
-                    </Button>
+                    {canEdit && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="hidden sm:flex h-8 text-sm"
+                            onClick={handleCSVExport}
+                        >
+                            <Download className="h-3 w-3 mr-1" />
+                            Export CSV
+                        </Button>
+                    )}
                 </div>
             </div>
 

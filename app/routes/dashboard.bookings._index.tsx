@@ -119,14 +119,10 @@ export default function Bookings() {
         }
     }, [success, error, navigate]);
 
-    const canEdit = hasPermission("booking", "edit");
     const canAccess = hasPermission("booking", "view");
+    const canEdit = hasPermission("booking", "edit");
 
-    // For now, allow access if user has transaction permission (we'll add booking permission later)
-    const hasAccess = canAccess || hasPermission("transaction", "view");
-    const hasEditAccess = canEdit || hasPermission("transaction", "edit");
-
-    if (!hasAccess) {
+    if (!canAccess) {
         return (
             <div className="h-full flex items-center justify-center">
                 <ForbiddenCard
@@ -518,7 +514,7 @@ export default function Bookings() {
                                                                     </a>
                                                                 </DropdownMenuItem>
                                                             )}
-                                                            {canRefund && hasEditAccess && (
+                                                            {canRefund && canEdit && (
                                                                 <DropdownMenuItem className="text-sm">
                                                                     <Link to={`refund/${booking.id}`} className="flex space-x-2">
                                                                         <RotateCcw className="mr-2 h-3 w-3 text-orange-500" />
@@ -526,7 +522,7 @@ export default function Bookings() {
                                                                     </Link>
                                                                 </DropdownMenuItem>
                                                             )}
-                                                            {canComplete && hasEditAccess && (
+                                                            {canComplete && canEdit && (
                                                                 <DropdownMenuItem className="text-sm">
                                                                     <Link to={`complete/${booking.id}`} className="flex space-x-2">
                                                                         <CheckCircle className="mr-2 h-3 w-3 text-green-500" />
@@ -614,7 +610,7 @@ export default function Bookings() {
                                                                 </a>
                                                             </DropdownMenuItem>
                                                         )}
-                                                        {canRefund && hasEditAccess && (
+                                                        {canRefund && canEdit && (
                                                             <DropdownMenuItem className="text-sm">
                                                                 <Link to={`refund/${booking.id}`} className="flex space-x-2">
                                                                     <RotateCcw className="mr-2 h-3 w-3 text-orange-500" />
@@ -622,7 +618,7 @@ export default function Bookings() {
                                                                 </Link>
                                                             </DropdownMenuItem>
                                                         )}
-                                                        {canComplete && hasEditAccess && (
+                                                        {canComplete && canEdit && (
                                                             <DropdownMenuItem className="text-sm">
                                                                 <Link to={`complete/${booking.id}`} className="flex space-x-2">
                                                                     <CheckCircle className="mr-2 h-3 w-3 text-green-500" />

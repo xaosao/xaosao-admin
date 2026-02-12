@@ -25,7 +25,7 @@ export default function RefundBookingModal() {
         navigate("..");
     }
 
-    const canEdit = hasPermission("booking", "edit") || hasPermission("transaction", "edit");
+    const canEdit = hasPermission("booking", "edit");
 
     if (!canEdit) {
         return (
