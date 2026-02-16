@@ -42,7 +42,7 @@ import {
 } from "~/services/finance.server";
 
 // types
-import type { IFinanceSummary, IFinanceBreakdownItem, IModelEarnings } from "~/interfaces/finance";
+import type { IFinanceSummary, IFinanceBreakdownItem, IFinanceSubItem, IModelEarnings } from "~/interfaces/finance";
 import type { IPagination } from "~/interfaces/base";
 
 interface LoaderData {
@@ -247,28 +247,93 @@ export default function FinancePage() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                         {breakdown.income.length > 0 ? (
-                            breakdown.income.map((item: IFinanceBreakdownItem) => (
-                                <div key={item.category} className="space-y-1.5">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm text-gray-700">{item.label}</span>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-sm font-semibold text-gray-900">
-                                                {item.formattedAmount}
-                                            </span>
-                                            <span className="text-xs text-gray-400">
-                                                ({item.count})
-                                            </span>
+                            breakdown.income.map((item: IFinanceBreakdownItem) => {
+                                const hasSubItems = item.subItems && item.subItems.length > 0;
+                                // Calculate sub-item percentages for multi-color bar
+                                const subPercents = hasSubItems
+                                    ? item.subItems!.map((sub) => ({
+                                        ...sub,
+                                        percent: item.amount > 0 ? Math.round((sub.amount / item.amount) * 100) : 0,
+                                    }))
+                                    : [];
+
+                                // Color mapping for sub-item progress bar segments
+                                const subBarColors: Record<string, string> = {
+                                    "text-orange-600": "bg-orange-500",
+                                    "text-emerald-600": "bg-emerald-500",
+                                    "text-purple-600": "bg-purple-500",
+                                    "text-cyan-600": "bg-cyan-500",
+                                    "text-green-600": "bg-green-500",
+                                };
+                                const subDotColors: Record<string, string> = {
+                                    "text-orange-600": "bg-orange-500",
+                                    "text-emerald-600": "bg-emerald-500",
+                                    "text-purple-600": "bg-purple-500",
+                                    "text-cyan-600": "bg-cyan-500",
+                                    "text-green-600": "bg-green-500",
+                                };
+
+                                return (
+                                    <div key={item.category} className="space-y-1.5">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-gray-700">{item.label}</span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm font-semibold text-gray-900">
+                                                    {item.formattedAmount}
+                                                </span>
+                                                <span className="text-xs text-gray-400">
+                                                    ({item.count})
+                                                </span>
+                                            </div>
                                         </div>
+                                        {hasSubItems ? (
+                                            <>
+                                                <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden flex">
+                                                    {subPercents.map((sub, i) => (
+                                                        <div
+                                                            key={sub.label}
+                                                            className={`h-2 ${subBarColors[sub.color] || "bg-gray-400"} ${i === 0 ? "rounded-l-full" : ""} ${i === subPercents.length - 1 ? "rounded-r-full" : ""}`}
+                                                            style={{ width: `${Math.max(sub.percent, 1)}%` }}
+                                                            title={`${sub.label}: ${sub.formattedAmount}`}
+                                                        />
+                                                    ))}
+                                                </div>
+                                                <div className="flex items-center text-[10px] text-gray-400 gap-3 flex-wrap">
+                                                    {subPercents.map((sub) => (
+                                                        <span key={sub.label} className="flex items-center gap-1">
+                                                            <span className={`inline-block w-2 h-2 rounded-full ${subDotColors[sub.color] || "bg-gray-400"}`} />
+                                                            {sub.label} {sub.percent}%
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <div className="w-full bg-gray-100 rounded-full h-2">
+                                                    <div
+                                                        className={`h-2 rounded-full ${item.color}`}
+                                                        style={{ width: `${Math.max(item.percentage, 2)}%` }}
+                                                    />
+                                                </div>
+                                                <p className="text-[10px] text-gray-400 text-right">{item.percentage}%</p>
+                                            </>
+                                        )}
+                                        {/* Sub-breakdown details */}
+                                        {hasSubItems && (
+                                            <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-100 pl-3">
+                                                {item.subItems!.map((sub: IFinanceSubItem) => (
+                                                    <div key={sub.label} className="flex items-center justify-between">
+                                                        <span className="text-xs text-gray-500">{sub.label}</span>
+                                                        <span className={`text-xs font-semibold ${sub.color}`}>
+                                                            {sub.formattedAmount}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
-                                    <div className="w-full bg-gray-100 rounded-full h-2">
-                                        <div
-                                            className={`h-2 rounded-full ${item.color}`}
-                                            style={{ width: `${Math.max(item.percentage, 2)}%` }}
-                                        />
-                                    </div>
-                                    <p className="text-[10px] text-gray-400 text-right">{item.percentage}%</p>
-                                </div>
-                            ))
+                                );
+                            })
                         ) : (
                             <p className="text-sm text-gray-400 text-center py-4">No income data</p>
                         )}

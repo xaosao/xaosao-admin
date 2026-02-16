@@ -6,6 +6,13 @@ export interface IFinanceSummary {
   color: string;
 }
 
+export interface IFinanceSubItem {
+  label: string;
+  amount: number;
+  formattedAmount: string;
+  color: string;
+}
+
 export interface IFinanceBreakdownItem {
   category: string;
   label: string;
@@ -14,6 +21,7 @@ export interface IFinanceBreakdownItem {
   count: number;
   percentage: number;
   color: string;
+  subItems?: IFinanceSubItem[];
 }
 
 export interface IModelEarnings {
