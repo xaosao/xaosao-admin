@@ -45,6 +45,22 @@ import { getAuditLogsByEntity } from "~/services/log.server"
 import { calculateAgeFromDOB, capitalizeFirstLetter, timeAgo } from "~/utils"
 import { requireUserPermission, requireUserSession } from "~/services/auth.server"
 
+function getServicePrice(ms: any): string {
+    const svc = ms.service;
+    if (!svc) return "0";
+    switch (svc.billingType) {
+        case "per_hour":
+            return `${(ms.customHourlyRate ?? ms.customRate ?? svc.hourlyRate ?? svc.baseRate ?? 0).toLocaleString()}/hr`;
+        case "per_session":
+            return `${(ms.customOneTimePrice ?? ms.customRate ?? svc.oneTimePrice ?? svc.baseRate ?? 0).toLocaleString()}`;
+        case "per_minute":
+            return `${(ms.customMinuteRate ?? ms.customRate ?? svc.minuteRate ?? svc.baseRate ?? 0).toLocaleString()}/min`;
+        case "per_day":
+        default:
+            return `${(ms.customRate ?? svc.baseRate ?? 0).toLocaleString()}/day`;
+    }
+}
+
 interface LoaderData {
     model: IModels;
     modelLogs: IEntityLogs[];
@@ -298,7 +314,7 @@ export default function ModelDetailsModal() {
                                     <div key={service.id} className="flex justify-between">
                                         <span className="text-gray-500">{service.service?.name}:</span>
                                         <span className="text-green-600 font-semibold">
-                                            ${service.customRate ?? service.service?.baseRate}/min
+                                            {getServicePrice(service)}
                                         </span>
                                     </div>
                                 ))}

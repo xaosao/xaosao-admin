@@ -347,6 +347,7 @@ const menuItems = [
   "review",
   "log",
   "setting",
+  "notification",
 ];
 
 export async function seedPermissionsData(userId: string) {

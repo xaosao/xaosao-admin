@@ -11,6 +11,7 @@ import {
   DollarSign,
   CalendarDays,
   Landmark,
+  Bell,
 } from "lucide-react";
 
 export const status: any = [
@@ -137,6 +138,12 @@ export const singleNavigation = [
     href: "/dashboard/reviews",
     icon: Star,
     permission: { group: "review", action: "view" },
+  },
+  {
+    name: "Notifications",
+    href: "/dashboard/notifications",
+    icon: Bell,
+    permission: { group: "notification", action: "view" },
   },
   {
     name: "Audit Logs",

@@ -43,7 +43,15 @@ export default function UpdateModelRatePage() {
                                     name={`rate_${service.id}`}
                                     title={`${service.service?.name} rate price ($)`}
                                     placeholder={`Enter ${service.service?.name}`}
-                                    defaultValue={service.customRate ?? service.service?.baseRate}
+                                    defaultValue={
+                                        service.service?.billingType === "per_hour"
+                                            ? (service.customHourlyRate ?? service.customRate ?? service.service?.hourlyRate ?? service.service?.baseRate)
+                                            : service.service?.billingType === "per_session"
+                                                ? (service.customOneTimePrice ?? service.customRate ?? service.service?.oneTimePrice ?? service.service?.baseRate)
+                                                : service.service?.billingType === "per_minute"
+                                                    ? (service.customMinuteRate ?? service.customRate ?? service.service?.minuteRate ?? service.service?.baseRate)
+                                                    : (service.customRate ?? service.service?.baseRate)
+                                    }
                                 />
                             </div>
                             <div className="space-y-2">

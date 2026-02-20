@@ -47,6 +47,22 @@ import { useAuthStore } from "~/store/permissionStore";
 import { IFilters, IPagination } from "~/interfaces/base";
 import { calculateAgeFromDOB, formatDate1 } from "~/utils";
 import { requireUserPermission, requireUserSession } from "~/services/auth.server";
+
+function getServicePrice(ms: any): string {
+    const svc = ms.service;
+    if (!svc) return "0";
+    switch (svc.billingType) {
+        case "per_hour":
+            return `${(ms.customHourlyRate ?? ms.customRate ?? svc.hourlyRate ?? svc.baseRate ?? 0).toLocaleString()}/hr`;
+        case "per_session":
+            return `${(ms.customOneTimePrice ?? ms.customRate ?? svc.oneTimePrice ?? svc.baseRate ?? 0).toLocaleString()}`;
+        case "per_minute":
+            return `${(ms.customMinuteRate ?? ms.customRate ?? svc.minuteRate ?? svc.baseRate ?? 0).toLocaleString()}/min`;
+        case "per_day":
+        default:
+            return `${(ms.customRate ?? svc.baseRate ?? 0).toLocaleString()}/day`;
+    }
+}
 import { getModels, getModelStatus, getPendingModelCount } from "~/services/model.server";
 
 interface LoaderData {
@@ -392,7 +408,7 @@ export default function Models() {
                                         <div className="flex flex-wrap gap-1 mt-1">
                                             {model.ModelService.map((service: any) => (
                                                 <Badge key={service.id} variant="outline" className="text-xs">
-                                                    {service?.service?.name ?? ""}: ${service.customRate ? service.customRate : service.service.baseRate ?? 0}
+                                                    {service?.service?.name ?? ""}: {getServicePrice(service)}
                                                 </Badge>
                                             ))}
                                         </div>
@@ -505,7 +521,7 @@ export default function Models() {
                                                 <div className="flex items-start justify-start flex-col text-gray-500 gap-2">
                                                     {model.ModelService.length > 0 && model?.ModelService?.map((service: any) => {
                                                         return (
-                                                            <p key={service.id} className="text-sm flex items-center">{service?.service?.name ?? ""}:&nbsp;${service.customRate ? service.customRate : service.service.baseRate ?? 0}</p>
+                                                            <p key={service.id} className="text-sm flex items-center">{service?.service?.name ?? ""}:&nbsp;{getServicePrice(service)}</p>
                                                         )
                                                     })}
                                                 </div>

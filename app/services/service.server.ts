@@ -266,6 +266,10 @@ export async function getModelServicesByModelId(modelId: string) {
       select: {
         id: true,
         customRate: true,
+        customHourlyRate: true,
+        customOneTimePrice: true,
+        customOneNightPrice: true,
+        customMinuteRate: true,
         minSessionDuration: true,
         maxSessionDuration: true,
         status: true,
@@ -277,6 +281,11 @@ export async function getModelServicesByModelId(modelId: string) {
             id: true,
             name: true,
             baseRate: true,
+            billingType: true,
+            hourlyRate: true,
+            oneTimePrice: true,
+            oneNightPrice: true,
+            minuteRate: true,
           },
         },
       },
@@ -304,10 +313,35 @@ export async function updateModelService(
   };
 
   try {
+    // Look up the service billing type to save to the correct rate field
+    const existing = await prisma.model_service.findUnique({
+      where: { id: data.id },
+      select: { service: { select: { billingType: true } } },
+    });
+
+    const rateData: Record<string, any> = {};
+    if (data.customRate !== undefined && existing?.service) {
+      switch (existing.service.billingType) {
+        case "per_hour":
+          rateData.customHourlyRate = data.customRate;
+          break;
+        case "per_session":
+          rateData.customOneTimePrice = data.customRate;
+          break;
+        case "per_minute":
+          rateData.customMinuteRate = data.customRate;
+          break;
+        case "per_day":
+        default:
+          rateData.customRate = data.customRate;
+          break;
+      }
+    }
+
     const res = await prisma.model_service.update({
       where: { id: data.id },
       data: {
-        customRate: data.customRate,
+        ...rateData,
         minSessionDuration: data.minSessionDuration,
         maxSessionDuration: data.maxSessionDuration,
         isAvailable: data.isAvailable,

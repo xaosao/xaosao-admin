@@ -603,7 +603,7 @@ interface PushPayload {
 /**
  * Send push notification to a model
  */
-async function sendPushToModel(modelId: string, payload: PushPayload): Promise<void> {
+export async function sendPushToModel(modelId: string, payload: PushPayload): Promise<void> {
   if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
     console.warn("[Push Admin] VAPID keys not configured, skipping push");
     return;
@@ -684,7 +684,8 @@ type NotificationType =
   | "referral_bonus"
   | "deposit_approved"
   | "withdraw_approved"
-  | "welcome";
+  | "welcome"
+  | "broadcast";
 
 interface NotificationPayload {
   type: NotificationType;
@@ -735,7 +736,7 @@ async function triggerClientSSE(
 /**
  * Create an in-app notification for a model
  */
-async function createModelNotification(modelId: string, payload: NotificationPayload): Promise<void> {
+export async function createModelNotification(modelId: string, payload: NotificationPayload): Promise<void> {
   try {
     const notification = await prisma.model_notification.create({
       data: {
@@ -998,7 +999,7 @@ async function sendSMSToCustomer(customerId: string, message: string): Promise<v
 /**
  * Send push notification to a customer
  */
-async function sendPushToCustomer(customerId: string, payload: {
+export async function sendPushToCustomer(customerId: string, payload: {
   title: string;
   body: string;
   tag?: string;
@@ -1088,7 +1089,8 @@ type CustomerNotificationType =
   | "payment_released"
   | "payment_refunded"
   | "deposit_approved"
-  | "deposit_rejected";
+  | "deposit_rejected"
+  | "broadcast";
 
 interface CustomerNotificationPayload {
   type: CustomerNotificationType;
@@ -1100,7 +1102,7 @@ interface CustomerNotificationPayload {
 /**
  * Create an in-app notification for a customer
  */
-async function createCustomerNotification(customerId: string, payload: CustomerNotificationPayload): Promise<void> {
+export async function createCustomerNotification(customerId: string, payload: CustomerNotificationPayload): Promise<void> {
   try {
     const notification = await prisma.customer_notification.create({
       data: {
