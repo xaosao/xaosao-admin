@@ -188,11 +188,59 @@ export async function getModel(id: string) {
       });
     }
 
-    return model ? { ...model, referredBy } : null;
+    // Fetch referral counts
+    let referredModelsCount = 0;
+    let referredCustomersCount = 0;
+    if (model) {
+      [referredModelsCount, referredCustomersCount] = await Promise.all([
+        prisma.model.count({ where: { referredById: model.id, status: "active" } }),
+        prisma.customer.count({ where: { referredByModelId: model.id } }),
+      ]);
+    }
+
+    return model
+      ? { ...model, referredBy, referredModelsCount, referredCustomersCount }
+      : null;
   } catch (error) {
     console.error("GET_MODEL_FAILED", error);
     throw new Error("Failed to fetch model!");
   }
+}
+
+/**
+ * Get all models referred by a specific model
+ */
+export async function getReferredModels(modelId: string) {
+  return prisma.model.findMany({
+    where: { referredById: modelId, status: "active" },
+    select: {
+      id: true,
+      profile: true,
+      firstName: true,
+      lastName: true,
+      dob: true,
+      address: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+/**
+ * Get all customers referred by a specific model
+ */
+export async function getReferredCustomers(modelId: string) {
+  return prisma.customer.findMany({
+    where: { referredByModelId: modelId },
+    select: {
+      id: true,
+      profile: true,
+      firstName: true,
+      lastName: true,
+      dob: true,
+      country: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
 }
 
 export async function getPendingModelCount() {

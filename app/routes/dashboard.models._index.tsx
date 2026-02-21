@@ -19,6 +19,7 @@ import {
     CheckSquare,
     Shield,
     MessageCircle,
+    Share2,
 } from "lucide-react";
 
 import EmptyPage from "~/components/ui/empty";
@@ -424,6 +425,12 @@ export default function Models() {
                                         <User className="h-3 w-3 text-gray-500" />
                                         <span className="text-gray-700">Reviews: {model.total_review}</span>
                                     </div>
+                                    {(model.totalReferredModels > 0 || model.totalReferredCustomers > 0) && (
+                                        <div className="flex items-center space-x-1">
+                                            <Share2 className="h-3 w-3 text-purple-500" />
+                                            <span className="text-purple-600">Ref: {model.totalReferredModels}M / {model.totalReferredCustomers}C</span>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="flex items-center justify-end gap-2 pt-2 border-t">
@@ -535,6 +542,12 @@ export default function Models() {
                                                     <User className="h-3 w-3 text-yellow-500 fill-current" />
                                                     <span className="text-sm font-medium">{model.total_review}</span>
                                                 </div>
+                                                {(model.totalReferredModels > 0 || model.totalReferredCustomers > 0) && (
+                                                    <div className="flex items-center space-x-1 mt-1">
+                                                        <Share2 className="h-3 w-3 text-purple-500" />
+                                                        <span className="text-sm text-purple-600">{model.totalReferredModels}M / {model.totalReferredCustomers}C</span>
+                                                    </div>
+                                                )}
                                             </TableCell>
                                             <TableCell>
                                                 {formatDate1(model.createdAt)}

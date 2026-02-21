@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { json, LoaderFunctionArgs } from "@remix-run/node"
 import { useLoaderData, useNavigate } from "@remix-run/react"
 
@@ -10,10 +10,12 @@ import Breadcrumb from "~/components/ui/bread-crumb"
 import { ForbiddenCard } from "~/components/ui/forbidden-card"
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar"
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table"
 import {
     Star,
     Calendar,
     User,
+    Users,
     Phone,
     ArrowLeft,
     MapPin,
@@ -61,8 +63,18 @@ function getServicePrice(ms: any): string {
     }
 }
 
+interface ReferredUser {
+    id: string;
+    profile: string | null;
+    firstName: string;
+    lastName: string | null;
+    dob: string;
+    address?: string | null;
+    country?: string | null;
+}
+
 interface LoaderData {
-    model: IModels;
+    model: IModels & { referredModelsCount: number; referredCustomersCount: number };
     modelLogs: IEntityLogs[];
 }
 
@@ -71,6 +83,25 @@ export default function ModelDetailsModal() {
     const hasPermission = useAuthStore((state) => state.hasPermission);
     const { model, modelLogs } = useLoaderData<LoaderData>();
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+    // Referral modal state
+    const [referralModal, setReferralModal] = useState<{ open: boolean; type: "models" | "customers" }>({ open: false, type: "models" });
+    const [referralUsers, setReferralUsers] = useState<ReferredUser[]>([]);
+    const [referralLoading, setReferralLoading] = useState(false);
+
+    const openReferralModal = useCallback(async (type: "models" | "customers") => {
+        setReferralModal({ open: true, type });
+        setReferralLoading(true);
+        try {
+            const res = await fetch(`/api/models/${model.id}/referrals?type=${type}`);
+            const data = await res.json();
+            setReferralUsers(type === "models" ? data.referredModels : data.referredCustomers);
+        } catch {
+            setReferralUsers([]);
+        } finally {
+            setReferralLoading(false);
+        }
+    }, [model.id]);
 
     function closeHandler() {
         navigate("..");
@@ -405,6 +436,35 @@ export default function ModelDetailsModal() {
                                     )}
                                 </div>
                             )}
+                            <div className="pt-2 border-t space-y-2">
+                                <span className="text-gray-500 text-xs block">Referral Stats:</span>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-gray-500 flex items-center gap-1"><Users className="h-3 w-3" /> Referred Models:</span>
+                                    {model.referredModelsCount > 0 ? (
+                                        <button
+                                            onClick={() => openReferralModal("models")}
+                                            className="text-blue-600 font-semibold hover:underline cursor-pointer"
+                                        >
+                                            {model.referredModelsCount}
+                                        </button>
+                                    ) : (
+                                        <span className="text-gray-400">0</span>
+                                    )}
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-gray-500 flex items-center gap-1"><Users className="h-3 w-3" /> Referred Customers:</span>
+                                    {model.referredCustomersCount > 0 ? (
+                                        <button
+                                            onClick={() => openReferralModal("customers")}
+                                            className="text-blue-600 font-semibold hover:underline cursor-pointer"
+                                        >
+                                            {model.referredCustomersCount}
+                                        </button>
+                                    ) : (
+                                        <span className="text-gray-400">0</span>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
@@ -490,6 +550,55 @@ export default function ModelDetailsModal() {
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Referral Detail Modal */}
+            {referralModal.open && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setReferralModal({ ...referralModal, open: false })}>
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[80vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-between p-4 border-b">
+                            <h3 className="text-sm font-semibold">
+                                {referralModal.type === "models" ? "Referred Models" : "Referred Customers"} ({referralUsers.length})
+                            </h3>
+                            <button onClick={() => setReferralModal({ ...referralModal, open: false })} className="p-1 hover:bg-gray-100 rounded">
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+                        <div className="overflow-auto max-h-[calc(80vh-60px)]">
+                            {referralLoading ? (
+                                <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>
+                            ) : referralUsers.length === 0 ? (
+                                <div className="p-8 text-center text-gray-500 text-sm">No referrals found</div>
+                            ) : (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="text-xs">Profile</TableHead>
+                                            <TableHead className="text-xs">Full Name</TableHead>
+                                            <TableHead className="text-xs">Age</TableHead>
+                                            <TableHead className="text-xs">{referralModal.type === "models" ? "Address" : "Country"}</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {referralUsers.map((user) => (
+                                            <TableRow key={user.id}>
+                                                <TableCell>
+                                                    <Avatar className="h-8 w-8">
+                                                        <AvatarImage src={user.profile ?? ""} />
+                                                        <AvatarFallback className="text-xs">{user.firstName?.charAt(0)}{user.lastName?.charAt(0)}</AvatarFallback>
+                                                    </Avatar>
+                                                </TableCell>
+                                                <TableCell className="text-sm">{user.firstName} {user.lastName ?? ""}</TableCell>
+                                                <TableCell className="text-sm">{user.dob ? calculateAgeFromDOB(user.dob) : "-"}</TableCell>
+                                                <TableCell className="text-sm">{referralModal.type === "models" ? (user.address ?? "-") : (user.country ?? "-")}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Full Screen Image Preview Modal */}
             {selectedImage && (
