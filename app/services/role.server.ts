@@ -344,6 +344,7 @@ const menuItems = [
   "booking",
   "revenue",
   "finance",
+  "post",
   "review",
   "log",
   "setting",

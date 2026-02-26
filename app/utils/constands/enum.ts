@@ -12,6 +12,7 @@ import {
   CalendarDays,
   Landmark,
   Bell,
+  Megaphone,
 } from "lucide-react";
 
 export const status: any = [
@@ -132,6 +133,12 @@ export const singleNavigation = [
     href: "/dashboard/finance",
     icon: Landmark,
     permission: { group: "finance", action: "view" },
+  },
+  {
+    name: "Posts",
+    href: "/dashboard/posts",
+    icon: Megaphone,
+    permission: { group: "post", action: "view" },
   },
   {
     name: "Reviews",
