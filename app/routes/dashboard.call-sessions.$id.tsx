@@ -1,7 +1,7 @@
 import { json } from "react-router"
 import { LoaderFunctionArgs } from "@remix-run/node"
 import { useLoaderData, useNavigate } from "@remix-run/react"
-import { User, FileText, Calendar, Users, UserCheck, Star } from "lucide-react"
+import { User, UserSearch, Calendar, Users, UserCheck, Star } from "lucide-react"
 
 // components
 import Modal from "~/components/ui/modal"
@@ -120,7 +120,7 @@ export default function CallSessionDetails() {
                     <Card>
                         <CardHeader>
                             <CardTitle className="text-md flex items-center">
-                                <FileText className="h-5 w-5 mr-2" />
+                                <UserSearch className="h-5 w-5 mr-2" />
                                 Session Information Overview:
                             </CardTitle>
                         </CardHeader>

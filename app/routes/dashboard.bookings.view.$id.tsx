@@ -13,6 +13,7 @@ import {
     Phone,
     Mail,
     Shirt,
+    Coins,
 } from "lucide-react";
 
 // components
@@ -206,7 +207,15 @@ export default function ViewBookingModal() {
                                 </div>
                                 <div>
                                     <p className="text-xs text-gray-500 uppercase">Price</p>
-                                    <p className="font-medium text-green-600 text-lg">{booking.price?.toLocaleString()} LAK</p>
+                                    <div className="flex items-center gap-2">
+                                        <p className="font-medium text-green-600 text-lg">{booking.price?.toLocaleString()} LAK</p>
+                                        {booking.hasTip && (
+                                            <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-600 flex items-center gap-1">
+                                                <Coins className="h-3 w-3" />
+                                                Has Tip
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                                 <div>
                                     <p className="text-xs text-gray-500 uppercase">Commission Rate</p>

@@ -7,7 +7,7 @@ import {
   Wallet,
   Receipt,
   Star,
-  FileText,
+  UserSearch,
   DollarSign,
   CalendarDays,
   Landmark,
@@ -155,7 +155,7 @@ export const singleNavigation = [
   {
     name: "Audit Logs",
     href: "/dashboard/logs",
-    icon: FileText,
+    icon: UserSearch,
     permission: { group: "log", action: "view" },
   },
   {

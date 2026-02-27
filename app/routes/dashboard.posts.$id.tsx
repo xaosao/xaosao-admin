@@ -17,6 +17,7 @@ import {
     Trash,
     User,
     MessageCircle,
+    Coins,
 } from "lucide-react";
 
 // utils and service
@@ -187,6 +188,15 @@ export default function PostDetail() {
                                     <span className="text-gray-500">Service:</span>
                                     <span className="ml-2 text-xs bg-rose-50 text-rose-600 rounded px-2 py-0.5">
                                         {post.service.name}
+                                    </span>
+                                </div>
+                            )}
+                            {post.hasTip && (
+                                <div>
+                                    <span className="text-gray-500">Tip:</span>
+                                    <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-600 inline-flex items-center gap-1">
+                                        <Coins className="h-3 w-3" />
+                                        Has Tip
                                     </span>
                                 </div>
                             )}

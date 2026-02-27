@@ -16,6 +16,7 @@ import {
     CalendarDays,
     Phone,
     EyeOff,
+    Coins,
 } from "lucide-react";
 
 // components
@@ -439,9 +440,17 @@ export default function Bookings() {
                                                         <p className="text-sm font-medium text-gray-900">
                                                             {booking.modelService?.service?.name ?? "Unknown Service"}
                                                         </p>
-                                                        <p className="text-xs text-green-600 font-medium">
-                                                            {booking.price?.toLocaleString()} LAK
-                                                        </p>
+                                                        <div className="flex items-center gap-1">
+                                                            <p className="text-xs text-green-600 font-medium">
+                                                                {booking.price?.toLocaleString()} LAK
+                                                            </p>
+                                                            {booking.hasTip && (
+                                                                <span className="text-xs px-1.5 py-0 rounded-full bg-amber-100 text-amber-600 flex items-center gap-0.5">
+                                                                    <Coins className="h-3 w-3" />
+                                                                    Tip
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                         <p className="text-xs text-gray-400">
                                                             {formatDate1(booking.startDate)}
                                                         </p>
@@ -704,9 +713,17 @@ export default function Bookings() {
                                                 </div>
                                                 <div className="flex justify-between items-start">
                                                     <span className="text-xs text-gray-500">Price</span>
-                                                    <span className="text-sm font-semibold text-green-600">
-                                                        {booking.price?.toLocaleString()} LAK
-                                                    </span>
+                                                    <div className="flex items-center gap-1">
+                                                        <span className="text-sm font-semibold text-green-600">
+                                                            {booking.price?.toLocaleString()} LAK
+                                                        </span>
+                                                        {booking.hasTip && (
+                                                            <span className="text-xs px-1.5 py-0 rounded-full bg-amber-100 text-amber-600 flex items-center gap-0.5">
+                                                                <Coins className="h-3 w-3" />
+                                                                Tip
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </div>
                                                 <div className="flex justify-between items-start">
                                                     <span className="text-xs text-gray-500">Date</span>

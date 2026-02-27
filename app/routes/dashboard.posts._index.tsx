@@ -26,6 +26,7 @@ import {
     Clock,
     AlertCircle,
     MessageCircle,
+    Coins,
 } from "lucide-react";
 
 // utils and service
@@ -277,13 +278,21 @@ export default function PostsIndex() {
                                             <p className="text-sm text-gray-600 max-w-[200px] truncate">{truncateText(post.content, 60)}</p>
                                         </TableCell>
                                         <TableCell>
-                                            {post.service ? (
-                                                <span className="text-xs bg-rose-50 text-rose-600 rounded px-2 py-0.5">
-                                                    {post.service.name}
-                                                </span>
-                                            ) : (
-                                                <span className="text-xs text-gray-400">-</span>
-                                            )}
+                                            <div className="flex items-center gap-1">
+                                                {post.service ? (
+                                                    <span className="text-xs bg-rose-50 text-rose-600 rounded px-2 py-0.5">
+                                                        {post.service.name}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-xs text-gray-400">-</span>
+                                                )}
+                                                {post.hasTip && (
+                                                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600 flex items-center gap-0.5">
+                                                        <Coins className="h-3 w-3" />
+                                                        Tip
+                                                    </span>
+                                                )}
+                                            </div>
                                         </TableCell>
                                         <TableCell>
                                             <span className={`text-xs rounded px-2 py-0.5 ${

@@ -636,6 +636,8 @@ model service_booking {
   customerPeerId    String?     // Customer's PeerJS peer ID
   modelPeerId       String?     // Model's PeerJS peer ID
 
+  hasTip         Boolean @default(false)
+
   // Soft delete fields
   customerHidden Boolean @default(false) // Hidden from customer's booking history
   modelHidden    Boolean @default(false) // Hidden from model's booking history
@@ -936,6 +938,9 @@ model post {
   preferredDate   DateTime?
   preferredTime   String?
   location        String?
+
+  // Tip
+  hasTip          Boolean  @default(false)
 
   // Status & Expiration
   status          String   @default("active") // "active", "expired", "fulfilled", "deleted"

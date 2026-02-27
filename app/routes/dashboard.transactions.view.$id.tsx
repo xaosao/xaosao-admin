@@ -2,7 +2,7 @@ import { useState } from "react"
 import { json } from "react-router"
 import { LoaderFunctionArgs } from "@remix-run/node"
 import { useLoaderData, useNavigate } from "@remix-run/react"
-import { User, Clock, FileText, Check, X, Download, Calendar, DollarSign, Users, UserCheck, Mars, Venus, Building2, CreditCard, QrCode, Maximize2 } from "lucide-react"
+import { User, Clock, UserSearch, Check, X, Download, Calendar, DollarSign, Users, UserCheck, Mars, Venus, Building2, CreditCard, QrCode, Maximize2 } from "lucide-react"
 
 // components
 import Modal from "~/components/ui/modal"
@@ -192,7 +192,7 @@ export default function TransactionDetails() {
                 <Card>
                     <CardHeader className="pb-3">
                         <CardTitle className="text-md flex items-center">
-                            <FileText className="h-5 w-5 mr-2" />
+                            <UserSearch className="h-5 w-5 mr-2" />
                             Transaction Information
                         </CardTitle>
                     </CardHeader>
@@ -261,57 +261,57 @@ export default function TransactionDetails() {
 
                 {transaction.identifier !== "withdrawal" && transaction.identifier !== "booking_hold" && (
                     <Card>
-                    <CardHeader className="pb-3">
-                        <CardTitle className="text-md flex items-center">
-                            <DollarSign className="h-5 w-5 mr-2" />
-                            Payment Slip
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        {transaction?.paymentSlip && transaction.paymentSlip.length > 0 ? (
-                            <div className="space-y-3">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center space-x-3">
-                                        <FileText className="h-6 w-6 text-blue-600" />
-                                        <div>
-                                            <p className="text-sm">Payment Slip{transaction.paymentSlip.length > 1 ? 's' : ''} Available ({transaction.paymentSlip.length})</p>
-                                            <p className="text-xs text-gray-500">Uploaded with transaction</p>
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-md flex items-center">
+                                <DollarSign className="h-5 w-5 mr-2" />
+                                Payment Slip
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {transaction?.paymentSlip && transaction.paymentSlip.length > 0 ? (
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center space-x-3">
+                                            <UserSearch className="h-6 w-6 text-blue-600" />
+                                            <div>
+                                                <p className="text-sm">Payment Slip{transaction.paymentSlip.length > 1 ? 's' : ''} Available ({transaction.paymentSlip.length})</p>
+                                                <p className="text-xs text-gray-500">Uploaded with transaction</p>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                <div className={`grid gap-4 ${transaction.paymentSlip.length === 1 ? 'grid-cols-1' : 'grid-cols-2 lg:grid-cols-3'}`}>
-                                    {transaction.paymentSlip.map((slip: string, index: number) => (
-                                        <div key={index} className="rounded-lg bg-gray-50 p-3 space-y-2">
-                                            <div
-                                                className="relative cursor-pointer group"
-                                                onClick={() => setFullscreenSlip(slip)}
-                                            >
-                                                <img
-                                                    src={slip}
-                                                    alt={`Payment Slip ${index + 1}`}
-                                                    className="mx-auto rounded-md max-h-64 object-contain transition-opacity group-hover:opacity-80"
-                                                />
-                                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <Maximize2 className="h-8 w-8 text-gray-700 bg-white/80 rounded-full p-1.5" />
+                                    <div className={`grid gap-4 ${transaction.paymentSlip.length === 1 ? 'grid-cols-1' : 'grid-cols-2 lg:grid-cols-3'}`}>
+                                        {transaction.paymentSlip.map((slip: string, index: number) => (
+                                            <div key={index} className="rounded-lg bg-gray-50 p-3 space-y-2">
+                                                <div
+                                                    className="relative cursor-pointer group"
+                                                    onClick={() => setFullscreenSlip(slip)}
+                                                >
+                                                    <img
+                                                        src={slip}
+                                                        alt={`Payment Slip ${index + 1}`}
+                                                        className="mx-auto rounded-md max-h-64 object-contain transition-opacity group-hover:opacity-80"
+                                                    />
+                                                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <Maximize2 className="h-8 w-8 text-gray-700 bg-white/80 rounded-full p-1.5" />
+                                                    </div>
                                                 </div>
+                                                <Button variant="outline" size="sm" className="w-full" onClick={() => handleDownloadSlip(slip, index)}>
+                                                    <Download className="h-4 w-4 mr-1" />
+                                                    Download
+                                                </Button>
                                             </div>
-                                            <Button variant="outline" size="sm" className="w-full" onClick={() => handleDownloadSlip(slip, index)}>
-                                                <Download className="h-4 w-4 mr-1" />
-                                                Download
-                                            </Button>
-                                        </div>
-                                    ))}
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
-                        ) : (
-                            <div className="text-center py-6">
-                                <FileText className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                                <p className="text-gray-500 text-sm">No payment slip provided</p>
-                                <p className="text-xs text-gray-400">This transaction was processed without a payment slip</p>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+                            ) : (
+                                <div className="text-center py-6">
+                                    <UserSearch className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                                    <p className="text-gray-500 text-sm">No payment slip provided</p>
+                                    <p className="text-xs text-gray-400">This transaction was processed without a payment slip</p>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
                 )}
 
                 <div className="flex justify-end pt-2">
