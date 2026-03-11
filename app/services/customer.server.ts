@@ -18,6 +18,7 @@ export async function getCustomers(
     status?: string;
     fromDate?: string;
     toDate?: string;
+    subscription?: string;
     page?: number;
     limit?: number;
   } = {}
@@ -28,6 +29,7 @@ export async function getCustomers(
       status = "all",
       fromDate,
       toDate,
+      subscription = "all",
       page = 1,
       limit = 10,
     } = options;
@@ -65,6 +67,38 @@ export async function getCustomers(
         endDate.setDate(endDate.getDate() + 1);
         whereClause.createdAt.lt = endDate;
       }
+    }
+
+    // Handle duplicate account filter separately
+    if (subscription === "duplicate") {
+      const duplicates = await prisma.customer.groupBy({
+        by: ["whatsapp"],
+        _count: { whatsapp: true },
+        having: { whatsapp: { _count: { gt: 1 } } },
+      });
+      const duplicateWhatsapps = duplicates.map((d) => d.whatsapp);
+      whereClause.whatsapp = { in: duplicateWhatsapps };
+    }
+
+    // Filter by subscription package
+    if (subscription === "never") {
+      whereClause.subscription = { none: {} };
+    } else if (subscription === "24h") {
+      whereClause.subscription = {
+        some: { status: "active", plan: { durationDays: 1 } },
+      };
+    } else if (subscription === "1week") {
+      whereClause.subscription = {
+        some: { status: "active", plan: { durationDays: 7 } },
+      };
+    } else if (subscription === "1month") {
+      whereClause.subscription = {
+        some: { status: "active", plan: { durationDays: 30 } },
+      };
+    } else if (subscription === "3months") {
+      whereClause.subscription = {
+        some: { status: "active", plan: { durationDays: 90 } },
+      };
     }
 
     const skip = (page - 1) * limit;

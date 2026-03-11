@@ -140,7 +140,7 @@ export default function CustomersDetails() {
                 <Card>
                     <Card className="border-0 shadow-md">
                         <CardContent className="p-4">
-                            <h3 className="font-semibold text-sm text-gray-900 mb-3">Recent Activity</h3>
+                            <h3 className="font-semibold text-sm text-gray-900 mb-3">10 Latest Activity Logs</h3>
                             <div className="space-y-3">
                                 {customerLogs && customerLogs.length > 0 ? customerLogs.map((activity) => (
                                     <div
@@ -216,11 +216,11 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     }
     try {
 
-        const [customer, customerLogs] = await Promise.all([getCustomer(customerId), getAuditLogsByEntity({ customerId, limit: 20 })]);
+        const [customer, customerLogsData] = await Promise.all([getCustomer(customerId), getAuditLogsByEntity({ customerId, limit: 10 })]);
 
         return json({
             customer,
-            customerLogs,
+            customerLogs: customerLogsData.logs,
             ENV: {
                 GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY,
             },

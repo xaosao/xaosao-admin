@@ -22,6 +22,7 @@ import {
     UserLock,
     UserCheck,
     MoreVertical,
+    MessageCircle,
 } from "lucide-react";
 
 // components
@@ -100,6 +101,7 @@ export default function CustomersIndex() {
             const status = formData.get("status") as string;
             const from = formData.get("from") as string;
             const to = formData.get("to") as string;
+            const subscription = formData.get("subscription") as string;
             const showBy = formData.get("showBy") as string;
 
             updateFilters({
@@ -107,6 +109,7 @@ export default function CustomersIndex() {
                 status: status || "all",
                 from: from || "",
                 to: to || "",
+                subscription: subscription || "all",
                 showBy: showBy || "10",
             });
         },
@@ -236,6 +239,21 @@ export default function CustomersIndex() {
                                     <option value="inactive">Inactive</option>
                                 </select>
                             </div>
+                            <div className="hidden sm:block w-44">
+                                <select
+                                    name="subscription"
+                                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    defaultValue={filters.subscription}
+                                >
+                                    <option value="all">All Packages</option>
+                                    <option value="duplicate">Duplicate Account</option>
+                                    <option value="never">Never Subscribed</option>
+                                    <option value="24h">24-Hours</option>
+                                    <option value="1week">1 Week</option>
+                                    <option value="1month">1 Month</option>
+                                    <option value="3months">3 Months</option>
+                                </select>
+                            </div>
                             <div className="w-full sm:w-56 flex items-center space-x-2">
                                 <input
                                     type="date"
@@ -273,6 +291,21 @@ export default function CustomersIndex() {
                                     <option value="active">Active</option>
                                     <option value="suspended">Suspended</option>
                                     <option value="inactive">Inactive</option>
+                                </select>
+                            </div>
+                            <div className="block sm:hidden w-44">
+                                <select
+                                    name="subscription"
+                                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    defaultValue={filters.subscription}
+                                >
+                                    <option value="all">All Packages</option>
+                                    <option value="duplicate">Duplicate Account</option>
+                                    <option value="never">Never Subscribed</option>
+                                    <option value="24h">24-Hours</option>
+                                    <option value="1week">1 Week</option>
+                                    <option value="1month">1 Month</option>
+                                    <option value="3months">3 Months</option>
                                 </select>
                             </div>
                             <div className="w-28">
@@ -394,6 +427,16 @@ export default function CustomersIndex() {
                                                 onClick={() => openInGoogleMaps(customer.latitude ?? 0, customer.longitude ?? 0)}
                                             >
                                                 <MapPin className="h-3 w-3" /> Map
+                                            </Button>
+                                        )}
+                                        {canAccess && (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-8 text-xs text-green-600 border-green-200 hover:bg-green-50"
+                                                onClick={() => window.open(`https://wa.me/${customer.whatsapp}`, "_blank")}
+                                            >
+                                                <MessageCircle className="h-3 w-3" /> Chat
                                             </Button>
                                         )}
                                         {canDelete && (
@@ -577,6 +620,18 @@ export default function CustomersIndex() {
                                                             <MapPin className="mr-2 h-3 w-3" />
                                                             <span>Customer address</span>
                                                         </DropdownMenuItem>}
+                                                        {canAccess && <DropdownMenuItem
+                                                            className="text-sm"
+                                                            onClick={() =>
+                                                                window.open(
+                                                                    `https://wa.me/${customer.whatsapp}`,
+                                                                    "_blank"
+                                                                )
+                                                            }
+                                                        >
+                                                            <MessageCircle className="mr-2 h-3 w-3" />
+                                                            <span>Chat on WhatsApp</span>
+                                                        </DropdownMenuItem>}
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                             </TableCell>
@@ -650,6 +705,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const status = searchParams.get("status") || "all";
     const fromDate = searchParams.get("from") || "";
     const toDate = searchParams.get("to") || "";
+    const subscription = searchParams.get("subscription") || "all";
     const page = parseInt(searchParams.get("page") || "1", 10);
     const showBy = parseInt(searchParams.get("showBy") || "10", 10);
 
@@ -660,6 +716,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
             status,
             fromDate,
             toDate,
+            subscription,
             page,
             limit: showBy,
         }),
@@ -675,6 +732,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
             status,
             fromDate,
             toDate,
+            subscription,
             page,
             showBy,
         },
