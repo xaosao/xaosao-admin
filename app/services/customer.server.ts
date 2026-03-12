@@ -36,7 +36,7 @@ export async function getCustomers(
 
     const whereClause: any = {};
     if (search) {
-      const searchConditions = [
+      const searchConditions: any[] = [
         {
           firstName: {
             contains: search,
@@ -50,6 +50,13 @@ export async function getCustomers(
           },
         },
       ];
+
+      // Allow searching by WhatsApp/phone number
+      const searchNumber = Number(search);
+      if (!isNaN(searchNumber) && searchNumber > 0) {
+        searchConditions.push({ whatsapp: searchNumber });
+      }
+
       whereClause.OR = searchConditions;
     }
 
@@ -114,12 +121,35 @@ export async function getCustomers(
       }),
     ]);
 
+    // Batch fetch referrer model info for customers that have referredByModelId
+    const referrerModelIds = customers
+      .map((c) => c.referredByModelId)
+      .filter((id): id is string => !!id);
+    const uniqueReferrerModelIds = [...new Set(referrerModelIds)];
+
+    let referrerMap = new Map<string, { id: string; firstName: string; lastName: string | null }>();
+    if (uniqueReferrerModelIds.length > 0) {
+      const referrers = await prisma.model.findMany({
+        where: { id: { in: uniqueReferrerModelIds } },
+        select: { id: true, firstName: true, lastName: true },
+      });
+      for (const r of referrers) {
+        referrerMap.set(r.id, r);
+      }
+    }
+
+    // Attach referrer info to each customer
+    const customersWithReferrer = customers.map((c) => ({
+      ...c,
+      referredByModel: c.referredByModelId ? referrerMap.get(c.referredByModelId) || null : null,
+    }));
+
     const totalPages = Math.ceil(totalCount / limit);
     const hasNextPage = page < totalPages;
     const hasPreviousPage = page > 1;
 
     return {
-      customers,
+      customers: customersWithReferrer,
       pagination: {
         currentPage: page,
         totalPages,

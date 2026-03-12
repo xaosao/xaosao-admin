@@ -497,33 +497,33 @@ export default function Models() {
                                 <div className="flex items-center justify-end gap-2 pt-2 border-t">
                                     {canEdit && (
                                         <>
-                                            <Button variant="outline" size="sm" className="h-8 px-2" asChild>
+                                            <Button variant="outline" size="icon" className="h-8 w-8" asChild title="View">
                                                 <Link to={`view/${model.id}`}>
-                                                    <EyeIcon className="h-3 w-3 mr-1" />View
+                                                    <EyeIcon className="h-3 w-3" />
                                                 </Link>
                                             </Button>
-                                            <Button variant="outline" size="sm" className="h-8 px-2" asChild>
+                                            <Button variant="outline" size="icon" className="h-8 w-8" asChild title="Edit">
                                                 <Link to={`${model.id}`}>
-                                                    <UserPen className="h-3 w-3 mr-1" />Edit
+                                                    <UserPen className="h-3 w-3" />
                                                 </Link>
                                             </Button>
-                                            <Button variant="outline" size="sm" className="h-8 px-2" asChild>
+                                            <Button variant="outline" size="icon" className="h-8 w-8" asChild title="Status">
                                                 <Link to={`status/${model.id}`}>
-                                                    <Shield className="h-3 w-3 mr-1" />Status
+                                                    <Shield className="h-3 w-3" />
                                                 </Link>
                                             </Button>
                                             <Button
-                                                size="sm"
-                                                className="h-8 px-2 bg-green-500 hover:bg-green-600 text-white"
+                                                size="icon"
+                                                className="h-8 w-8 bg-green-500 hover:bg-green-600 text-white"
                                                 onClick={() => openWhatsAppChat(model.whatsapp, model.firstName)}
                                                 title="Chat via WhatsApp"
                                             >
-                                                <MessageCircle className="h-3 w-3 mr-1" />Chat
+                                                <MessageCircle className="h-3 w-3" />
                                             </Button>
                                         </>
                                     )}
                                     {canDelete && (
-                                        <Button variant="outline" size="sm" className="h-8 px-2 text-red-500 border-red-200 hover:bg-red-50" asChild>
+                                        <Button variant="outline" size="icon" className="h-8 w-8 text-red-500 border-red-200 hover:bg-red-50" asChild title="Delete">
                                             <Link to={`delete/${model.id}`}>
                                                 <Trash2 className="h-3 w-3" />
                                             </Link>

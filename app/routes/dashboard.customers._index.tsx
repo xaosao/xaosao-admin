@@ -23,6 +23,8 @@ import {
     UserCheck,
     MoreVertical,
     MessageCircle,
+    Share2,
+    Shield,
 } from "lucide-react";
 
 // components
@@ -401,48 +403,61 @@ export default function CustomersIndex() {
                                             <span className="text-gray-500">Created:</span>
                                             <span className="text-gray-600">{formatDate(customer.createdAt || "")}</span>
                                         </div>
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-gray-500">Referral:</span>
+                                            <span className="text-gray-700 flex items-center space-x-1">
+                                                <Share2 className="h-3 w-3 text-purple-500" />
+                                                <span>
+                                                    {(customer as any).referredByModel
+                                                        ? `By: ${(customer as any).referredByModel.firstName} ${(customer as any).referredByModel.lastName || ""}`
+                                                        : "Self-register"}
+                                                </span>
+                                            </span>
+                                        </div>
                                     </div>
 
                                     {/* Actions */}
                                     <div className="flex items-center justify-end gap-2 mt-3 pt-3 border-t">
                                         {canAccess && (
                                             <Link to={`view/${customer.id}`}>
-                                                <Button variant="outline" size="sm" className="h-8 text-xs">
-                                                    <EyeIcon className="h-3 w-3" /> View
+                                                <Button variant="outline" size="icon" className="h-8 w-8" title="View">
+                                                    <EyeIcon className="h-3 w-3" />
                                                 </Button>
                                             </Link>
                                         )}
                                         {canEdit && (
                                             <Link to={`${customer.id}`}>
-                                                <Button variant="outline" size="sm" className="h-8 text-xs">
-                                                    <UserPen className="h-3 w-3" /> Edit
+                                                <Button variant="outline" size="icon" className="h-8 w-8" title="Edit">
+                                                    <UserPen className="h-3 w-3" />
                                                 </Button>
                                             </Link>
                                         )}
                                         {canAccess && (
                                             <Button
                                                 variant="outline"
-                                                size="sm"
-                                                className="h-8 text-xs"
+                                                size="icon"
+                                                className="h-8 w-8"
+                                                title="Map"
                                                 onClick={() => openInGoogleMaps(customer.latitude ?? 0, customer.longitude ?? 0)}
                                             >
-                                                <MapPin className="h-3 w-3" /> Map
+                                                <MapPin className="h-3 w-3" />
                                             </Button>
                                         )}
                                         {canAccess && (
                                             <Button
                                                 variant="outline"
-                                                size="sm"
-                                                className="h-8 text-xs text-green-600 border-green-200 hover:bg-green-50"
+                                                size="icon"
+                                                className="h-8 w-8 text-green-600 border-green-200 hover:bg-green-50"
+                                                title="Chat on WhatsApp"
                                                 onClick={() => window.open(`https://wa.me/${customer.whatsapp}`, "_blank")}
                                             >
-                                                <MessageCircle className="h-3 w-3" /> Chat
+                                                <MessageCircle className="h-3 w-3" />
                                             </Button>
                                         )}
                                         {canDelete && (
                                             <Link to={`delete/${customer.id}`}>
-                                                <Button variant="outline" size="sm" className="h-8 text-xs text-red-600 border-red-200 hover:bg-red-50">
-                                                    <Trash2 className="h-3 w-3" /> Delete
+                                                <Button variant="outline" size="icon" className="h-8 w-8 text-red-600 border-red-200 hover:bg-red-50" title="Delete">
+                                                    <Trash2 className="h-3 w-3" />
                                                 </Button>
                                             </Link>
                                         )}
@@ -470,6 +485,7 @@ export default function CustomersIndex() {
                                     <TableHead className="font-semibold">Whatsapp</TableHead>
                                     <TableHead className="font-semibold">Status</TableHead>
                                     <TableHead className="font-semibold">Tier</TableHead>
+                                    <TableHead className="font-semibold">Referral</TableHead>
                                     <TableHead className="font-semibold">Created Date</TableHead>
                                     <TableHead className="font-semibold">Actions</TableHead>
                                 </TableRow>
@@ -553,6 +569,16 @@ export default function CustomersIndex() {
                                                 >
                                                     {capitalizeFirstLetter(customer.tier ?? "")}
                                                 </Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center space-x-1">
+                                                    <Share2 className="h-3 w-3 text-purple-500" />
+                                                    <span className="text-sm font-medium">
+                                                        {(customer as any).referredByModel
+                                                            ? `By: ${(customer as any).referredByModel.firstName} ${(customer as any).referredByModel.lastName || ""}`
+                                                            : "Self"}
+                                                    </span>
+                                                </div>
                                             </TableCell>
                                             <TableCell className=" text-gray-600">
                                                 {formatDate(customer.createdAt || "")}
@@ -639,7 +665,7 @@ export default function CustomersIndex() {
                                     ))
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={8} className="text-center py-12">
+                                        <TableCell colSpan={9} className="text-center py-12">
                                             <EmptyPage
                                                 title="No customers found!"
                                                 description="There is no customers in the database yet!"

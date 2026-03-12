@@ -39,7 +39,7 @@ export async function getModels(
     } = options;
     const whereClause: any = {};
     if (search) {
-      const searchConditions = [
+      const searchConditions: any[] = [
         {
           firstName: {
             contains: search,
@@ -53,6 +53,13 @@ export async function getModels(
           },
         },
       ];
+
+      // Allow searching by WhatsApp/phone number
+      const searchNumber = Number(search);
+      if (!isNaN(searchNumber) && searchNumber > 0) {
+        searchConditions.push({ whatsapp: searchNumber });
+      }
+
       whereClause.OR = searchConditions;
     }
 
@@ -430,7 +437,7 @@ export async function getModelsApproval(
     const { search = "", fromDate, toDate, page = 1, limit = 10 } = options;
     const whereClause: any = {};
     if (search) {
-      const searchConditions = [
+      const searchConditions: any[] = [
         {
           firstName: {
             contains: search,
@@ -444,6 +451,13 @@ export async function getModelsApproval(
           },
         },
       ];
+
+      // Allow searching by WhatsApp/phone number
+      const searchNumber = Number(search);
+      if (!isNaN(searchNumber) && searchNumber > 0) {
+        searchConditions.push({ whatsapp: searchNumber });
+      }
+
       whereClause.OR = searchConditions;
     }
 
