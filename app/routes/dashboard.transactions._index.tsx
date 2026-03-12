@@ -383,19 +383,19 @@ export default function Transactions() {
                                                     </Button>
                                                 </Link>
                                             )}
-                                            {transaction.status === "pending" && canEdit && !transaction.customerHidden && (
-                                                <>
-                                                    <Link to={`approve/${transaction.id}?type=${transaction.customerId === null ? "model" : "customer"}`}>
-                                                        <Button variant="outline" size="sm" className="h-8 text-xs text-green-600 border-green-200 hover:bg-green-50">
-                                                            <Check className="h-3 w-3 mr-1" /> Approve
-                                                        </Button>
-                                                    </Link>
-                                                    <Link to={`reject/${transaction.id}`}>
-                                                        <Button variant="outline" size="sm" className="h-8 text-xs text-red-600 border-red-200 hover:bg-red-50">
-                                                            <X className="h-3 w-3 mr-1" /> Reject
-                                                        </Button>
-                                                    </Link>
-                                                </>
+                                            {transaction.status === "pending" && canEdit && !transaction.customerHidden && !transaction.modelHidden && (
+                                                <Link to={`approve/${transaction.id}?type=${transaction.customerId === null ? "model" : "customer"}`}>
+                                                    <Button variant="outline" size="sm" className="h-8 text-xs text-green-600 border-green-200 hover:bg-green-50">
+                                                        <Check className="h-3 w-3 mr-1" /> Approve
+                                                    </Button>
+                                                </Link>
+                                            )}
+                                            {transaction.status === "pending" && canEdit && (
+                                                <Link to={`reject/${transaction.id}`}>
+                                                    <Button variant="outline" size="sm" className="h-8 text-xs text-red-600 border-red-200 hover:bg-red-50">
+                                                        <X className="h-3 w-3 mr-1" /> Reject
+                                                    </Button>
+                                                </Link>
                                             )}
                                             {transaction.status === "held" && transaction.identifier === "booking_hold" && canEdit && (
                                                 <>
@@ -554,7 +554,7 @@ export default function Transactions() {
                                                                     <span>View details</span>
                                                                 </Link>
                                                             </DropdownMenuItem>}
-                                                            {transaction.status === "pending" && canEdit && !transaction.customerHidden &&
+                                                            {transaction.status === "pending" && canEdit && !transaction.customerHidden && !transaction.modelHidden &&
                                                                 <DropdownMenuItem className="text-sm">
                                                                     <Link to={`approve/${transaction.id}?type=${transaction.customerId === null ? "model" : "customer"}`} className="flex space-x-2">
                                                                         <Check className="mr-2 h-3 w-3 text-green-500" />
@@ -562,7 +562,7 @@ export default function Transactions() {
                                                                     </Link>
                                                                 </DropdownMenuItem>
                                                             }
-                                                            {transaction.status === "pending" && canEdit && !transaction.customerHidden &&
+                                                            {transaction.status === "pending" && canEdit &&
                                                                 <DropdownMenuItem className="text-sm">
                                                                     <Link to={`reject/${transaction.id}`} className="flex space-x-2">
                                                                         <X className="mr-2 h-3 w-3 text-red-500" />
