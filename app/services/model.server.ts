@@ -19,6 +19,7 @@ export async function getModels(
     search?: string;
     status?: string;
     type?: string;
+    referralCount?: string;
     fromDate?: string;
     toDate?: string;
     page?: number;
@@ -30,6 +31,7 @@ export async function getModels(
       search = "",
       status = "all",
       type = "all",
+      referralCount,
       fromDate,
       toDate,
       page = 1,
@@ -75,6 +77,63 @@ export async function getModels(
       }
     }
 
+    // Handle referral count filter - need to get model IDs first
+    let referralFilterIds: string[] | null = null;
+    if (referralCount && referralCount !== "all") {
+      const targetCount = referralCount === "5+" ? -1 : parseInt(referralCount);
+      // Count referred models for each model
+      const referralCounts = await prisma.model.groupBy({
+        by: ["referredById"],
+        _count: { referredById: true },
+        where: { referredById: { not: null } },
+      });
+
+      const referrerCountMap = new Map<string, number>();
+      for (const rc of referralCounts) {
+        if (rc.referredById) {
+          referrerCountMap.set(rc.referredById, rc._count.referredById);
+        }
+      }
+
+      // Also count referred customers
+      const customerReferralCounts = await prisma.customer.groupBy({
+        by: ["referredByModelId"],
+        _count: { referredByModelId: true },
+        where: { referredByModelId: { not: null } },
+      });
+
+      for (const rc of customerReferralCounts) {
+        if (rc.referredByModelId) {
+          const existing = referrerCountMap.get(rc.referredByModelId) || 0;
+          referrerCountMap.set(rc.referredByModelId, existing + rc._count.referredByModelId);
+        }
+      }
+
+      // Get all model IDs to check those with 0 referrals
+      if (targetCount === 0) {
+        // Models with 0 referrals = models NOT in the referrerCountMap
+        const allModelIds = await prisma.model.findMany({
+          where: whereClause,
+          select: { id: true },
+        });
+        referralFilterIds = allModelIds
+          .filter((m) => !referrerCountMap.has(m.id))
+          .map((m) => m.id);
+      } else if (targetCount === -1) {
+        // More than 5
+        referralFilterIds = Array.from(referrerCountMap.entries())
+          .filter(([, count]) => count > 5)
+          .map(([id]) => id);
+      } else {
+        // Exact count (1, 2, 3, 4, 5)
+        referralFilterIds = Array.from(referrerCountMap.entries())
+          .filter(([, count]) => count === targetCount)
+          .map(([id]) => id);
+      }
+
+      whereClause.id = { in: referralFilterIds };
+    }
+
     const skip = (page - 1) * limit;
     const [models, totalCount] = await Promise.all([
       prisma.model.findMany({
@@ -99,6 +158,14 @@ export async function getModels(
               },
             },
           },
+          Wallet: {
+            select: {
+              totalBalance: true,
+              totalWithdraw: true,
+              totalPending: true,
+            },
+            take: 1,
+          },
         },
       }),
       prisma.model.count({
@@ -106,12 +173,35 @@ export async function getModels(
       }),
     ]);
 
+    // Batch fetch referrer info for models that have referredById
+    const referrerIds = models
+      .map((m) => m.referredById)
+      .filter((id): id is string => !!id);
+    const uniqueReferrerIds = [...new Set(referrerIds)];
+
+    let referrerMap = new Map<string, { id: string; firstName: string; lastName: string | null }>();
+    if (uniqueReferrerIds.length > 0) {
+      const referrers = await prisma.model.findMany({
+        where: { id: { in: uniqueReferrerIds } },
+        select: { id: true, firstName: true, lastName: true },
+      });
+      for (const r of referrers) {
+        referrerMap.set(r.id, r);
+      }
+    }
+
+    // Attach referrer info to each model
+    const modelsWithReferrer = models.map((m) => ({
+      ...m,
+      referredBy: m.referredById ? referrerMap.get(m.referredById) || null : null,
+    }));
+
     const totalPages = Math.ceil(totalCount / limit);
     const hasNextPage = page < totalPages;
     const hasPreviousPage = page > 1;
 
     return {
-      models,
+      models: modelsWithReferrer,
       pagination: {
         currentPage: page,
         totalPages,

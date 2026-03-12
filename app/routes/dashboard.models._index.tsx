@@ -20,6 +20,7 @@ import {
     Shield,
     MessageCircle,
     Share2,
+    Wallet,
 } from "lucide-react";
 
 import EmptyPage from "~/components/ui/empty";
@@ -49,6 +50,18 @@ import { IFilters, IPagination } from "~/interfaces/base";
 import { calculateAgeFromDOB, formatDate1 } from "~/utils";
 import { requireUserPermission, requireUserSession } from "~/services/auth.server";
 
+const SERVICE_DISPLAY_NAMES: Record<string, string> = {
+    travelingFriend: "travel",
+    drinkingFriend: "drink",
+    sleepPartner: "sleep",
+    massage: "massage",
+    hmongNewYear: "hmong new year",
+};
+
+function getServiceDisplayName(name: string): string {
+    return SERVICE_DISPLAY_NAMES[name] || name;
+}
+
 function getServicePrice(ms: any): string {
     const svc = ms.service;
     if (!svc) return "0";
@@ -63,6 +76,12 @@ function getServicePrice(ms: any): string {
         default:
             return `${(ms.customRate ?? svc.baseRate ?? 0).toLocaleString()}/day`;
     }
+}
+
+function getModelBalance(model: any): number {
+    const wallet = model.Wallet?.[0];
+    if (!wallet) return 0;
+    return (wallet.totalBalance || 0) - (wallet.totalWithdraw || 0);
 }
 import { getModels, getModelStatus, getPendingModelCount } from "~/services/model.server";
 
@@ -134,6 +153,7 @@ export default function Models() {
         const search = formData.get("search") as string;
         const status = formData.get("status") as string;
         const type = formData.get("type") as string;
+        const referralCount = formData.get("referralCount") as string;
         const from = formData.get("from") as string;
         const to = formData.get("to") as string;
         const showBy = formData.get("showBy") as string;
@@ -142,6 +162,7 @@ export default function Models() {
             search: search || "",
             status: status || "all",
             type: type || "all",
+            referralCount: referralCount || "all",
             from: from || "",
             to: to || "",
             showBy: showBy || "10",
@@ -281,6 +302,22 @@ export default function Models() {
                                     <option value="partner">Partner</option>
                                 </select>
                             </div>
+                            <div className="w-32 hidden sm:block">
+                                <select
+                                    name="referralCount"
+                                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    defaultValue={filters.referralCount || "all"}
+                                >
+                                    <option value="all">All Referrals</option>
+                                    <option value="0">0 Referral</option>
+                                    <option value="1">1 Referral</option>
+                                    <option value="2">2 Referrals</option>
+                                    <option value="3">3 Referrals</option>
+                                    <option value="4">4 Referrals</option>
+                                    <option value="5">5 Referrals</option>
+                                    <option value="5+">More than 5</option>
+                                </select>
+                            </div>
                             <div className="w-full flex items-center space-x-2">
                                 <input
                                     type="date"
@@ -347,6 +384,22 @@ export default function Models() {
                                     <option value="partner">Partner</option>
                                 </select>
                             </div>
+                            <div className="w-32 block sm:hidden">
+                                <select
+                                    name="referralCount"
+                                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    defaultValue={filters.referralCount || "all"}
+                                >
+                                    <option value="all">All Referrals</option>
+                                    <option value="0">0 Referral</option>
+                                    <option value="1">1 Referral</option>
+                                    <option value="2">2 Referrals</option>
+                                    <option value="3">3 Referrals</option>
+                                    <option value="4">4 Referrals</option>
+                                    <option value="5">5 Referrals</option>
+                                    <option value="5+">More than 5</option>
+                                </select>
+                            </div>
                             <div className="w-28">
                                 <select
                                     name="showBy"
@@ -381,6 +434,10 @@ export default function Models() {
                                             <p className="text-sm font-semibold text-gray-900">#{index + 1} {model.firstName} {model.lastName}</p>
                                             <StatusBadge status={model.status} />
                                         </div>
+                                        <div className="flex items-center space-x-1 mt-0.5">
+                                            <Star className="h-3 w-3 text-yellow-500 fill-current" />
+                                            <span className="text-xs text-gray-500">{model.rating} ({model.total_review} reviews)</span>
+                                        </div>
                                         <p className="text-xs text-gray-500">
                                             {(model?.location as any)?.countryName} ({(model?.location as any)?.countryNameNative})
                                         </p>
@@ -409,7 +466,7 @@ export default function Models() {
                                         <div className="flex flex-wrap gap-1 mt-1">
                                             {model.ModelService.map((service: any) => (
                                                 <Badge key={service.id} variant="outline" className="text-xs">
-                                                    {service?.service?.name ?? ""}: {getServicePrice(service)}
+                                                    {getServiceDisplayName(service?.service?.name ?? "")}: {getServicePrice(service)}
                                                 </Badge>
                                             ))}
                                         </div>
@@ -418,12 +475,12 @@ export default function Models() {
 
                                 <div className="flex items-center gap-4 text-xs mb-3">
                                     <div className="flex items-center space-x-1">
-                                        <Star className="h-3 w-3 text-yellow-500 fill-current" />
-                                        <span className="text-gray-700">Rating: {model.rating}</span>
-                                    </div>
-                                    <div className="flex items-center space-x-1">
-                                        <User className="h-3 w-3 text-gray-500" />
-                                        <span className="text-gray-700">Reviews: {model.total_review}</span>
+                                        <Share2 className="h-3 w-3 text-purple-500" />
+                                        <span className="text-gray-700">
+                                            {(model as any).referredBy
+                                                ? `By: ${(model as any).referredBy.firstName} ${(model as any).referredBy.lastName || ""}`
+                                                : "Self"}
+                                        </span>
                                     </div>
                                     {(model.totalReferredModels > 0 || model.totalReferredCustomers > 0) && (
                                         <div className="flex items-center space-x-1">
@@ -431,6 +488,10 @@ export default function Models() {
                                             <span className="text-purple-600">Ref: {model.totalReferredModels}M / {model.totalReferredCustomers}C</span>
                                         </div>
                                     )}
+                                    <div className="flex items-center space-x-1">
+                                        <Wallet className="h-3 w-3 text-green-500" />
+                                        <span className="text-green-600">{getModelBalance(model).toLocaleString()} Kip</span>
+                                    </div>
                                 </div>
 
                                 <div className="flex items-center justify-end gap-2 pt-2 border-t">
@@ -488,7 +549,8 @@ export default function Models() {
                                     <TableHead className="font-semibold">Address</TableHead>
                                     <TableHead className="font-semibold">Status</TableHead>
                                     <TableHead className="font-semibold">Rate price</TableHead>
-                                    <TableHead className="font-semibold">Rating</TableHead>
+                                    <TableHead className="font-semibold">Referral</TableHead>
+                                    <TableHead className="font-semibold">Balance</TableHead>
                                     <TableHead className="font-semibold">Created at</TableHead>
                                     <TableHead className="font-semibold">Actions</TableHead>
                                 </TableRow>
@@ -511,6 +573,10 @@ export default function Models() {
                                                     </div>
                                                     <div>
                                                         <p className="text-sm font-medium text-gray-900">{model.firstName} &nbsp;{model.lastName}</p>
+                                                        <div className="flex items-center space-x-1 mt-0.5">
+                                                            <Star className="h-3 w-3 text-yellow-500 fill-current" />
+                                                            <span className="text-xs text-gray-500">{model.rating} ({model.total_review})</span>
+                                                        </div>
                                                         <p className="text-xs text-gray-400">
                                                             {(model?.location as any)?.countryName} ({(model?.location as any)?.countryNameNative})
                                                             • Age: {calculateAgeFromDOB(model.dob)}</p>
@@ -528,19 +594,19 @@ export default function Models() {
                                                 <div className="flex items-start justify-start flex-col text-gray-500 gap-2">
                                                     {model.ModelService.length > 0 && model?.ModelService?.map((service: any) => {
                                                         return (
-                                                            <p key={service.id} className="text-sm flex items-center">{service?.service?.name ?? ""}:&nbsp;{getServicePrice(service)}</p>
+                                                            <p key={service.id} className="text-sm flex items-center">{getServiceDisplayName(service?.service?.name ?? "")}:&nbsp;{getServicePrice(service)}</p>
                                                         )
                                                     })}
                                                 </div>
                                             </TableCell>
                                             <TableCell>
-                                                <div className="flex items-center space-x-1">Rating:&nbsp;
-                                                    <Star className="h-3 w-3 text-yellow-500 fill-current" />
-                                                    <span className="text-sm font-medium">{model.rating}</span>
-                                                </div>
-                                                <div className="flex items-center space-x-1">Review:&nbsp;
-                                                    <User className="h-3 w-3 text-yellow-500 fill-current" />
-                                                    <span className="text-sm font-medium">{model.total_review}</span>
+                                                <div className="flex items-center space-x-1">
+                                                    <Share2 className="h-3 w-3 text-purple-500" />
+                                                    <span className="text-sm font-medium">
+                                                        {(model as any).referredBy
+                                                            ? `By: ${(model as any).referredBy.firstName} ${(model as any).referredBy.lastName || ""}`
+                                                            : "Self"}
+                                                    </span>
                                                 </div>
                                                 {(model.totalReferredModels > 0 || model.totalReferredCustomers > 0) && (
                                                     <div className="flex items-center space-x-1 mt-1">
@@ -548,6 +614,13 @@ export default function Models() {
                                                         <span className="text-sm text-purple-600">{model.totalReferredModels}M / {model.totalReferredCustomers}C</span>
                                                     </div>
                                                 )}
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center space-x-1">
+                                                    <Wallet className="h-3 w-3 text-green-500" />
+                                                    <span className="text-sm font-medium text-green-600">{getModelBalance(model).toLocaleString()}</span>
+                                                </div>
+                                                <span className="text-xs text-gray-400">Kip</span>
                                             </TableCell>
                                             <TableCell>
                                                 {formatDate1(model.createdAt)}
@@ -605,7 +678,7 @@ export default function Models() {
                                     );
                                 }) :
                                     <TableRow>
-                                        <TableCell colSpan={8} className="text-center py-12">
+                                        <TableCell colSpan={9} className="text-center py-12">
                                             <EmptyPage
                                                 title="No model found!"
                                                 description="There is no model data in the database yet!"
@@ -669,6 +742,7 @@ export async function loader({ request }: { request: Request }) {
     const search = searchParams.get("search") || "";
     const status = searchParams.get("status") || "all";
     const type = searchParams.get("type") || "all";
+    const referralCount = searchParams.get("referralCount") || "all";
     const fromDate = searchParams.get("from") || "";
     const toDate = searchParams.get("to") || "";
     const page = parseInt(searchParams.get("page") || "1", 10);
@@ -681,6 +755,7 @@ export async function loader({ request }: { request: Request }) {
                 search,
                 status,
                 type,
+                referralCount,
                 fromDate,
                 toDate,
                 page,
@@ -700,6 +775,7 @@ export async function loader({ request }: { request: Request }) {
                 search,
                 status,
                 type,
+                referralCount,
                 fromDate,
                 toDate,
                 page,
