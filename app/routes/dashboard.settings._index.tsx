@@ -332,10 +332,6 @@ export async function action({ request }: ActionFunctionArgs) {
                 const buffer = Buffer.from(await file.arrayBuffer());
                 const url = await uploadFileToBunnyServer(buffer, file.name, file.type);
                 settingData.qr_code = url;
-                // Delete old file AFTER successful upload
-                if (dbQrCode) {
-                    await deleteFileFromBunny(extractFilenameFromCDNSafe(dbQrCode as string))
-                }
             } else {
                 settingData.qr_code = dbQrCode as string;
             }
@@ -360,6 +356,12 @@ export async function action({ request }: ActionFunctionArgs) {
             await validateSettingInputs(input);
             const res = await updateSettings(id, input, userId);
             if (res.id) {
+                // Delete old file ONLY after database update succeeds
+                if (dbQrCode && file && file instanceof File && file.size > 0) {
+                    await deleteFileFromBunny(extractFilenameFromCDNSafe(dbQrCode as string)).catch((err) =>
+                        console.error("[BunnyCDN] Failed to clean up old QR code image:", err)
+                    );
+                }
                 return redirect("/dashboard/settings?success=Update+setting+information+successfully");
             }
         } catch (error: any) {

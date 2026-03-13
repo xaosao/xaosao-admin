@@ -299,10 +299,6 @@ export async function action({ params, request }: ActionFunctionArgs) {
                 const buffer = Buffer.from(await file.arrayBuffer());
                 const url = await uploadFileToBunnyServer(buffer, file.name, file.type);
                 model.profile = url;
-                // Delete old file AFTER successful upload
-                if (dbProfile) {
-                    await deleteFileFromBunny(extractFilenameFromCDNSafe(dbProfile as string))
-                }
             } else {
                 model.profile = "";
             }
@@ -322,6 +318,12 @@ export async function action({ params, request }: ActionFunctionArgs) {
             await validateUpdateModelInputs(input);
             const res = await updateModel(modelId, input, userId, ip, accessKey);
             if (res.id) {
+                // Delete old file ONLY after database update succeeds
+                if (dbProfile && file && file instanceof File && file.size > 0) {
+                    await deleteFileFromBunny(extractFilenameFromCDNSafe(dbProfile as string)).catch((err) =>
+                        console.error("[BunnyCDN] Failed to clean up old profile image:", err)
+                    );
+                }
                 return redirect("/dashboard/models?success=Update+model+information+successfully");
             }
         } catch (error: any) {

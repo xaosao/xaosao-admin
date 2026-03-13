@@ -414,11 +414,6 @@ export async function action({ params, request }: ActionFunctionArgs) {
                 const buffer = Buffer.from(await file.arrayBuffer());
                 const url = await uploadFileToBunnyServer(buffer, file.name, file.type);
                 customerData.profile = url;
-                // Delete old file AFTER successful upload
-                if (dbProfile) {
-                    await deleteFileFromBunny(extractFilenameFromCDNSafe(dbProfile as string))
-                }
-
             } else {
                 customerData.profile = formData.get("db_image") as string;
             }
@@ -428,6 +423,12 @@ export async function action({ params, request }: ActionFunctionArgs) {
             const res = await updateCustomer(customerId, customerData as ICustomer, userId);
 
             if (res.id) {
+                // Delete old file ONLY after database update succeeds
+                if (dbProfile && file && file instanceof File && file.size > 0) {
+                    await deleteFileFromBunny(extractFilenameFromCDNSafe(dbProfile as string)).catch((err) =>
+                        console.error("[BunnyCDN] Failed to clean up old profile image:", err)
+                    );
+                }
                 return redirect("/dashboard/customers?success=Update+customer+information+successfully");
             }
 
