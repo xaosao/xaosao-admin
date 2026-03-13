@@ -329,12 +329,13 @@ export async function action({ request }: ActionFunctionArgs) {
     if (request.method === "PATCH") {
         try {
             if (file && file instanceof File && file.size > 0) {
-                if (dbQrCode) {
-                    await deleteFileFromBunny(extractFilenameFromCDNSafe(dbQrCode as string))
-                }
                 const buffer = Buffer.from(await file.arrayBuffer());
                 const url = await uploadFileToBunnyServer(buffer, file.name, file.type);
                 settingData.qr_code = url;
+                // Delete old file AFTER successful upload
+                if (dbQrCode) {
+                    await deleteFileFromBunny(extractFilenameFromCDNSafe(dbQrCode as string))
+                }
             } else {
                 settingData.qr_code = dbQrCode as string;
             }

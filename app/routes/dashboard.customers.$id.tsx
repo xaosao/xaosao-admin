@@ -411,12 +411,13 @@ export async function action({ params, request }: ActionFunctionArgs) {
     if (request.method === "PATCH") {
         try {
             if (file && file instanceof File && file.size > 0) {
-                if (dbProfile) {
-                    await deleteFileFromBunny(extractFilenameFromCDNSafe(dbProfile as string))
-                }
                 const buffer = Buffer.from(await file.arrayBuffer());
                 const url = await uploadFileToBunnyServer(buffer, file.name, file.type);
                 customerData.profile = url;
+                // Delete old file AFTER successful upload
+                if (dbProfile) {
+                    await deleteFileFromBunny(extractFilenameFromCDNSafe(dbProfile as string))
+                }
 
             } else {
                 customerData.profile = formData.get("db_image") as string;
