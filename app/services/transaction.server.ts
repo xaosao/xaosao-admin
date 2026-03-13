@@ -1290,6 +1290,302 @@ export async function completeHeldTransaction(
   }
 }
 
+/**
+ * Re-approve a previously rejected transaction (super admin only)
+ */
+export async function reapproveTransaction(
+  transactionId: string,
+  approverUserId: string,
+  type: "model" | "customer"
+) {
+  if (!transactionId)
+    throw new FieldValidationError({
+      id: "Transaction ID is required!",
+    });
+
+  const auditBase = {
+    action: "REAPPROVE_TRANSACTION",
+    user: approverUserId,
+  };
+
+  try {
+    const transaction = await prisma.transaction_history.findUnique({
+      where: { id: transactionId },
+      include: {
+        model: {
+          select: {
+            id: true,
+            Wallet: {
+              select: { id: true },
+            },
+          },
+        },
+        customer: {
+          select: {
+            id: true,
+            Wallet: {
+              select: { id: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!transaction)
+      throw new FieldValidationError({
+        id: "Transaction not found!",
+      });
+
+    if (transaction.status !== "rejected")
+      throw new FieldValidationError({
+        id: "Only rejected transactions can be re-approved!",
+      });
+
+    let walletId: string | undefined;
+
+    if (type === "model") {
+      if (!transaction.model) {
+        throw new FieldValidationError({
+          id: "No model associated with this transaction!",
+        });
+      }
+      if (!transaction.model.Wallet || transaction.model.Wallet.length === 0) {
+        console.log(
+          `Creating wallet for model ${transaction.model.id} (re-approve)...`
+        );
+        const newWallet = await prisma.wallet.create({
+          data: {
+            totalBalance: 0,
+            totalRecharge: 0,
+            totalDeposit: 0,
+            status: "active",
+            model: { connect: { id: transaction.model.id } },
+          },
+        });
+        walletId = newWallet.id;
+      } else {
+        walletId = transaction.model.Wallet[0].id;
+      }
+    } else if (type === "customer") {
+      if (!transaction.customer) {
+        throw new FieldValidationError({
+          id: "No customer associated with this transaction!",
+        });
+      }
+      if (
+        !transaction.customer.Wallet ||
+        transaction.customer.Wallet.length === 0
+      ) {
+        console.log(
+          `Creating wallet for customer ${transaction.customer.id} (re-approve)...`
+        );
+        const newWallet = await prisma.wallet.create({
+          data: {
+            totalBalance: 0,
+            totalRecharge: 0,
+            totalDeposit: 0,
+            status: "active",
+            customer: { connect: { id: transaction.customer.id } },
+          },
+        });
+        walletId = newWallet.id;
+      } else {
+        walletId = transaction.customer.Wallet[0].id;
+      }
+    }
+
+    if (!walletId) {
+      throw new FieldValidationError({
+        id: "Wallet not found for this transaction!",
+      });
+    }
+
+    // Credit wallet balance
+    await updateWalletBalanceByTransaction({
+      type: transaction.identifier,
+      amount: transaction.amount,
+      walletId: walletId,
+    });
+
+    // Update transaction status to approved
+    const updatedTransaction = await prisma.transaction_history.update({
+      where: { id: transactionId },
+      data: {
+        status: "approved",
+        rejectReason: null,
+        ApprovedBy: { connect: { id: approverUserId } },
+        updatedAt: new Date(),
+      },
+      include: {
+        model: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            whatsapp: true,
+          },
+        },
+        customer: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            whatsapp: true,
+          },
+        },
+      },
+    });
+
+    // Re-activate expired subscription linked to this transaction (customer only)
+    if (type === "customer" && transaction.customerId) {
+      const expiredSubscription = await prisma.subscription.findFirst({
+        where: {
+          transactionId: transactionId,
+          customerId: transaction.customerId,
+          status: "expired",
+          notes: "Transaction rejected by admin",
+        },
+        include: {
+          plan: {
+            select: {
+              id: true,
+              name: true,
+              price: true,
+              durationDays: true,
+            },
+          },
+        },
+      });
+
+      if (expiredSubscription) {
+        console.log(
+          `Re-activating subscription ${expiredSubscription.id} for re-approved transaction ${transactionId}`
+        );
+
+        // Deduct subscription price from customer wallet
+        await prisma.wallet.update({
+          where: { id: walletId },
+          data: {
+            totalSpend: {
+              increment: expiredSubscription.plan.price,
+            },
+          },
+        });
+
+        // Create transaction record for subscription payment
+        await prisma.transaction_history.create({
+          data: {
+            identifier: "subscription",
+            amount: expiredSubscription.plan.price,
+            paymentSlip: [],
+            status: "approved",
+            comission: 0,
+            fee: 0,
+            customerId: transaction.customerId,
+            reason: `Subscription payment for ${expiredSubscription.plan.name} (Re-approved, Plan ID: ${expiredSubscription.plan.id})`,
+          },
+        });
+
+        // Activate subscription
+        const startDate = new Date();
+        const endDate = new Date(startDate);
+        endDate.setDate(
+          startDate.getDate() + expiredSubscription.plan.durationDays
+        );
+
+        await prisma.subscription.update({
+          where: { id: expiredSubscription.id },
+          data: {
+            status: "active",
+            startDate,
+            endDate,
+            notes: "Re-activated after transaction re-approval",
+          },
+        });
+
+        await prisma.subscription_history.updateMany({
+          where: {
+            subscriptionId: expiredSubscription.id,
+            status: "expired",
+          },
+          data: {
+            status: "active",
+            startDate,
+            endDate,
+          },
+        });
+
+        console.log(
+          `Re-activated subscription ${expiredSubscription.id} for customer ${transaction.customerId}`
+        );
+
+        // Send SSE notification
+        try {
+          const clientBackendUrl = process.env.CLIENT_BACKEND_URL;
+          const sseApiSecret = process.env.SSE_API_SECRET;
+
+          if (clientBackendUrl && sseApiSecret) {
+            await fetch(
+              `${clientBackendUrl}/api/trigger-subscription-event`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-API-Secret": sseApiSecret,
+                },
+                body: JSON.stringify({
+                  customerId: transaction.customerId,
+                  subscriptionId: expiredSubscription.id,
+                  status: "active",
+                }),
+              }
+            );
+          }
+        } catch (notificationError) {
+          console.error("SSE notification error (non-fatal):", notificationError);
+        }
+      }
+    }
+
+    await createAuditLogs({
+      ...auditBase,
+      description: `Rejected transaction ${transactionId} re-approved successfully.`,
+      status: "success",
+      onSuccess: updatedTransaction,
+    });
+
+    // Send notifications
+    if (type === "model" && updatedTransaction.model) {
+      notifyTransactionApproved({
+        id: updatedTransaction.id,
+        amount: updatedTransaction.amount,
+        identifier: updatedTransaction.identifier,
+        model: updatedTransaction.model,
+        modelId: updatedTransaction.model.id,
+      });
+    } else if (type === "customer" && updatedTransaction.customer) {
+      notifyCustomerRechargeApproved({
+        id: updatedTransaction.id,
+        amount: updatedTransaction.amount,
+        customerId: updatedTransaction.customer.id,
+        customer: updatedTransaction.customer,
+      });
+    }
+
+    return updatedTransaction;
+  } catch (error) {
+    console.error("REAPPROVE_TRANSACTION_FAILED", error);
+    await createAuditLogs({
+      ...auditBase,
+      description: `Failed to re-approve transaction ${transactionId}`,
+      status: "failed",
+      onError: error,
+    });
+
+    throw error;
+  }
+}
+
 async function updateWalletBalanceByTransaction(transaction: {
   type: string;
   amount: number;

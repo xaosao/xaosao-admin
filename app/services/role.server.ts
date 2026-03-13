@@ -351,11 +351,21 @@ const menuItems = [
   "notification",
 ];
 
+// Extra permissions beyond default CRUD for specific groups
+const extraPermissions: Record<string, string[]> = {
+  transaction: ["reapprove"],
+};
+
 export async function seedPermissionsData(userId: string) {
   const createdPermissions: permission[] = [];
 
   for (const menu of menuItems) {
-    for (const action of defaultPermissions) {
+    const actions = [
+      ...defaultPermissions,
+      ...(extraPermissions[menu] || []),
+    ];
+
+    for (const action of actions) {
       const existing = await prisma.permission.findFirst({
         where: {
           name: action,

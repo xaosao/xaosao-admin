@@ -2,7 +2,7 @@ import { useState } from "react"
 import { json } from "react-router"
 import { LoaderFunctionArgs } from "@remix-run/node"
 import { useLoaderData, useNavigate } from "@remix-run/react"
-import { User, Clock, UserSearch, Check, X, Download, Calendar, DollarSign, Users, UserCheck, Mars, Venus, Building2, CreditCard, QrCode, Maximize2 } from "lucide-react"
+import { User, Clock, UserSearch, Check, X, Download, Calendar, DollarSign, Users, UserCheck, Mars, Venus, Building2, CreditCard, QrCode, Maximize2, RotateCcw } from "lucide-react"
 
 // components
 import Modal from "~/components/ui/modal"
@@ -314,7 +314,19 @@ export default function TransactionDetails() {
                     </Card>
                 )}
 
-                <div className="flex justify-end pt-2">
+                <div className="flex justify-end pt-2 gap-2">
+                    {transaction?.status === "rejected" && hasPermission("transaction", "reapprove") && (
+                        <Button
+                            className="bg-amber-600 hover:bg-amber-700 text-white"
+                            onClick={() => {
+                                const type = transaction.model ? "model" : "customer";
+                                navigate(`/dashboard/transactions/reapprove/${transaction.id}?type=${type}`);
+                            }}
+                        >
+                            <RotateCcw className="h-4 w-4 mr-1" />
+                            Re-approve
+                        </Button>
+                    )}
                     <Button variant="outline" onClick={closeHandler}>
                         Close
                     </Button>
