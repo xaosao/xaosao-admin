@@ -435,10 +435,9 @@ export async function action({ params, request }: ActionFunctionArgs) {
         } catch (error: any) {
             console.error("Error updating customer:", error);
             if (error.fieldErrors) {
-                return error.fieldErrors
-            } else {
-                return error;
+                return error.fieldErrors;
             }
+            return { error: error?.message || "Failed to update customer!" };
         }
     }
 

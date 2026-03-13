@@ -365,13 +365,11 @@ export async function action({ request }: ActionFunctionArgs) {
                 return redirect("/dashboard/settings?success=Update+setting+information+successfully");
             }
         } catch (error: any) {
-            console.error("UPDATE_ADMIN_FAILED", error);
-
+            console.error("UPDATE_SETTING_FAILED", error);
             if (error.fieldErrors) {
-                return error.fieldErrors
-            } else {
-                return error;
+                return error.fieldErrors;
             }
+            return { error: error?.message || "Failed to update settings!" };
         }
     }
 

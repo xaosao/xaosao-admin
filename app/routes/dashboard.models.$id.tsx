@@ -300,7 +300,7 @@ export async function action({ params, request }: ActionFunctionArgs) {
                 const url = await uploadFileToBunnyServer(buffer, file.name, file.type);
                 model.profile = url;
             } else {
-                model.profile = "";
+                model.profile = (dbProfile as string) || "";
             }
             const input: IModelUpdateInput = {
                 firstName: model.firstName,
@@ -329,10 +329,9 @@ export async function action({ params, request }: ActionFunctionArgs) {
         } catch (error: any) {
             console.error("UPDATE_MODEL_FAILED", error);
             if (error.fieldErrors) {
-                return error.fieldErrors
-            } else {
-                return error;
+                return error.fieldErrors;
             }
+            return { error: error?.message || "Failed to update model!" };
         }
     }
 
