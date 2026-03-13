@@ -18,6 +18,7 @@ import {
     User,
     MessageCircle,
     Coins,
+    EyeOff,
 } from "lucide-react";
 
 // utils and service
@@ -89,6 +90,14 @@ export async function action({ request, params }: ActionFunctionArgs) {
     const formData = await request.formData();
     const actionType = formData.get("actionType") as string;
 
+    if (actionType === "hide") {
+        await prisma.post.update({
+            where: { id: postId },
+            data: { status: "hidden" },
+        });
+        return redirect("/dashboard/posts?success=Post hidden successfully");
+    }
+
     if (actionType === "delete") {
         await prisma.post.update({
             where: { id: postId },
@@ -106,6 +115,7 @@ export default function PostDetail() {
     const { post } = useLoaderData<{ post: any }>();
 
     const canAccess = hasPermission("post", "view");
+    const canEdit = hasPermission("post", "edit");
     const canDelete = hasPermission("post", "delete");
 
     if (!canAccess) {
@@ -178,6 +188,7 @@ export default function PostDetail() {
                                     post.status === "active" ? "bg-green-50 text-green-600" :
                                     post.status === "fulfilled" ? "bg-purple-50 text-purple-600" :
                                     post.status === "expired" ? "bg-orange-50 text-orange-600" :
+                                    post.status === "hidden" ? "bg-amber-50 text-amber-600" :
                                     "bg-red-50 text-red-600"
                                 }`}>
                                     {capitalizeFirstLetter(post.status)}
@@ -270,6 +281,20 @@ export default function PostDetail() {
                                         Chat WhatsApp
                                     </a>
                                 </Button>
+                            )}
+                            {canEdit && post.status === "active" && (
+                                <form method="post">
+                                    <input type="hidden" name="actionType" value="hide" />
+                                    <Button
+                                        type="submit"
+                                        variant="outline"
+                                        size="sm"
+                                        className="text-amber-500 border-amber-200 hover:bg-amber-50"
+                                    >
+                                        <EyeOff className="h-4 w-4 mr-1" />
+                                        Hide Post
+                                    </Button>
+                                </form>
                             )}
                             {canDelete && post.status !== "deleted" && (
                                 <form method="post">

@@ -27,6 +27,7 @@ import {
     AlertCircle,
     MessageCircle,
     Coins,
+    EyeOff,
 } from "lucide-react";
 
 // utils and service
@@ -100,6 +101,7 @@ export default function PostsIndex() {
     }, [success, navigate]);
 
     const canAccess = hasPermission("post", "view");
+    const canEdit = hasPermission("post", "edit");
     const canDelete = hasPermission("post", "delete");
 
     if (!canAccess) {
@@ -193,6 +195,7 @@ export default function PostsIndex() {
                                     <option value="active">Active</option>
                                     <option value="expired">Expired</option>
                                     <option value="fulfilled">Fulfilled</option>
+                                    <option value="hidden">Hidden</option>
                                     <option value="deleted">Deleted</option>
                                 </select>
                             </div>
@@ -299,6 +302,7 @@ export default function PostsIndex() {
                                                 post.status === "active" ? "bg-green-50 text-green-600" :
                                                 post.status === "fulfilled" ? "bg-purple-50 text-purple-600" :
                                                 post.status === "expired" ? "bg-orange-50 text-orange-600" :
+                                                post.status === "hidden" ? "bg-amber-50 text-amber-600" :
                                                 "bg-red-50 text-red-600"
                                             }`}>
                                                 {capitalizeFirstLetter(post.status)}
@@ -320,6 +324,14 @@ export default function PostsIndex() {
                                                         <Link to={`${post.id}`} className="flex space-x-2">
                                                             <Eye className="h-3 w-3" />
                                                             <span className="sr-only">View</span>
+                                                        </Link>
+                                                    </Button>
+                                                )}
+                                                {canEdit && post.status === "active" && (
+                                                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                                                        <Link to={`hide/${post.id}`} className="flex space-x-2">
+                                                            <EyeOff className="h-3 w-3 text-amber-500" />
+                                                            <span className="sr-only">Hide</span>
                                                         </Link>
                                                     </Button>
                                                 )}
