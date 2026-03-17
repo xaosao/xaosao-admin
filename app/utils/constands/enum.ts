@@ -13,6 +13,7 @@ import {
   Landmark,
   Bell,
   Megaphone,
+  CreditCard,
 } from "lucide-react";
 
 export const status: any = [
@@ -84,6 +85,12 @@ export const singleNavigation = [
     name: "Customers",
     href: "/dashboard/customers",
     icon: Users,
+    permission: { group: "customer", action: "view" },
+  },
+  {
+    name: "Subscriptions",
+    href: "/dashboard/subscriptions",
+    icon: CreditCard,
     permission: { group: "customer", action: "view" },
   },
   {
