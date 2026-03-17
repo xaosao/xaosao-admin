@@ -154,35 +154,22 @@ export async function updateSubscriptionStatus(
 }
 
 /**
- * Re-activate an expired subscription by resetting startDate/endDate
- * based on the plan's durationDays from now.
+ * Re-activate an expired subscription — keeps the original startDate/endDate,
+ * only sets status back to "active".
  */
 export async function reactivateSubscription(subscriptionId: string) {
     const subscription = await prisma.subscription.findUnique({
         where: { id: subscriptionId },
-        include: {
-            plan: { select: { durationDays: true, name: true } },
-        },
     });
 
     if (!subscription) {
         throw new Error("Subscription not found");
     }
 
-    if (!subscription.plan) {
-        throw new Error("Subscription plan not found");
-    }
-
-    const startDate = new Date();
-    const endDate = new Date(startDate);
-    endDate.setDate(startDate.getDate() + subscription.plan.durationDays);
-
     const updated = await prisma.subscription.update({
         where: { id: subscriptionId },
         data: {
             status: "active",
-            startDate,
-            endDate,
             notes: `Re-activated by admin (was ${subscription.status})`,
         },
     });
@@ -195,8 +182,6 @@ export async function reactivateSubscription(subscriptionId: string) {
         },
         data: {
             status: "active",
-            startDate,
-            endDate,
         },
     });
 
