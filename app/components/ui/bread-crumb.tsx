@@ -12,6 +12,7 @@ interface BreadcrumbProps {
 }
 
 const Breadcrumb: React.FC<BreadcrumbProps> = ({ items }) => {
+    if (!items || items.length === 0) return null;
     return (
         <nav className="flex items-center space-x-1 text-gray-400 text-sm">
             {items.map((item, index) => {

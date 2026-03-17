@@ -15,7 +15,7 @@ import "./tailwind.css";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { requireUserSession } from "./services/auth.server";
-import { getUserWithPermissions } from "./services/role.server";
+import { getUserWithPermissions, autoMigratePermissions } from "./services/role.server";
 import { useAuthStore } from "./store/permissionStore";
 // import DevToolsRedirect from "./components/DevToolsRedirect";
 
@@ -36,6 +36,9 @@ export const links: LinksFunction = () => [
 export async function loader({ request }: { request: Request }) {
   const userId = await requireUserSession(request);
   try {
+    // Auto-migrate new permission groups to super-admin roles (runs once per server boot)
+    await autoMigratePermissions();
+
     const user = await getUserWithPermissions(userId);
     return json({ user });
   } catch {

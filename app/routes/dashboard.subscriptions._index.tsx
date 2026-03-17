@@ -67,6 +67,7 @@ import {
     getSubscriptionSummary,
     updateSubscriptionStatus,
     deleteSubscription,
+    reactivateSubscription,
 } from "~/services/subscription.server";
 import { formatDate } from "~/utils";
 
@@ -150,9 +151,9 @@ export default function SubscriptionsIndex() {
         }
     }, [success, navigate]);
 
-    const canAccess = hasPermission("customer", "view");
-    const canEdit = hasPermission("customer", "edit");
-    const canDelete = hasPermission("customer", "delete");
+    const canAccess = hasPermission("subscription", "view");
+    const canEdit = hasPermission("subscription", "edit");
+    const canDelete = hasPermission("subscription", "delete");
 
     if (!canAccess) {
         return (
@@ -178,6 +179,13 @@ export default function SubscriptionsIndex() {
             { method: "post" }
         );
         setDeleteConfirm(null);
+    };
+
+    const handleReactivate = (subscriptionId: string) => {
+        fetcher.submit(
+            { actionType: "reactivate", subscriptionId },
+            { method: "post" }
+        );
     };
 
     const selectClass = "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
@@ -445,15 +453,15 @@ export default function SubscriptionsIndex() {
                                                 <MessageCircle className="h-3 w-3" />
                                             </Button>
                                         )}
-                                        {canEdit && sub.status !== "active" && (
+                                        {canEdit && (sub.status === "expired" || sub.status === "canceled") && (
                                             <Button
                                                 variant="outline"
                                                 size="icon"
-                                                className="h-8 w-8 text-green-600 border-green-200 hover:bg-green-50"
-                                                title="Activate"
-                                                onClick={() => handleUpdateStatus(sub.id, "active")}
+                                                className="h-8 w-8 text-blue-600 border-blue-200 hover:bg-blue-50"
+                                                title="Re-activate"
+                                                onClick={() => handleReactivate(sub.id)}
                                             >
-                                                <CheckCircle className="h-3 w-3" />
+                                                <Repeat className="h-3 w-3" />
                                             </Button>
                                         )}
                                         {canEdit && sub.status === "active" && (
@@ -589,7 +597,16 @@ export default function SubscriptionsIndex() {
                                                         {canEdit && (
                                                             <>
                                                                 <DropdownMenuSeparator />
-                                                                {sub.status !== "active" && (
+                                                                {(sub.status === "expired" || sub.status === "canceled") && (
+                                                                    <DropdownMenuItem
+                                                                        className="text-sm cursor-pointer text-blue-600"
+                                                                        onClick={() => handleReactivate(sub.id)}
+                                                                    >
+                                                                        <Repeat className="mr-2 h-3 w-3" />
+                                                                        <span>Re-activate</span>
+                                                                    </DropdownMenuItem>
+                                                                )}
+                                                                {sub.status !== "active" && sub.status !== "expired" && sub.status !== "canceled" && (
                                                                     <DropdownMenuItem
                                                                         className="text-sm cursor-pointer text-green-600"
                                                                         onClick={() => handleUpdateStatus(sub.id, "active")}
@@ -791,7 +808,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const userId = await requireUserSession(request);
     await requireUserPermission({
         userId,
-        group: "customer",
+        group: "subscription",
         action: "view",
     });
 
@@ -873,7 +890,7 @@ export async function action({ request }: ActionFunctionArgs) {
     if (actionType === "updateStatus") {
         await requireUserPermission({
             userId,
-            group: "customer",
+            group: "subscription",
             action: "edit",
         });
         const subscriptionId = formData.get("subscriptionId") as string;
@@ -889,10 +906,28 @@ export async function action({ request }: ActionFunctionArgs) {
         }
     }
 
+    if (actionType === "reactivate") {
+        await requireUserPermission({
+            userId,
+            group: "subscription",
+            action: "edit",
+        });
+        const subscriptionId = formData.get("subscriptionId") as string;
+
+        try {
+            await reactivateSubscription(subscriptionId);
+            return redirect(
+                `/dashboard/subscriptions?success=${encodeURIComponent("Subscription re-activated successfully")}`
+            );
+        } catch (error: any) {
+            return json({ error: error.message || "Failed to re-activate subscription" }, { status: 400 });
+        }
+    }
+
     if (actionType === "delete") {
         await requireUserPermission({
             userId,
-            group: "customer",
+            group: "subscription",
             action: "delete",
         });
         const subscriptionId = formData.get("subscriptionId") as string;

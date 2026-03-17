@@ -336,6 +336,7 @@ const menuItems = [
   "admin",
   "model",
   "customer",
+  "subscription",
   "service",
   "chat",
   "session",
@@ -345,6 +346,7 @@ const menuItems = [
   "revenue",
   "finance",
   "post",
+  "gift",
   "review",
   "log",
   "setting",
@@ -391,4 +393,115 @@ export async function seedPermissionsData(userId: string) {
   }
 
   return createdPermissions;
+}
+
+/**
+ * Auto-migrate: ensures all permission groups exist and are linked to
+ * super-admin roles. Runs once per server boot (guarded by `migrated` flag).
+ *
+ * Logic:
+ * 1. Create any missing permission records (groupName + name combos)
+ * 2. Find roles that already have >= 80% of all permissions (super-admin)
+ * 3. Link any missing permissions to those roles via permission_role
+ */
+let migrated = false;
+
+export async function autoMigratePermissions() {
+  if (migrated) return;
+  migrated = true;
+
+  try {
+    // Step 1: Build the full set of expected permissions
+    const expectedPerms: { groupName: string; name: string }[] = [];
+    for (const menu of menuItems) {
+      const actions = [
+        ...defaultPermissions,
+        ...(extraPermissions[menu] || []),
+      ];
+      for (const action of actions) {
+        expectedPerms.push({ groupName: menu, name: action });
+      }
+    }
+
+    // Step 2: Get all existing permissions from DB
+    const existingPerms = await prisma.permission.findMany({
+      select: { id: true, groupName: true, name: true },
+    });
+
+    const existingSet = new Set(
+      existingPerms.map((p) => `${p.groupName}:${p.name}`)
+    );
+
+    // Step 3: Create missing permission records
+    const newPerms: permission[] = [];
+    for (const ep of expectedPerms) {
+      if (!existingSet.has(`${ep.groupName}:${ep.name}`)) {
+        const perm = await prisma.permission.create({
+          data: {
+            name: ep.name,
+            groupName: ep.groupName,
+            status: "active",
+          },
+        });
+        newPerms.push(perm);
+      }
+    }
+
+    if (newPerms.length === 0) return; // Nothing new to link
+
+    console.log(
+      `[AutoMigrate] Created ${newPerms.length} new permissions: ${newPerms.map((p) => `${p.groupName}:${p.name}`).join(", ")}`
+    );
+
+    // Step 4: Reload all permissions (including newly created)
+    const allPerms = await prisma.permission.findMany({
+      select: { id: true, groupName: true, name: true },
+    });
+    const allPermIds = new Set(allPerms.map((p) => p.id));
+    const totalPermCount = allPerms.length;
+
+    // Step 5: Find super-admin roles (roles with >= 80% of old permissions)
+    const roles = await prisma.role.findMany({
+      include: {
+        permissionRoles: {
+          select: { permissionId: true },
+        },
+      },
+    });
+
+    const oldPermCount = totalPermCount - newPerms.length;
+
+    for (const role of roles) {
+      const rolePermIds = new Set(
+        role.permissionRoles.map((pr) => pr.permissionId)
+      );
+      const validCount = [...rolePermIds].filter((id) =>
+        allPermIds.has(id)
+      ).length;
+
+      // If role has >= 80% of old permissions, treat as super-admin
+      if (oldPermCount > 0 && validCount >= oldPermCount * 0.8) {
+        // Find which new permissions are missing from this role
+        const missingPermIds = newPerms
+          .map((p) => p.id)
+          .filter((id) => !rolePermIds.has(id));
+
+        if (missingPermIds.length > 0) {
+          await prisma.permission_role.createMany({
+            data: missingPermIds.map((permissionId) => ({
+              roleId: role.id,
+              permissionId,
+            })),
+          });
+
+          console.log(
+            `[AutoMigrate] Linked ${missingPermIds.length} new permissions to role "${role.name}"`
+          );
+        }
+      }
+    }
+  } catch (error) {
+    console.error("[AutoMigrate] Permission migration failed:", error);
+    // Non-fatal: don't crash the app
+  }
 }
