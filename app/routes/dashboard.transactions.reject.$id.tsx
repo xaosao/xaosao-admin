@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { AlertTriangle, Ban, Mars, UserCheck, Users, Venus, X } from "lucide-react"
 import { ActionFunctionArgs, LoaderFunctionArgs, redirect } from "@remix-run/node"
 import { Form, json, useLoaderData, useNavigate, useNavigation } from "@remix-run/react"
@@ -20,14 +21,24 @@ export interface ITransactionInput {
     reject_reason: string;
 }
 
+const REJECT_REASONS = [
+    "ສະລິບການໂອນບໍ່ຖືກຕ້ອງ, ກວດສອບ ແລະ ລອງໃໝ່!",
+    "ຈໍານວນເງີນທີ່ໂອນ ແລະ ເຕີມເຂົ້າລະບົບບໍ່ຕົງກັນ, ກວດສອບ ແລະ ລອງໃໝ່!",
+] as const;
+
 export default function RejectTransactionModal() {
     const navigate = useNavigate();
     const navigation = useNavigation();
     const hasPermission = useAuthStore((state) => state.hasPermission);
     const isSubmitting = navigation.state !== 'idle' && navigation.formMethod === "PATCH";
+    const [selectedReason, setSelectedReason] = useState<string>("");
+    const [customReason, setCustomReason] = useState("");
 
     const transaction = useLoaderData<typeof loader>();
     const owner = transaction.model || transaction.customer;
+
+    const isOther = selectedReason === "other";
+    const finalReason = isOther ? customReason : selectedReason;
 
     function closeHandler() {
         navigate("..");
@@ -134,24 +145,61 @@ export default function RejectTransactionModal() {
                         </Card>
                     )}
                     <Form method="patch" className="space-y-4">
+                        <input type="hidden" name="reject_reason" value={finalReason} />
                         <div className="space-y-2">
-                            <Textfield
-                                required
-                                type="text"
-                                id="reason"
-                                name="reject_reason"
-                                multiline
-                                rows={2}
-                                title="Rejected reason"
-                                color="text-gray-500"
-                                placeholder="Enter reject reason...."
-                            />
+                            <label className="text-sm font-medium text-gray-500">Rejected reason</label>
+                            <div className="space-y-2">
+                                {REJECT_REASONS.map((reason, index) => (
+                                    <label
+                                        key={index}
+                                        className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${selectedReason === reason ? "border-red-500 bg-red-50" : "border-gray-200 hover:bg-gray-50"}`}
+                                    >
+                                        <input
+                                            type="radio"
+                                            name="_reason_choice"
+                                            value={reason}
+                                            checked={selectedReason === reason}
+                                            onChange={() => setSelectedReason(reason)}
+                                            className="mt-0.5 accent-red-500"
+                                        />
+                                        <span className="text-sm text-gray-700">{reason}</span>
+                                    </label>
+                                ))}
+                                <label
+                                    className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${isOther ? "border-red-500 bg-red-50" : "border-gray-200 hover:bg-gray-50"}`}
+                                >
+                                    <input
+                                        type="radio"
+                                        name="_reason_choice"
+                                        value="other"
+                                        checked={isOther}
+                                        onChange={() => setSelectedReason("other")}
+                                        className="mt-0.5 accent-red-500"
+                                    />
+                                    <span className="text-sm text-gray-700">ອື່ນໆ (Other)</span>
+                                </label>
+                            </div>
+                            {isOther && (
+                                <Textfield
+                                    required
+                                    type="text"
+                                    id="reason"
+                                    name="_custom_reason"
+                                    multiline
+                                    rows={2}
+                                    title=""
+                                    color="text-gray-500"
+                                    placeholder="Enter reject reason...."
+                                    value={customReason}
+                                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCustomReason(e.target.value)}
+                                />
+                            )}
                         </div>
                         <div className="flex justify-end space-x-2 pt-4">
                             <Button type="button" variant="outline" onClick={closeHandler} disabled={isSubmitting}>
                                 Cancel
                             </Button>
-                            <Button type="submit" disabled={isSubmitting} className="bg-red-600 hover:bg-red-700 text-white">
+                            <Button type="submit" disabled={isSubmitting || !finalReason} className="bg-red-600 hover:bg-red-700 text-white">
                                 {isSubmitting ? "Rejecting..." : "Reject"}
                             </Button>
                         </div>

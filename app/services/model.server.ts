@@ -8,7 +8,7 @@ import { FieldValidationError } from "./admin.server";
 import { createModalService } from "./service.server";
 import { IModelInput, IModelUpdateInput } from "~/interfaces/model";
 import { extractFilenameFromCDNSafe } from "~/utils";
-import { deleteFileFromBunny } from "./upload.server";
+import { deleteFileFromBunny, deleteFolderFromBunny, getUserFolderName } from "./upload.server";
 import { processReferralReward, ensureReferralCode } from "./referral.server";
 import { notifyModelApproved, notifyModelRejected } from "./email.server";
 
@@ -845,6 +845,13 @@ export async function rejectModel(id: string, userId: string) {
         lastName: model.lastName,
         whatsapp: model.whatsapp,
       });
+
+      // Clean up all model files from BunnyCDN
+      try {
+        await cleanupModelFiles(model.id, model.firstName, model.whatsapp, model.profile);
+      } catch (err) {
+        console.error(`[BunnyCDN] Cleanup failed for rejected model ${model.id}:`, err);
+      }
     }
     return model;
   } catch (error) {
@@ -859,6 +866,73 @@ export async function rejectModel(id: string, userId: string) {
       id: "Failed to reject model account!",
     });
   }
+}
+
+/**
+ * Delete all BunnyCDN files for a rejected model:
+ * 1. Structured folder (m-{id}-{name}/) with all subfolders
+ * 2. Flat profile file (if migration didn't happen)
+ * 3. Gallery images from DB
+ * 4. Bank QR codes from DB
+ */
+async function cleanupModelFiles(
+  modelId: string,
+  firstName: string,
+  whatsapp: number,
+  profileUrl?: string | null
+) {
+  const deletePromises: Promise<any>[] = [];
+
+  // 1. Delete structured folder (covers profile, gallery, qr-code subfolders)
+  const folderName = getUserFolderName("model", modelId, firstName, whatsapp);
+  deletePromises.push(
+    deleteFolderFromBunny(folderName).then((ok) =>
+      console.log(`[Reject Cleanup] Folder ${folderName}/: ${ok ? "deleted" : "not found or failed"}`)
+    )
+  );
+
+  // 2. Delete flat profile file (if profile URL is not in the structured folder)
+  if (profileUrl && !profileUrl.includes(`${folderName}/`)) {
+    const flatPath = extractFilenameFromCDNSafe(profileUrl);
+    if (flatPath) {
+      deletePromises.push(
+        deleteFileFromBunny(flatPath).then((ok) =>
+          console.log(`[Reject Cleanup] Flat profile ${flatPath}: ${ok ? "deleted" : "not found or failed"}`)
+        )
+      );
+    }
+  }
+
+  // 3. Delete gallery images from DB records
+  const images = await prisma.images.findMany({
+    where: { modelId },
+    select: { name: true },
+  });
+  for (const img of images) {
+    if (img.name) {
+      const imgPath = extractFilenameFromCDNSafe(img.name);
+      if (imgPath && !imgPath.includes(`${folderName}/`)) {
+        deletePromises.push(deleteFileFromBunny(imgPath));
+      }
+    }
+  }
+
+  // 4. Delete bank QR codes from DB records
+  const banks = await prisma.banks.findMany({
+    where: { modelId },
+    select: { qr_code: true },
+  });
+  for (const bank of banks) {
+    if (bank.qr_code) {
+      const qrPath = extractFilenameFromCDNSafe(bank.qr_code);
+      if (qrPath && !qrPath.includes(`${folderName}/`)) {
+        deletePromises.push(deleteFileFromBunny(qrPath));
+      }
+    }
+  }
+
+  await Promise.allSettled(deletePromises);
+  console.log(`[Reject Cleanup] Finished cleanup for model ${modelId}`);
 }
 
 export async function updateModelStatus(

@@ -39,6 +39,76 @@ export async function uploadFileToBunnyServer(
   }
 }
 
+/**
+ * Build folder name for a user's BunnyCDN folder.
+ * Folder path: {prefix}-{userId}-{safeName}/
+ */
+export function getUserFolderName(
+  userType: "model" | "customer",
+  userId: string,
+  firstName: string,
+  whatsapp?: number
+): string {
+  const prefix = userType === "model" ? "m" : "c";
+  const latinOnly = firstName.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 20);
+  const safeName = latinOnly || (whatsapp ? String(whatsapp).slice(0, -3) : "user");
+  return `${prefix}-${userId}-${safeName}`;
+}
+
+/**
+ * Recursively delete a folder and all its contents from BunnyCDN.
+ */
+export async function deleteFolderFromBunny(folderPath: string): Promise<boolean> {
+  if (!folderPath) return false;
+
+  const STORAGE_ZONE = process.env.BUNNY_STORAGE_ZONE || "";
+  const ACCESS_KEY = process.env.BUNNY_API_KEY || "";
+  const BASE_HOSTNAME = process.env.BUNNY_BASE_HOSTNAME || "storage.bunnycdn.com";
+  const path = folderPath.endsWith("/") ? folderPath : `${folderPath}/`;
+
+  console.log(`[BunnyCDN DELETE FOLDER] Zone: ${STORAGE_ZONE} | Path: ${path}`);
+
+  try {
+    // 1. List contents
+    const listEndpoint = `https://${BASE_HOSTNAME}/${STORAGE_ZONE}/${path}`;
+    const listRes = await fetch(listEndpoint, {
+      method: "GET",
+      headers: { AccessKey: ACCESS_KEY, Accept: "application/json" },
+    });
+
+    const items = listRes.ok ? await listRes.json() : [];
+    console.log(`[BunnyCDN DELETE FOLDER] Found ${items.length} items in ${path}`);
+
+    // 2. Delete each item (files and subfolders recursively)
+    for (const item of items) {
+      const itemPath = `${item.Path}${item.ObjectName}`.replace(`/${STORAGE_ZONE}/`, "");
+      if (item.IsDirectory) {
+        await deleteFolderFromBunny(itemPath);
+      } else {
+        const fileEndpoint = `https://${BASE_HOSTNAME}/${STORAGE_ZONE}/${itemPath}`;
+        const res = await fetch(fileEndpoint, {
+          method: "DELETE",
+          headers: { AccessKey: ACCESS_KEY },
+        });
+        console.log(`[BunnyCDN DELETE FILE] ${itemPath}: ${res.ok ? "deleted" : `failed (${res.status})`}`);
+      }
+    }
+
+    // 3. Delete the now-empty folder
+    const folderEndpoint = `https://${BASE_HOSTNAME}/${STORAGE_ZONE}/${path}`;
+    const folderRes = await fetch(folderEndpoint, {
+      method: "DELETE",
+      headers: { AccessKey: ACCESS_KEY },
+    });
+    console.log(`[BunnyCDN DELETE FOLDER] ${path}: ${folderRes.ok ? "deleted" : `failed (${folderRes.status})`}`);
+
+    return folderRes.ok;
+  } catch (error) {
+    console.error(`[BunnyCDN DELETE FOLDER] ERROR: ${path}`, error);
+    return false;
+  }
+}
+
 export async function deleteFileFromBunny(filePath: string): Promise<boolean> {
   if (!filePath) return false;
 

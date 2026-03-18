@@ -18,7 +18,9 @@ if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
   webpush.setVapidDetails(VAPID_EMAIL, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
   console.log("[Push Admin] Web Push configured with VAPID keys");
 } else {
-  console.warn("[Push Admin] VAPID keys not configured. Push notifications disabled.");
+  console.warn(
+    "[Push Admin] VAPID keys not configured. Push notifications disabled."
+  );
 }
 
 // Initialize Telbiz SMS client
@@ -78,7 +80,9 @@ interface PendingModel {
   createdAt: Date;
 }
 
-export async function notifyNewPendingModel(model: PendingModel): Promise<boolean> {
+export async function notifyNewPendingModel(
+  model: PendingModel
+): Promise<boolean> {
   const subject = `[XaoSao] New Model Registration Pending Approval`;
 
   const html = `
@@ -106,7 +110,9 @@ export async function notifyNewPendingModel(model: PendingModel): Promise<boolea
         <div class="content">
           <div class="info-row">
             <span class="label">Name:</span>
-            <span class="value">${model.firstName} ${model.lastName || ""}</span>
+            <span class="value">${model.firstName} ${
+    model.lastName || ""
+  }</span>
           </div>
           <div class="info-row">
             <span class="label">Email:</span>
@@ -118,10 +124,14 @@ export async function notifyNewPendingModel(model: PendingModel): Promise<boolea
           </div>
           <div class="info-row">
             <span class="label">Registered At:</span>
-            <span class="value">${new Date(model.createdAt).toLocaleString()}</span>
+            <span class="value">${new Date(
+              model.createdAt
+            ).toLocaleString()}</span>
           </div>
 
-          <a href="${process.env.ADMIN_URL || "https://admin.xaosao.la"}/dashboard/models/approval/${model.id}" class="button">
+          <a href="${
+            process.env.ADMIN_URL || "https://admin.xaosao.la"
+          }/dashboard/models/approval/${model.id}" class="button">
             Review Application
           </a>
         </div>
@@ -156,14 +166,19 @@ interface PendingTransaction {
   } | null;
 }
 
-export async function notifyNewPendingTransaction(transaction: PendingTransaction): Promise<boolean> {
+export async function notifyNewPendingTransaction(
+  transaction: PendingTransaction
+): Promise<boolean> {
   const subject = `[XaoSao] New Transaction Pending Approval - ${transaction.amount.toLocaleString()} LAK`;
 
   const modelName = transaction.model
     ? `${transaction.model.firstName} ${transaction.model.lastName || ""}`
     : "Unknown";
 
-  const transactionType = transaction.identifier === "withdraw" ? "Withdrawal" : transaction.identifier;
+  const transactionType =
+    transaction.identifier === "withdraw"
+      ? "Withdrawal"
+      : transaction.identifier;
 
   const html = `
     <!DOCTYPE html>
@@ -207,10 +222,14 @@ export async function notifyNewPendingTransaction(transaction: PendingTransactio
           </div>
           <div class="info-row">
             <span class="label">Requested At:</span>
-            <span class="value">${new Date(transaction.createdAt).toLocaleString()}</span>
+            <span class="value">${new Date(
+              transaction.createdAt
+            ).toLocaleString()}</span>
           </div>
 
-          <a href="${process.env.ADMIN_URL || "https://admin.xaosao.la"}/dashboard/transactions" class="button">
+          <a href="${
+            process.env.ADMIN_URL || "https://admin.xaosao.la"
+          }/dashboard/transactions" class="button">
             Review Transaction
           </a>
         </div>
@@ -282,7 +301,9 @@ export async function sendDailySummary(): Promise<boolean> {
             </div>
 
             <div style="text-align: center;">
-              <a href="${process.env.ADMIN_URL || "https://admin.xaosao.la"}/dashboard" class="button">
+              <a href="${
+                process.env.ADMIN_URL || "https://admin.xaosao.la"
+              }/dashboard" class="button">
                 Go to Dashboard
               </a>
             </div>
@@ -310,7 +331,10 @@ export async function sendDailySummary(): Promise<boolean> {
 // SMS Notification Helper
 // ========================================
 
-export async function sendSMS(phone: string, message: string): Promise<boolean> {
+export async function sendSMS(
+  phone: string,
+  message: string
+): Promise<boolean> {
   try {
     if (!process.env.TELBIZ_CLIENT_ID || !process.env.TELBIZ_SECRETKEY) {
       console.warn("Telbiz credentials not configured. SMS not sent.");
@@ -330,7 +354,9 @@ export async function sendSMS(phone: string, message: string): Promise<boolean> 
 
     // Validate format: should be 10 digits starting with 20 or 30
     if (!formattedPhone.match(/^(20|30)\d{8}$/)) {
-      console.warn(`Invalid phone number format: ${formattedPhone}. Expected 20xxxxxxxx or 30xxxxxxx`);
+      console.warn(
+        `Invalid phone number format: ${formattedPhone}. Expected 20xxxxxxxx or 30xxxxxxx`
+      );
       return false;
     }
 
@@ -354,7 +380,9 @@ interface ModelNotificationData {
   whatsapp: number | null;
 }
 
-export async function notifyModelApproved(model: ModelNotificationData): Promise<void> {
+export async function notifyModelApproved(
+  model: ModelNotificationData
+): Promise<void> {
   const modelName = `${model.firstName} ${model.lastName || ""}`.trim();
 
   // 1. Create in-app notification
@@ -387,15 +415,19 @@ export async function notifyModelApproved(model: ModelNotificationData): Promise
     },
   });
 
-  console.log(`[Notification Admin] Model approval notifications sent to ${model.id}`);
+  console.log(
+    `[Notification Admin] Model approval notifications sent to ${model.id}`
+  );
 }
 
-export async function notifyModelRejected(model: ModelNotificationData): Promise<void> {
+export async function notifyModelRejected(
+  model: ModelNotificationData
+): Promise<void> {
   const modelName = `${model.firstName} ${model.lastName || ""}`.trim();
 
   // Send SMS only
   if (model.whatsapp) {
-    const smsMessage = `XaoSao: ສະບາຍດີ ${modelName}, ບັນຊີຂອງທ່ານບໍ່ໄດ້ຮັບການອະນຸມັດໃນຄັ້ງນີ້. ກະລຸນາຕິດຕໍ່ພວກເຮົາສຳລັບຂໍ້ມູນເພີ່ມເຕີມ. 2093033918`;
+    const smsMessage = `XaoSao: ສະບາຍດີ ${modelName}, ບັນຊີຂອງທ່ານບໍ່ໄດ້ຮັບການອະນຸມັດໃນຄັ້ງນີ້. ກະລຸນາຕິດຕໍ່ພວກເຮົາສຳລັບຂໍ້ມູນເພີ່ມເຕີມ. 2094238897`;
     console.log(`Sending rejection SMS to ${model.whatsapp}: ${smsMessage}`);
     sendSMS(model.whatsapp.toString(), smsMessage).catch((err) =>
       console.error("Failed to send model rejection SMS:", err)
@@ -421,13 +453,23 @@ interface TransactionNotificationData {
   rejectReason?: string | null;
 }
 
-export async function notifyTransactionApproved(transaction: TransactionNotificationData & { modelId?: string }): Promise<void> {
+export async function notifyTransactionApproved(
+  transaction: TransactionNotificationData & { modelId?: string }
+): Promise<void> {
   if (!transaction.model) return;
 
   const modelId = transaction.modelId;
-  const modelName = `${transaction.model.firstName} ${transaction.model.lastName || ""}`.trim();
-  const transactionType = transaction.identifier === "withdrawal" ? "ການຖອນເງິນ" : transaction.identifier;
-  const transactionTypeTitle = transaction.identifier === "withdrawal" ? "ການຖອນເງິນໄດ້ຮັບອະນຸມັດ!" : "ທຸລະກຳໄດ້ຮັບອະນຸມັດ!";
+  const modelName = `${transaction.model.firstName} ${
+    transaction.model.lastName || ""
+  }`.trim();
+  const transactionType =
+    transaction.identifier === "withdrawal"
+      ? "ການຖອນເງິນ"
+      : transaction.identifier;
+  const transactionTypeTitle =
+    transaction.identifier === "withdrawal"
+      ? "ການຖອນເງິນໄດ້ຮັບອະນຸມັດ!"
+      : "ທຸລະກຳໄດ້ຮັບອະນຸມັດ!";
 
   // 1. Create in-app notification
   if (modelId) {
@@ -442,12 +484,16 @@ export async function notifyTransactionApproved(transaction: TransactionNotifica
   // 2. Send SMS
   if (transaction.model.whatsapp) {
     const smsMessage = `XaoSao: ${transactionType} ${transaction.amount.toLocaleString()} LAK ຂອງທ່ານໄດ້ຮັບການອະນຸມັດແລ້ວ!`;
-    console.log(`Sending transaction approval SMS to ${transaction.model.whatsapp}: ${smsMessage}`);
+    console.log(
+      `Sending transaction approval SMS to ${transaction.model.whatsapp}: ${smsMessage}`
+    );
     sendSMS(transaction.model.whatsapp.toString(), smsMessage).catch((err) =>
       console.error("Failed to send transaction approval SMS:", err)
     );
   } else {
-    console.warn("Model has no whatsapp number, cannot send transaction approval SMS");
+    console.warn(
+      "Model has no whatsapp number, cannot send transaction approval SMS"
+    );
   }
 
   // 3. Send push notification
@@ -464,23 +510,36 @@ export async function notifyTransactionApproved(transaction: TransactionNotifica
     });
   }
 
-  console.log(`[Notification Admin] Model withdrawal approval notifications sent to ${modelId || "unknown"}`);
+  console.log(
+    `[Notification Admin] Model withdrawal approval notifications sent to ${
+      modelId || "unknown"
+    }`
+  );
 }
 
-export async function notifyTransactionRejected(transaction: TransactionNotificationData): Promise<void> {
+export async function notifyTransactionRejected(
+  transaction: TransactionNotificationData
+): Promise<void> {
   if (!transaction.model) return;
 
-  const transactionType = transaction.identifier === "withdrawal" ? "ການຖອນເງິນ" : transaction.identifier;
+  const transactionType =
+    transaction.identifier === "withdrawal"
+      ? "ການຖອນເງິນ"
+      : transaction.identifier;
 
   // Send SMS only
   if (transaction.model.whatsapp) {
-    const smsMessage = `XaoSao: ${transactionType} ${transaction.amount.toLocaleString()} LAK ຂອງທ່ານບໍ່ໄດ້ຮັບການອະນຸມັດ. ກະລຸນາຕິດຕໍ່ຝ່າຍຊ່ວຍເຫຼືອ. 2093033918`;
-    console.log(`Sending transaction rejection SMS to ${transaction.model.whatsapp}: ${smsMessage}`);
+    const smsMessage = `XaoSao: ${transactionType} ${transaction.amount.toLocaleString()} LAK ຂອງທ່ານບໍ່ໄດ້ຮັບການອະນຸມັດ. ກະລຸນາຕິດຕໍ່ຝ່າຍຊ່ວຍເຫຼືອ. 2094238897`;
+    console.log(
+      `Sending transaction rejection SMS to ${transaction.model.whatsapp}: ${smsMessage}`
+    );
     sendSMS(transaction.model.whatsapp.toString(), smsMessage).catch((err) =>
       console.error("Failed to send transaction rejection SMS:", err)
     );
   } else {
-    console.warn("Model has no whatsapp number, cannot send transaction rejection SMS");
+    console.warn(
+      "Model has no whatsapp number, cannot send transaction rejection SMS"
+    );
   }
 }
 
@@ -503,11 +562,17 @@ interface CustomerRechargeNotificationData {
  * Notify customer when their recharge/deposit is approved
  * Sends in-app notification, SMS, and push notification
  */
-export async function notifyCustomerRechargeApproved(data: CustomerRechargeNotificationData): Promise<void> {
+export async function notifyCustomerRechargeApproved(
+  data: CustomerRechargeNotificationData
+): Promise<void> {
   const { id, amount, customerId, customer } = data;
-  const customerName = `${customer.firstName} ${customer.lastName || ""}`.trim();
+  const customerName = `${customer.firstName} ${
+    customer.lastName || ""
+  }`.trim();
 
-  console.log(`[Notification Admin] Sending recharge approval notifications to customer ${customerId}`);
+  console.log(
+    `[Notification Admin] Sending recharge approval notifications to customer ${customerId}`
+  );
 
   // 1. Create in-app notification
   await createCustomerNotification(customerId, {
@@ -520,12 +585,16 @@ export async function notifyCustomerRechargeApproved(data: CustomerRechargeNotif
   // 2. Send SMS
   if (customer.whatsapp) {
     const smsMessage = `XaoSao: ສະບາຍດີ ${customerName}! ການເຕີມເງິນ ${amount.toLocaleString()} LAK ຂອງທ່ານໄດ້ຮັບການອະນຸມັດແລ້ວ. ກວດເບິ່ງ Wallet ຂອງທ່ານໃນແອັບ.`;
-    console.log(`Sending recharge approval SMS to ${customer.whatsapp}: ${smsMessage}`);
+    console.log(
+      `Sending recharge approval SMS to ${customer.whatsapp}: ${smsMessage}`
+    );
     sendSMS(customer.whatsapp.toString(), smsMessage).catch((err) =>
       console.error("Failed to send recharge approval SMS:", err)
     );
   } else {
-    console.warn(`Customer ${customerId} has no whatsapp number, cannot send recharge approval SMS`);
+    console.warn(
+      `Customer ${customerId} has no whatsapp number, cannot send recharge approval SMS`
+    );
   }
 
   // 3. Send push notification
@@ -540,36 +609,52 @@ export async function notifyCustomerRechargeApproved(data: CustomerRechargeNotif
     },
   });
 
-  console.log(`[Notification Admin] Customer recharge approval notifications sent to ${customerId}`);
+  console.log(
+    `[Notification Admin] Customer recharge approval notifications sent to ${customerId}`
+  );
 }
 
 /**
  * Notify customer when their recharge/deposit is rejected
  * Sends in-app notification, SMS, and push notification
  */
-export async function notifyCustomerRechargeRejected(data: CustomerRechargeNotificationData & { rejectReason?: string | null }): Promise<void> {
+export async function notifyCustomerRechargeRejected(
+  data: CustomerRechargeNotificationData & { rejectReason?: string | null }
+): Promise<void> {
   const { id, amount, customerId, customer, rejectReason } = data;
-  const customerName = `${customer.firstName} ${customer.lastName || ""}`.trim();
+  const customerName = `${customer.firstName} ${
+    customer.lastName || ""
+  }`.trim();
 
-  console.log(`[Notification Admin] Sending recharge rejection notifications to customer ${customerId}`);
+  console.log(
+    `[Notification Admin] Sending recharge rejection notifications to customer ${customerId}`
+  );
 
   // 1. Create in-app notification
   await createCustomerNotification(customerId, {
     type: "deposit_rejected",
     title: "ການເຕີມເງິນບໍ່ໄດ້ຮັບອະນຸມັດ",
-    message: `ການເຕີມເງິນ ${amount.toLocaleString()} LAK ຂອງທ່ານບໍ່ໄດ້ຮັບການອະນຸມັດ.${rejectReason ? ` ເຫດຜົນ: ${rejectReason}` : ""} ກະລຸນາຕິດຕໍ່ຝ່າຍຊ່ວຍເຫຼືອ.`,
+    message: `ການເຕີມເງິນ ${amount.toLocaleString()} LAK ຂອງທ່ານບໍ່ໄດ້ຮັບການອະນຸມັດ.${
+      rejectReason ? ` ເຫດຜົນ: ${rejectReason}` : ""
+    } ກະລຸນາຕິດຕໍ່ຝ່າຍຊ່ວຍເຫຼືອ.`,
     data: { transactionId: id, amount, rejectReason },
   });
 
   // 2. Send SMS
   if (customer.whatsapp) {
-    const smsMessage = `XaoSao: ການເຕີມເງິນ ${amount.toLocaleString()} LAK ຂອງທ່ານບໍ່ໄດ້ຮັບການອະນຸມັດ.${rejectReason ? ` ເຫດຜົນ: ${rejectReason}` : ""} ຕິດຕໍ່: 2093033918`;
-    console.log(`Sending recharge rejection SMS to ${customer.whatsapp}: ${smsMessage}`);
+    const smsMessage = `XaoSao: ການເຕີມເງິນ ${amount.toLocaleString()} LAK ຂອງທ່ານບໍ່ໄດ້ຮັບການອະນຸມັດ.${
+      rejectReason ? ` ເຫດຜົນ: ${rejectReason}` : ""
+    } ຕິດຕໍ່: 2094238897`;
+    console.log(
+      `Sending recharge rejection SMS to ${customer.whatsapp}: ${smsMessage}`
+    );
     sendSMS(customer.whatsapp.toString(), smsMessage).catch((err) =>
       console.error("Failed to send recharge rejection SMS:", err)
     );
   } else {
-    console.warn(`Customer ${customerId} has no whatsapp number, cannot send recharge rejection SMS`);
+    console.warn(
+      `Customer ${customerId} has no whatsapp number, cannot send recharge rejection SMS`
+    );
   }
 
   // 3. Send push notification
@@ -584,7 +669,9 @@ export async function notifyCustomerRechargeRejected(data: CustomerRechargeNotif
     },
   });
 
-  console.log(`[Notification Admin] Customer recharge rejection notifications sent to ${customerId}`);
+  console.log(
+    `[Notification Admin] Customer recharge rejection notifications sent to ${customerId}`
+  );
 }
 
 // ========================================
@@ -603,7 +690,10 @@ interface PushPayload {
 /**
  * Send push notification to a model
  */
-export async function sendPushToModel(modelId: string, payload: PushPayload): Promise<void> {
+export async function sendPushToModel(
+  modelId: string,
+  payload: PushPayload
+): Promise<void> {
   if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
     console.warn("[Push Admin] VAPID keys not configured, skipping push");
     return;
@@ -617,7 +707,9 @@ export async function sendPushToModel(modelId: string, payload: PushPayload): Pr
     });
 
     if (!model?.sendPushNoti) {
-      console.log(`[Push Admin] Model ${modelId} has push notifications disabled`);
+      console.log(
+        `[Push Admin] Model ${modelId} has push notifications disabled`
+      );
       return;
     }
 
@@ -627,7 +719,9 @@ export async function sendPushToModel(modelId: string, payload: PushPayload): Pr
     });
 
     if (subscriptions.length === 0) {
-      console.log(`[Push Admin] No push subscriptions found for model ${modelId}`);
+      console.log(
+        `[Push Admin] No push subscriptions found for model ${modelId}`
+      );
       return;
     }
 
@@ -659,17 +753,24 @@ export async function sendPushToModel(modelId: string, payload: PushPayload): Pr
         );
         sent++;
       } catch (error: any) {
-        console.error(`[Push Admin] Failed to send to endpoint:`, error.statusCode || error.message);
+        console.error(
+          `[Push Admin] Failed to send to endpoint:`,
+          error.statusCode || error.message
+        );
         // Remove invalid subscriptions
         if (error.statusCode === 410 || error.statusCode === 404) {
-          await prisma.push_subscription.delete({
-            where: { id: sub.id },
-          }).catch(() => {});
+          await prisma.push_subscription
+            .delete({
+              where: { id: sub.id },
+            })
+            .catch(() => {});
         }
       }
     }
 
-    console.log(`[Push Admin] Sent ${sent}/${subscriptions.length} push notifications to model ${modelId}`);
+    console.log(
+      `[Push Admin] Sent ${sent}/${subscriptions.length} push notifications to model ${modelId}`
+    );
   } catch (error) {
     console.error("[Push Admin] Error sending push notification:", error);
   }
@@ -709,34 +810,47 @@ async function triggerClientSSE(
     const sseApiSecret = process.env.SSE_API_SECRET;
 
     if (!clientBackendUrl || !sseApiSecret) {
-      console.warn("[SSE Trigger] CLIENT_BACKEND_URL or SSE_API_SECRET not configured, skipping");
+      console.warn(
+        "[SSE Trigger] CLIENT_BACKEND_URL or SSE_API_SECRET not configured, skipping"
+      );
       return;
     }
 
-    const response = await fetch(`${clientBackendUrl}/api/trigger-notification`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-API-Secret": sseApiSecret,
-      },
-      body: JSON.stringify({ userType, userId, notification }),
-    });
+    const response = await fetch(
+      `${clientBackendUrl}/api/trigger-notification`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-Secret": sseApiSecret,
+        },
+        body: JSON.stringify({ userType, userId, notification }),
+      }
+    );
 
     if (response.ok) {
-      console.log(`[SSE Trigger] Sent ${userType} notification to client for user ${userId}`);
+      console.log(
+        `[SSE Trigger] Sent ${userType} notification to client for user ${userId}`
+      );
     } else {
       const error = await response.text();
       console.error(`[SSE Trigger] Failed (${response.status}):`, error);
     }
   } catch (error) {
-    console.error("[SSE Trigger] Failed to trigger client notification:", error);
+    console.error(
+      "[SSE Trigger] Failed to trigger client notification:",
+      error
+    );
   }
 }
 
 /**
  * Create an in-app notification for a model
  */
-export async function createModelNotification(modelId: string, payload: NotificationPayload): Promise<void> {
+export async function createModelNotification(
+  modelId: string,
+  payload: NotificationPayload
+): Promise<void> {
   try {
     const notification = await prisma.model_notification.create({
       data: {
@@ -748,7 +862,9 @@ export async function createModelNotification(modelId: string, payload: Notifica
         modelId,
       },
     });
-    console.log(`[Notification Admin] Created ${payload.type} notification for model ${modelId}`);
+    console.log(
+      `[Notification Admin] Created ${payload.type} notification for model ${modelId}`
+    );
 
     // Trigger real-time SSE on the client process
     triggerClientSSE("model", modelId, {
@@ -781,12 +897,29 @@ interface ReferralBonusNotificationData {
  * Notify referrer model when they earn a referral bonus
  * Sends SMS, push notification, and creates in-app notification
  */
-export async function notifyReferralBonusReceived(data: ReferralBonusNotificationData): Promise<void> {
-  const { referrerId, referrerName, referrerWhatsapp, referredModelName, amount, transactionId } = data;
-  console.log(`[Notification Admin] notifyReferralBonusReceived called with:`, { referrerId, referrerName, referrerWhatsapp, referredModelName, amount });
+export async function notifyReferralBonusReceived(
+  data: ReferralBonusNotificationData
+): Promise<void> {
+  const {
+    referrerId,
+    referrerName,
+    referrerWhatsapp,
+    referredModelName,
+    amount,
+    transactionId,
+  } = data;
+  console.log(`[Notification Admin] notifyReferralBonusReceived called with:`, {
+    referrerId,
+    referrerName,
+    referrerWhatsapp,
+    referredModelName,
+    amount,
+  });
 
   // 1. Create in-app notification
-  console.log(`[Notification Admin] Creating in-app notification for referrer ${referrerId}`);
+  console.log(
+    `[Notification Admin] Creating in-app notification for referrer ${referrerId}`
+  );
   try {
     await createModelNotification(referrerId, {
       type: "referral_bonus",
@@ -794,20 +927,32 @@ export async function notifyReferralBonusReceived(data: ReferralBonusNotificatio
       message: `ທ່ານໄດ້ຮັບ ${amount.toLocaleString()} ກີບ ຈາກການແນະນຳ ${referredModelName}!`,
       data: { amount, referredModelName, transactionId },
     });
-    console.log(`[Notification Admin] In-app notification created successfully`);
+    console.log(
+      `[Notification Admin] In-app notification created successfully`
+    );
   } catch (err) {
-    console.error(`[Notification Admin] Failed to create in-app notification:`, err);
+    console.error(
+      `[Notification Admin] Failed to create in-app notification:`,
+      err
+    );
   }
 
   // 2. Send SMS to referrer
   if (referrerWhatsapp) {
     const smsMessage = `XaoSao: ຍິນດີດ້ວຍ ${referrerName}! ທ່ານໄດ້ຮັບ ${amount.toLocaleString()} ກີບ ຈາກການແນະນຳໂມເດວ ${referredModelName}. ກວດເບິ່ງ Wallet ຂອງທ່ານໃນແອັບ.`;
-    console.log(`[Notification Admin] Sending referral bonus SMS to ${referrerWhatsapp}: ${smsMessage}`);
+    console.log(
+      `[Notification Admin] Sending referral bonus SMS to ${referrerWhatsapp}: ${smsMessage}`
+    );
     sendSMS(referrerWhatsapp.toString(), smsMessage).catch((err) =>
-      console.error("[Notification Admin] Failed to send referral bonus SMS:", err)
+      console.error(
+        "[Notification Admin] Failed to send referral bonus SMS:",
+        err
+      )
     );
   } else {
-    console.log(`[Notification Admin] Referrer ${referrerId} has no whatsapp number, skipping SMS`);
+    console.log(
+      `[Notification Admin] Referrer ${referrerId} has no whatsapp number, skipping SMS`
+    );
   }
 
   // 3. Send push notification
@@ -823,7 +968,9 @@ export async function notifyReferralBonusReceived(data: ReferralBonusNotificatio
     },
   });
 
-  console.log(`[Notification Admin] Referral bonus notifications sent to ${referrerId}`);
+  console.log(
+    `[Notification Admin] Referral bonus notifications sent to ${referrerId}`
+  );
 }
 
 /**
@@ -838,13 +985,27 @@ export async function notifyReferralTracked(data: {
   referrerType: string;
   totalReferred: number;
 }): Promise<void> {
-  const { referrerId, referrerName, referrerWhatsapp, referredModelName, referrerType, totalReferred } = data;
-  console.log(`[Notification Admin] notifyReferralTracked called with:`, { referrerId, referrerName, referrerType, totalReferred });
+  const {
+    referrerId,
+    referrerName,
+    referrerWhatsapp,
+    referredModelName,
+    referrerType,
+    totalReferred,
+  } = data;
+  console.log(`[Notification Admin] notifyReferralTracked called with:`, {
+    referrerId,
+    referrerName,
+    referrerType,
+    totalReferred,
+  });
 
   const commissionRate = referrerType === "partner" ? "4%" : "2%";
 
   // 1. Create in-app notification
-  console.log(`[Notification Admin] Creating in-app notification for referrer ${referrerId}`);
+  console.log(
+    `[Notification Admin] Creating in-app notification for referrer ${referrerId}`
+  );
   try {
     await createModelNotification(referrerId, {
       type: "referral_bonus",
@@ -852,24 +1013,38 @@ export async function notifyReferralTracked(data: {
       message: `${referredModelName} ໄດ້ຮັບການອະນຸມັດ! ທ່ານຈະໄດ້ຮັບ ${commissionRate} ຈາກການຈອງຂອງພວກເຂົາ.`,
       data: { referredModelName, totalReferred },
     });
-    console.log(`[Notification Admin] In-app notification created successfully`);
+    console.log(
+      `[Notification Admin] In-app notification created successfully`
+    );
   } catch (err) {
-    console.error(`[Notification Admin] Failed to create in-app notification:`, err);
+    console.error(
+      `[Notification Admin] Failed to create in-app notification:`,
+      err
+    );
   }
 
   // 2. Send SMS to referrer
   if (referrerWhatsapp) {
     const smsMessage = `XaoSao: ຍິນດີດ້ວຍ ${referrerName}! ${referredModelName} ໄດ້ຮັບການອະນຸມັດ. ທ່ານຈະໄດ້ຮັບ ${commissionRate} ຈາກການຈອງຂອງພວກເຂົາ.`;
-    console.log(`[Notification Admin] Sending referral tracked SMS to ${referrerWhatsapp}: ${smsMessage}`);
+    console.log(
+      `[Notification Admin] Sending referral tracked SMS to ${referrerWhatsapp}: ${smsMessage}`
+    );
     sendSMS(referrerWhatsapp.toString(), smsMessage).catch((err) =>
-      console.error("[Notification Admin] Failed to send referral tracked SMS:", err)
+      console.error(
+        "[Notification Admin] Failed to send referral tracked SMS:",
+        err
+      )
     );
   } else {
-    console.log(`[Notification Admin] Referrer ${referrerId} has no whatsapp number, skipping SMS`);
+    console.log(
+      `[Notification Admin] Referrer ${referrerId} has no whatsapp number, skipping SMS`
+    );
   }
 
   // 3. Send push notification
-  console.log(`[Notification Admin] Sending push notification to referrer ${referrerId}`);
+  console.log(
+    `[Notification Admin] Sending push notification to referrer ${referrerId}`
+  );
   await sendPushToModel(referrerId, {
     title: "ແນະນຳໂມເດວສຳເລັດ! ✨",
     body: `${referredModelName} ໄດ້ຮັບການອະນຸມັດ! ທ່ານຈະໄດ້ຮັບ ${commissionRate} ຈາກການຈອງຂອງພວກເຂົາ.`,
@@ -882,7 +1057,9 @@ export async function notifyReferralTracked(data: {
     },
   });
 
-  console.log(`[Notification Admin] Referral tracked notifications sent to ${referrerId}`);
+  console.log(
+    `[Notification Admin] Referral tracked notifications sent to ${referrerId}`
+  );
 }
 
 /**
@@ -911,44 +1088,76 @@ export async function notifyBookingCommissionEarned(data: {
     commissionRate,
     transactionId,
   } = data;
-  console.log(`[Notification Admin] notifyBookingCommissionEarned called with:`, {
-    referrerId,
-    referrerName,
-    bookedModelName,
-    commissionAmount,
-    commissionRate,
-  });
+  console.log(
+    `[Notification Admin] notifyBookingCommissionEarned called with:`,
+    {
+      referrerId,
+      referrerName,
+      bookedModelName,
+      commissionAmount,
+      commissionRate,
+    }
+  );
 
   // 1. Create in-app notification
-  console.log(`[Notification Admin] Creating in-app notification for referrer ${referrerId}`);
+  console.log(
+    `[Notification Admin] Creating in-app notification for referrer ${referrerId}`
+  );
   try {
     await createModelNotification(referrerId, {
       type: "commission_earned",
       title: "ໄດ້ຮັບຄ່ານາຍໜ້າການຈອງ!",
-      message: `ທ່ານໄດ້ຮັບ ${commissionAmount.toLocaleString()} ກີບ (${commissionRate * 100}%) ຈາກການຈອງຂອງ ${bookedModelName}!`,
-      data: { commissionAmount, commissionRate, bookedModelName, bookingId, bookingPrice, transactionId },
+      message: `ທ່ານໄດ້ຮັບ ${commissionAmount.toLocaleString()} ກີບ (${
+        commissionRate * 100
+      }%) ຈາກການຈອງຂອງ ${bookedModelName}!`,
+      data: {
+        commissionAmount,
+        commissionRate,
+        bookedModelName,
+        bookingId,
+        bookingPrice,
+        transactionId,
+      },
     });
-    console.log(`[Notification Admin] In-app notification created successfully`);
+    console.log(
+      `[Notification Admin] In-app notification created successfully`
+    );
   } catch (err) {
-    console.error(`[Notification Admin] Failed to create in-app notification:`, err);
+    console.error(
+      `[Notification Admin] Failed to create in-app notification:`,
+      err
+    );
   }
 
   // 2. Send SMS to referrer
   if (referrerWhatsapp) {
-    const smsMessage = `XaoSao: ຍິນດີດ້ວຍ ${referrerName}! ທ່ານໄດ້ຮັບ ${commissionAmount.toLocaleString()} ກີບ (${commissionRate * 100}%) ຈາກການຈອງຂອງ ${bookedModelName}. ກວດເບິ່ງ Wallet ຂອງທ່ານໃນແອັບ.`;
-    console.log(`[Notification Admin] Sending booking commission SMS to ${referrerWhatsapp}: ${smsMessage}`);
+    const smsMessage = `XaoSao: ຍິນດີດ້ວຍ ${referrerName}! ທ່ານໄດ້ຮັບ ${commissionAmount.toLocaleString()} ກີບ (${
+      commissionRate * 100
+    }%) ຈາກການຈອງຂອງ ${bookedModelName}. ກວດເບິ່ງ Wallet ຂອງທ່ານໃນແອັບ.`;
+    console.log(
+      `[Notification Admin] Sending booking commission SMS to ${referrerWhatsapp}: ${smsMessage}`
+    );
     sendSMS(referrerWhatsapp.toString(), smsMessage).catch((err) =>
-      console.error("[Notification Admin] Failed to send booking commission SMS:", err)
+      console.error(
+        "[Notification Admin] Failed to send booking commission SMS:",
+        err
+      )
     );
   } else {
-    console.log(`[Notification Admin] Referrer ${referrerId} has no whatsapp number, skipping SMS`);
+    console.log(
+      `[Notification Admin] Referrer ${referrerId} has no whatsapp number, skipping SMS`
+    );
   }
 
   // 3. Send push notification
-  console.log(`[Notification Admin] Sending push notification to referrer ${referrerId}`);
+  console.log(
+    `[Notification Admin] Sending push notification to referrer ${referrerId}`
+  );
   await sendPushToModel(referrerId, {
     title: "ໄດ້ຮັບຄ່ານາຍໜ້າການຈອງ! 💰",
-    body: `ທ່ານໄດ້ຮັບ ${commissionAmount.toLocaleString()} ກີບ (${commissionRate * 100}%) ຈາກການຈອງຂອງ ${bookedModelName}!`,
+    body: `ທ່ານໄດ້ຮັບ ${commissionAmount.toLocaleString()} ກີບ (${
+      commissionRate * 100
+    }%) ຈາກການຈອງຂອງ ${bookedModelName}!`,
     tag: `booking-commission-${transactionId}`,
     data: {
       type: "commission_earned",
@@ -958,7 +1167,9 @@ export async function notifyBookingCommissionEarned(data: {
     },
   });
 
-  console.log(`[Notification Admin] Booking commission notifications sent to ${referrerId}`);
+  console.log(
+    `[Notification Admin] Booking commission notifications sent to ${referrerId}`
+  );
 }
 
 // ========================================
@@ -983,7 +1194,10 @@ async function getCustomerPhone(customerId: string): Promise<number | null> {
 /**
  * Send SMS to a customer
  */
-async function sendSMSToCustomer(customerId: string, message: string): Promise<void> {
+async function sendSMSToCustomer(
+  customerId: string,
+  message: string
+): Promise<void> {
   const phone = await getCustomerPhone(customerId);
   if (phone) {
     sendSMS(phone.toString(), message).catch((err) =>
@@ -999,12 +1213,15 @@ async function sendSMSToCustomer(customerId: string, message: string): Promise<v
 /**
  * Send push notification to a customer
  */
-export async function sendPushToCustomer(customerId: string, payload: {
-  title: string;
-  body: string;
-  tag?: string;
-  data?: Record<string, any>;
-}): Promise<void> {
+export async function sendPushToCustomer(
+  customerId: string,
+  payload: {
+    title: string;
+    body: string;
+    tag?: string;
+    data?: Record<string, any>;
+  }
+): Promise<void> {
   if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
     console.warn("[Push Admin] VAPID keys not configured, skipping push");
     return;
@@ -1018,7 +1235,9 @@ export async function sendPushToCustomer(customerId: string, payload: {
     });
 
     if (!customer?.sendPushNoti) {
-      console.log(`[Push Admin] Customer ${customerId} has push notifications disabled`);
+      console.log(
+        `[Push Admin] Customer ${customerId} has push notifications disabled`
+      );
       return;
     }
 
@@ -1028,7 +1247,9 @@ export async function sendPushToCustomer(customerId: string, payload: {
     });
 
     if (subscriptions.length === 0) {
-      console.log(`[Push Admin] No push subscriptions found for customer ${customerId}`);
+      console.log(
+        `[Push Admin] No push subscriptions found for customer ${customerId}`
+      );
       return;
     }
 
@@ -1060,19 +1281,29 @@ export async function sendPushToCustomer(customerId: string, payload: {
         );
         sent++;
       } catch (error: any) {
-        console.error(`[Push Admin] Failed to send to customer endpoint:`, error.statusCode || error.message);
+        console.error(
+          `[Push Admin] Failed to send to customer endpoint:`,
+          error.statusCode || error.message
+        );
         // Remove invalid subscriptions
         if (error.statusCode === 410 || error.statusCode === 404) {
-          await prisma.push_subscription.delete({
-            where: { id: sub.id },
-          }).catch(() => {});
+          await prisma.push_subscription
+            .delete({
+              where: { id: sub.id },
+            })
+            .catch(() => {});
         }
       }
     }
 
-    console.log(`[Push Admin] Sent ${sent}/${subscriptions.length} push notifications to customer ${customerId}`);
+    console.log(
+      `[Push Admin] Sent ${sent}/${subscriptions.length} push notifications to customer ${customerId}`
+    );
   } catch (error) {
-    console.error("[Push Admin] Error sending push notification to customer:", error);
+    console.error(
+      "[Push Admin] Error sending push notification to customer:",
+      error
+    );
   }
 }
 
@@ -1102,7 +1333,10 @@ interface CustomerNotificationPayload {
 /**
  * Create an in-app notification for a customer
  */
-export async function createCustomerNotification(customerId: string, payload: CustomerNotificationPayload): Promise<void> {
+export async function createCustomerNotification(
+  customerId: string,
+  payload: CustomerNotificationPayload
+): Promise<void> {
   try {
     const notification = await prisma.customer_notification.create({
       data: {
@@ -1114,7 +1348,9 @@ export async function createCustomerNotification(customerId: string, payload: Cu
         customerId,
       },
     });
-    console.log(`[Notification Admin] Created ${payload.type} notification for customer ${customerId}`);
+    console.log(
+      `[Notification Admin] Created ${payload.type} notification for customer ${customerId}`
+    );
 
     // Trigger real-time SSE on the client process
     triggerClientSSE("customer", customerId, {
@@ -1126,7 +1362,10 @@ export async function createCustomerNotification(customerId: string, payload: Cu
       createdAt: notification.createdAt,
     });
   } catch (error) {
-    console.error("[Notification Admin] Failed to create customer notification:", error);
+    console.error(
+      "[Notification Admin] Failed to create customer notification:",
+      error
+    );
   }
 }
 
@@ -1156,7 +1395,9 @@ interface AdminBookingCompleteData {
  * Send notifications when admin completes a booking
  * Notifies: Customer, Model, and Referrer (if eligible)
  */
-export async function notifyAdminBookingCompleted(data: AdminBookingCompleteData): Promise<void> {
+export async function notifyAdminBookingCompleted(
+  data: AdminBookingCompleteData
+): Promise<void> {
   const {
     bookingId,
     customerId,
@@ -1169,7 +1410,9 @@ export async function notifyAdminBookingCompleted(data: AdminBookingCompleteData
     referrer,
   } = data;
 
-  console.log(`[Notification Admin] Sending booking complete notifications for booking ${bookingId}`);
+  console.log(
+    `[Notification Admin] Sending booking complete notifications for booking ${bookingId}`
+  );
 
   // 1. Notify Customer - Payment has been released
   await createCustomerNotification(customerId, {
@@ -1235,7 +1478,9 @@ export async function notifyAdminBookingCompleted(data: AdminBookingCompleteData
 
     // Send SMS to referrer
     if (referrer.whatsapp) {
-      const referrerSmsMessage = `XaoSao: ຍິນດີດ້ວຍ ${referrer.firstName}! ທ່ານໄດ້ຮັບ ${referrer.commissionAmount.toLocaleString()} LAK ຄ່ານາຍໜ້າຈາກການຈອງຂອງ ${modelName}. ກວດເບິ່ງ Wallet ຂອງທ່ານ.`;
+      const referrerSmsMessage = `XaoSao: ຍິນດີດ້ວຍ ${
+        referrer.firstName
+      }! ທ່ານໄດ້ຮັບ ${referrer.commissionAmount.toLocaleString()} LAK ຄ່ານາຍໜ້າຈາກການຈອງຂອງ ${modelName}. ກວດເບິ່ງ Wallet ຂອງທ່ານ.`;
       sendSMS(referrer.whatsapp.toString(), referrerSmsMessage).catch((err) =>
         console.error("[SMS] Failed to send referral commission SMS:", err)
       );
@@ -1254,7 +1499,9 @@ export async function notifyAdminBookingCompleted(data: AdminBookingCompleteData
     });
   }
 
-  console.log(`[Notification Admin] Admin booking complete notifications sent for booking ${bookingId}`);
+  console.log(
+    `[Notification Admin] Admin booking complete notifications sent for booking ${bookingId}`
+  );
 }
 
 /**
@@ -1287,7 +1534,9 @@ interface AdminBookingRefundData {
  * Send notifications when admin refunds a booking
  * Notifies: Customer and Model
  */
-export async function notifyAdminBookingRefunded(data: AdminBookingRefundData): Promise<void> {
+export async function notifyAdminBookingRefunded(
+  data: AdminBookingRefundData
+): Promise<void> {
   const {
     bookingId,
     customerId,
@@ -1299,18 +1548,24 @@ export async function notifyAdminBookingRefunded(data: AdminBookingRefundData): 
     reason,
   } = data;
 
-  console.log(`[Notification Admin] Sending booking refund notifications for booking ${bookingId}`);
+  console.log(
+    `[Notification Admin] Sending booking refund notifications for booking ${bookingId}`
+  );
 
   // 1. Notify Customer - Payment has been refunded
   await createCustomerNotification(customerId, {
     type: "payment_refunded",
     title: "Booking Refunded",
-    message: `Your booking for "${serviceName}" has been refunded. ${refundAmount.toLocaleString()} LAK has been returned to your wallet.${reason ? ` Reason: ${reason}` : ""}`,
+    message: `Your booking for "${serviceName}" has been refunded. ${refundAmount.toLocaleString()} LAK has been returned to your wallet.${
+      reason ? ` Reason: ${reason}` : ""
+    }`,
     data: { bookingId, modelId, amount: refundAmount },
   });
 
   // Send SMS to customer
-  const customerSmsMessage = `XaoSao: ການຈອງ "${serviceName}" ຂອງທ່ານໄດ້ຖືກຄືນເງິນແລ້ວ. ${refundAmount.toLocaleString()} LAK ໄດ້ຖືກສົ່ງຄືນໃສ່ Wallet ຂອງທ່ານ.${reason ? ` ເຫດຜົນ: ${reason}` : ""}`;
+  const customerSmsMessage = `XaoSao: ການຈອງ "${serviceName}" ຂອງທ່ານໄດ້ຖືກຄືນເງິນແລ້ວ. ${refundAmount.toLocaleString()} LAK ໄດ້ຖືກສົ່ງຄືນໃສ່ Wallet ຂອງທ່ານ.${
+    reason ? ` ເຫດຜົນ: ${reason}` : ""
+  }`;
   sendSMSToCustomer(customerId, customerSmsMessage);
 
   // Send push to customer
@@ -1329,14 +1584,18 @@ export async function notifyAdminBookingRefunded(data: AdminBookingRefundData): 
   await createModelNotification(modelId, {
     type: "deposit_approved",
     title: "ການຈອງຖືກຄືນເງິນ",
-    message: `ການຈອງ "${serviceName}" ກັບ ${customerName} ໄດ້ຖືກຄືນເງິນໃຫ້ລູກຄ້າແລ້ວ.${reason ? ` ເຫດຜົນ: ${reason}` : ""}`,
+    message: `ການຈອງ "${serviceName}" ກັບ ${customerName} ໄດ້ຖືກຄືນເງິນໃຫ້ລູກຄ້າແລ້ວ.${
+      reason ? ` ເຫດຜົນ: ${reason}` : ""
+    }`,
     data: { bookingId, customerId },
   });
 
   // Send SMS to model
   const modelPhone = await getModelPhone(modelId);
   if (modelPhone) {
-    const modelSmsMessage = `XaoSao: ການຈອງ "${serviceName}" ກັບ ${customerName} ໄດ້ຖືກຄືນເງິນໃຫ້ລູກຄ້າແລ້ວ.${reason ? ` ເຫດຜົນ: ${reason}` : ""}`;
+    const modelSmsMessage = `XaoSao: ການຈອງ "${serviceName}" ກັບ ${customerName} ໄດ້ຖືກຄືນເງິນໃຫ້ລູກຄ້າແລ້ວ.${
+      reason ? ` ເຫດຜົນ: ${reason}` : ""
+    }`;
     sendSMS(modelPhone.toString(), modelSmsMessage).catch((err) =>
       console.error("Failed to send SMS to model:", err)
     );
@@ -1354,5 +1613,7 @@ export async function notifyAdminBookingRefunded(data: AdminBookingRefundData): 
     },
   });
 
-  console.log(`[Notification Admin] Admin booking refund notifications sent for booking ${bookingId}`);
+  console.log(
+    `[Notification Admin] Admin booking refund notifications sent for booking ${bookingId}`
+  );
 }
