@@ -1,7 +1,7 @@
 import { toast } from "react-toastify";
 import React, { useCallback, useRef } from "react";
 import { LoaderFunctionArgs } from "@remix-run/node";
-import { Form, json, Link, useLoaderData, useNavigate, useSearchParams } from "@remix-run/react";
+import { Form, json, Link, useLoaderData, useNavigate, useNavigation, useSearchParams } from "@remix-run/react";
 
 // conponents
 import { Badge } from "~/components/ui/badge";
@@ -39,6 +39,7 @@ import {
     Calculator,
     Search,
     X,
+    Loader2,
 } from "lucide-react";
 
 // utils and service
@@ -55,9 +56,11 @@ const iconMap = {
 
 export default function Wallets() {
     const navigate = useNavigate();
+    const navigation = useNavigation();
     const [searchParams] = useSearchParams();
     const formRef = useRef<HTMLFormElement>(null);
     const hasPermission = useAuthStore((state) => state.hasPermission);
+    const isLoading = navigation.state === "loading";
     const { walletData, walletStatus, topEarning, recentTransaction, pagination, filters, success } = useLoaderData<typeof loader>();
 
     const updateFilters = useCallback((updates: Record<string, string>) => {
@@ -187,7 +190,7 @@ export default function Wallets() {
                                     <input
                                         type="text"
                                         name="search"
-                                        placeholder="Search by name..."
+                                        placeholder="Search by name or whatsapp..."
                                         className="pl-9 border-gray-200 focus:border-pink-300 focus:ring-pink-300 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                         defaultValue={filters.search}
                                     />
@@ -247,7 +250,7 @@ export default function Wallets() {
                                     <input
                                         type="text"
                                         name="search"
-                                        placeholder="Search..."
+                                        placeholder="Name or whatsapp..."
                                         className="pl-8 border-gray-200 focus:border-pink-300 focus:ring-pink-300 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                         defaultValue={filters.search}
                                     />
@@ -300,7 +303,15 @@ export default function Wallets() {
                             </div>
                         </Form>
                     </CardHeader>
-                    <CardContent className="p-0">
+                    <CardContent className="p-0 relative">
+                        {isLoading && (
+                            <div className="absolute inset-0 bg-white/70 z-10 flex items-center justify-center">
+                                <div className="flex items-center gap-2 text-sm text-gray-500">
+                                    <Loader2 className="h-5 w-5 animate-spin text-pink-500" />
+                                    <span>Loading...</span>
+                                </div>
+                            </div>
+                        )}
                         {/* Mobile Card View */}
                         <div className="block md:hidden p-2 space-y-4">
                             {walletData && walletData.length > 0 ? walletData.map((wallet, index: number) => {

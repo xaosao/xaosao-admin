@@ -41,27 +41,65 @@ export async function getWallets(
       whereClause.status = status;
     }
 
-    // Search by model or customer first name and last name
+    // Search by name or whatsapp — pre-query matching IDs for performance
     if (search && search.trim()) {
       const searchTerm = search.trim();
-      whereClause.OR = [
-        {
-          model: {
-            OR: [
-              { firstName: { contains: searchTerm, mode: "insensitive" } },
-              { lastName: { contains: searchTerm, mode: "insensitive" } },
-            ],
-          },
-        },
-        {
-          customer: {
-            OR: [
-              { firstName: { contains: searchTerm, mode: "insensitive" } },
-              { lastName: { contains: searchTerm, mode: "insensitive" } },
-            ],
-          },
-        },
+      const isNumeric = /^\d+$/.test(searchTerm);
+
+      const nameFilter = [
+        { firstName: { contains: searchTerm, mode: "insensitive" as const } },
+        { lastName: { contains: searchTerm, mode: "insensitive" as const } },
       ];
+
+      const [matchingModelIds, matchingCustomerIds] = await Promise.all([
+        type !== "customer"
+          ? prisma.model.findMany({
+              where: {
+                OR: [
+                  ...nameFilter,
+                  ...(isNumeric ? [{ whatsapp: { equals: parseInt(searchTerm) } }] : []),
+                ],
+              },
+              select: { id: true },
+            }).then((models) => models.map((m) => m.id))
+          : Promise.resolve([]),
+        type !== "model"
+          ? prisma.customer.findMany({
+              where: {
+                OR: [
+                  ...nameFilter,
+                  ...(isNumeric ? [{ whatsapp: { equals: parseInt(searchTerm) } }] : []),
+                ],
+              },
+              select: { id: true },
+            }).then((customers) => customers.map((c) => c.id))
+          : Promise.resolve([]),
+      ]);
+
+      const orConditions: any[] = [];
+      if (matchingModelIds.length > 0) {
+        orConditions.push({ modelId: { in: matchingModelIds } });
+      }
+      if (matchingCustomerIds.length > 0) {
+        orConditions.push({ customerId: { in: matchingCustomerIds } });
+      }
+
+      if (orConditions.length > 0) {
+        whereClause.OR = orConditions;
+      } else {
+        // No matches found — return empty results early
+        return {
+          wallets: [],
+          pagination: {
+            currentPage: page,
+            totalPages: 0,
+            totalCount: 0,
+            hasNextPage: false,
+            hasPreviousPage: false,
+            limit,
+          },
+        };
+      }
     }
 
     if (fromDate || toDate) {
