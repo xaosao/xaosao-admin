@@ -26,6 +26,8 @@ import {
     DollarSign,
     Repeat,
     User,
+    FileText,
+    Loader2,
 } from "lucide-react";
 
 // components
@@ -102,6 +104,8 @@ export default function SubscriptionsIndex() {
 
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
     const [showSummary, setShowSummary] = useState(false);
+    const [logsModal, setLogsModal] = useState<{ customerId: string; customerName: string } | null>(null);
+    const logsFetcher = useFetcher();
 
     const updateFilters = useCallback(
         (updates: Record<string, string>) => {
@@ -186,6 +190,11 @@ export default function SubscriptionsIndex() {
             { actionType: "reactivate", subscriptionId },
             { method: "post" }
         );
+    };
+
+    const handleViewLogs = (customerId: string, customerName: string) => {
+        setLogsModal({ customerId, customerName });
+        logsFetcher.load(`/dashboard/subscriptions/logs/${customerId}`);
     };
 
     const selectClass = "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
@@ -442,6 +451,15 @@ export default function SubscriptionsIndex() {
 
                                     {/* Actions */}
                                     <div className="flex items-center justify-end gap-2 mt-3 pt-3 border-t">
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-8 w-8 text-purple-600 border-purple-200 hover:bg-purple-50"
+                                            title="Logs"
+                                            onClick={() => handleViewLogs(sub.customerId, `${sub.customer?.firstName || ""} ${sub.customer?.lastName || ""}`.trim())}
+                                        >
+                                            <FileText className="h-3 w-3" />
+                                        </Button>
                                         {sub.customer?.whatsapp && (
                                             <Button
                                                 variant="outline"
@@ -582,6 +600,14 @@ export default function SubscriptionsIndex() {
                                                         >
                                                             <EyeIcon className="mr-2 h-3 w-3" />
                                                             <span>View Customer</span>
+                                                        </DropdownMenuItem>
+
+                                                        <DropdownMenuItem
+                                                            className="text-sm cursor-pointer text-purple-600"
+                                                            onClick={() => handleViewLogs(sub.customerId, `${sub.customer?.firstName || ""} ${sub.customer?.lastName || ""}`.trim())}
+                                                        >
+                                                            <FileText className="mr-2 h-3 w-3" />
+                                                            <span>Logs</span>
                                                         </DropdownMenuItem>
 
                                                         {sub.customer?.whatsapp && (
@@ -762,6 +788,72 @@ export default function SubscriptionsIndex() {
                                     </div>
                                 ))}
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Customer Logs Modal */}
+            {logsModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    <div
+                        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                        onClick={() => setLogsModal(null)}
+                    />
+                    <div className="relative bg-white rounded-xl p-6 max-w-lg w-full mx-4 shadow-xl max-h-[80vh] flex flex-col">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-2">
+                                <div className="p-2 rounded-lg bg-purple-100">
+                                    <FileText className="h-5 w-5 text-purple-600" />
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-semibold text-gray-900">Customer Logs</h3>
+                                    <p className="text-xs text-gray-500">{logsModal.customerName}</p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setLogsModal(null)}
+                                className="p-1.5 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
+                            >
+                                <X className="w-5 h-5 text-gray-500" />
+                            </button>
+                        </div>
+                        <div className="overflow-y-auto flex-1 -mx-2 px-2">
+                            {logsFetcher.state === "loading" ? (
+                                <div className="flex items-center justify-center py-12">
+                                    <Loader2 className="h-6 w-6 animate-spin text-purple-500" />
+                                    <span className="ml-2 text-sm text-gray-500">Loading logs...</span>
+                                </div>
+                            ) : logsFetcher.data?.logs?.length > 0 ? (
+                                <div className="space-y-2">
+                                    {logsFetcher.data.logs.map((log: any) => (
+                                        <div key={log.id} className="border border-gray-100 rounded-lg p-3 hover:bg-gray-50 transition-colors">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                                    log.status === "success"
+                                                        ? "bg-green-100 text-green-700"
+                                                        : "bg-red-100 text-red-700"
+                                                }`}>
+                                                    {log.status}
+                                                </span>
+                                                <span className="text-xs text-gray-400">
+                                                    {new Date(log.createdAt).toLocaleString()}
+                                                </span>
+                                            </div>
+                                            <p className="text-xs font-medium text-gray-800">{log.action}</p>
+                                            {log.description && (
+                                                <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{log.description}</p>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center py-12">
+                                    <FileText className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                                    <p className="text-sm text-gray-400">No logs found for this customer</p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
