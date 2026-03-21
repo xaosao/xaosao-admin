@@ -427,7 +427,7 @@ export async function notifyModelRejected(
 
   // Send SMS only
   if (model.whatsapp) {
-    const smsMessage = `XaoSao: ສະບາຍດີ ${modelName}, ບັນຊີຂອງທ່ານບໍ່ໄດ້ຮັບການອະນຸມັດໃນຄັ້ງນີ້. ກະລຸນາຕິດຕໍ່ພວກເຮົາສຳລັບຂໍ້ມູນເພີ່ມເຕີມ. 2094238897`;
+    const smsMessage = `XaoSao: ສະບາຍດີ ${modelName}, ບັນຊີຂອງທ່ານບໍ່ໄດ້ຮັບການອະນຸມັດໃນຄັ້ງນີ້. ກະລຸນາຕິດຕໍ່ພວກເຮົາສຳລັບຂໍ້ມູນເພີ່ມເຕີມ. 2091082600`;
     console.log(`Sending rejection SMS to ${model.whatsapp}: ${smsMessage}`);
     sendSMS(model.whatsapp.toString(), smsMessage).catch((err) =>
       console.error("Failed to send model rejection SMS:", err)
@@ -529,7 +529,7 @@ export async function notifyTransactionRejected(
 
   // Send SMS only
   if (transaction.model.whatsapp) {
-    const smsMessage = `XaoSao: ${transactionType} ${transaction.amount.toLocaleString()} LAK ຂອງທ່ານບໍ່ໄດ້ຮັບການອະນຸມັດ. ກະລຸນາຕິດຕໍ່ຝ່າຍຊ່ວຍເຫຼືອ. 2094238897`;
+    const smsMessage = `XaoSao: ${transactionType} ${transaction.amount.toLocaleString()} LAK ຂອງທ່ານບໍ່ໄດ້ຮັບການອະນຸມັດ. ກະລຸນາຕິດຕໍ່ຝ່າຍຊ່ວຍເຫຼືອ. 2091082600`;
     console.log(
       `Sending transaction rejection SMS to ${transaction.model.whatsapp}: ${smsMessage}`
     );
@@ -644,7 +644,7 @@ export async function notifyCustomerRechargeRejected(
   if (customer.whatsapp) {
     const smsMessage = `XaoSao: ການເຕີມເງິນ ${amount.toLocaleString()} LAK ຂອງທ່ານບໍ່ໄດ້ຮັບການອະນຸມັດ.${
       rejectReason ? ` ເຫດຜົນ: ${rejectReason}` : ""
-    } ຕິດຕໍ່: 2094238897`;
+    } ຕິດຕໍ່: 2091082600`;
     console.log(
       `Sending recharge rejection SMS to ${customer.whatsapp}: ${smsMessage}`
     );
