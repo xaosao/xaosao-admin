@@ -34,6 +34,7 @@ export interface IModelEarnings {
   referralBonuses: number;
   bookingCommission: number;
   subscriptionCommission: number;
+  giftEarnings: number;
   totalEarnings: number;
 }
 

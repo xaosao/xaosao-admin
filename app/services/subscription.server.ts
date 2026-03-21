@@ -51,9 +51,13 @@ export async function getSubscriptions(options: GetSubscriptionsOptions) {
             where.createdAt.gte = new Date(fromDate);
         }
         if (toDate) {
-            const endDate = new Date(toDate);
-            endDate.setHours(23, 59, 59, 999);
-            where.createdAt.lte = endDate;
+            if (toDate.includes("T")) {
+                where.createdAt.lte = new Date(toDate);
+            } else {
+                const endDate = new Date(toDate);
+                endDate.setHours(23, 59, 59, 999);
+                where.createdAt.lte = endDate;
+            }
         }
     }
 

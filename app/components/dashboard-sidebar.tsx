@@ -40,6 +40,10 @@ export function DashboardSidebar({ pendingCounts }: DashboardSidebarProps) {
         return pendingCounts.pendingBookings;
       case "Reviews":
         return pendingCounts.newReviews;
+      case "Subscriptions":
+        return pendingCounts.activeSubscriptions;
+      case "Posts":
+        return pendingCounts.activePosts;
       default:
         return 0;
     }

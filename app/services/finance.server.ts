@@ -13,34 +13,44 @@ function isValidObjectId(id: string): boolean {
   return /^[a-fA-F0-9]{24}$/.test(id);
 }
 
+// Laos timezone offset (UTC+7)
+const LAO_OFFSET_MS = 7 * 60 * 60 * 1000;
+const toLaoNow = () => new Date(Date.now() + LAO_OFFSET_MS);
+const toUTCDate = (laoDate: Date) => new Date(laoDate.getTime() - LAO_OFFSET_MS);
+
 function getDateRange(period: string, fromDate?: string, toDate?: string) {
-  const now = new Date();
+  const nowLao = toLaoNow();
 
   if (fromDate || toDate) {
     const range: any = {};
     if (fromDate) range.gte = new Date(fromDate);
     if (toDate) {
       const end = new Date(toDate);
-      end.setDate(end.getDate() + 1);
-      range.lt = end;
+      // If time component is included (datetime-local), use it directly; otherwise add 1 day
+      if (toDate.includes("T")) {
+        range.lte = end;
+      } else {
+        end.setDate(end.getDate() + 1);
+        range.lt = end;
+      }
     }
     return range;
   }
 
   switch (period) {
     case "daily":
-      return { gte: startOfDay(now), lte: endOfDay(now) };
+      return { gte: toUTCDate(startOfDay(nowLao)), lte: toUTCDate(endOfDay(nowLao)) };
     case "weekly":
       return {
-        gte: startOfWeek(now, { weekStartsOn: 1 }),
-        lte: endOfWeek(now, { weekStartsOn: 1 }),
+        gte: toUTCDate(startOfWeek(nowLao, { weekStartsOn: 1 })),
+        lte: toUTCDate(endOfWeek(nowLao, { weekStartsOn: 1 })),
       };
     case "monthly":
-      return { gte: startOfMonth(now), lte: endOfMonth(now) };
+      return { gte: toUTCDate(startOfMonth(nowLao)), lte: toUTCDate(endOfMonth(nowLao)) };
     case "3month":
-      return { gte: startOfDay(subMonths(now, 3)), lte: endOfDay(now) };
+      return { gte: toUTCDate(startOfDay(subMonths(nowLao, 3))), lte: toUTCDate(endOfDay(nowLao)) };
     case "6month":
-      return { gte: startOfDay(subMonths(now, 6)), lte: endOfDay(now) };
+      return { gte: toUTCDate(startOfDay(subMonths(nowLao, 6))), lte: toUTCDate(endOfDay(nowLao)) };
     default:
       return undefined;
   }
@@ -69,6 +79,7 @@ export async function getFinanceSummary(
     totalReferralPayouts,
     totalBookingReferral,
     totalSubscriptionReferral,
+    totalGiftSpending,
   ] = await Promise.all([
     // 1. Total Customer Top-ups
     prisma.transaction_history.aggregate({
@@ -97,7 +108,7 @@ export async function getFinanceSummary(
       },
       _sum: { amount: true },
     }),
-    // 4. Total Model Earnings (booking + referral + commission)
+    // 4. Total Model Earnings (booking + referral + commission + gift)
     prisma.transaction_history.aggregate({
       where: {
         identifier: {
@@ -106,6 +117,7 @@ export async function getFinanceSummary(
             "referral",
             "booking_referral",
             "subscription_referral",
+            "gift_earning",
           ],
         },
         status: statusFilter,
@@ -149,12 +161,22 @@ export async function getFinanceSummary(
       },
       _sum: { amount: true },
     }),
+    // 9. Total Gift Spending (customer → model)
+    prisma.transaction_history.aggregate({
+      where: {
+        identifier: "gift",
+        status: statusFilter,
+        ...dateFilter,
+      },
+      _sum: { amount: true },
+    }),
   ]);
 
   const topUpsAmount = totalTopUps._sum.amount || 0;
   const subscriptionAmount = totalSubscriptions._sum.amount || 0;
   const bookingAmount = Math.abs(totalBookingHolds._sum.amount || 0);
-  const totalSpending = subscriptionAmount + bookingAmount;
+  const giftSpendingAmount = totalGiftSpending._sum.amount || 0;
+  const totalSpending = subscriptionAmount + bookingAmount + giftSpendingAmount;
   const modelEarningsAmount = totalModelEarnings._sum.amount || 0;
   const systemCommissionAmount = totalSystemCommission._sum.comission || 0;
   const referralPayoutsAmount = totalReferralPayouts._sum.amount || 0;
@@ -222,7 +244,7 @@ export async function getFinanceBreakdown(
   const dateFilter = dateRange ? { createdAt: dateRange } : {};
 
   // Income breakdown
-  const incomeIdentifiers = ["recharge", "subscription", "booking_hold"];
+  const incomeIdentifiers = ["recharge", "subscription", "booking_hold", "gift"];
   const statusFilter = { in: ["approved", "success"] };
   const bookingStatusFilter = { in: ["approved", "success", "released"] };
   const [
@@ -284,11 +306,13 @@ export async function getFinanceBreakdown(
     recharge: "Customer Top-ups",
     subscription: "Subscription Payments",
     booking_hold: "Booking Payments",
+    gift: "Gift Payments",
   };
   const incomeColors: Record<string, string> = {
     recharge: "bg-blue-500",
     subscription: "bg-pink-500",
     booking_hold: "bg-indigo-500",
+    gift: "bg-rose-500",
   };
 
   // Total Income = Customer Top-ups only (subscription & booking are spent FROM top-ups)
@@ -298,7 +322,8 @@ export async function getFinanceBreakdown(
   // Build sub-items for top-ups (spent vs remaining)
   const subscriptionTotal = Math.abs(incomeResults[1]._sum.amount || 0);
   const bookingTotal = Math.abs(incomeResults[2]._sum.amount || 0);
-  const totalSpentFromTopUps = subscriptionTotal + bookingTotal;
+  const giftTotal = Math.abs(incomeResults[3]._sum.amount || 0);
+  const totalSpentFromTopUps = subscriptionTotal + bookingTotal + giftTotal;
   const remainingBalance = topUpsAmount - totalSpentFromTopUps;
 
   const topUpSubItems = [
@@ -328,8 +353,8 @@ export async function getFinanceBreakdown(
     { label: "Commission", amount: bookingRefAmount, formattedAmount: formatKip(bookingRefAmount), color: "text-cyan-600" },
   ];
 
-  // Recalculate top-ups spent using actual booking total
-  const totalSpentActual = subscriptionTotal + bookingActualTotal;
+  // Recalculate top-ups spent using actual booking total + gift
+  const totalSpentActual = subscriptionTotal + bookingActualTotal + giftTotal;
   const remainingActual = topUpsAmount - totalSpentActual;
   topUpSubItems[0] = { label: "Total Spent", amount: totalSpentActual, formattedAmount: formatKip(totalSpentActual), color: "text-orange-600" };
   topUpSubItems[1] = { label: "Remaining", amount: Math.max(remainingActual, 0), formattedAmount: formatKip(Math.max(remainingActual, 0)), color: "text-emerald-600" };
@@ -365,6 +390,7 @@ export async function getFinanceBreakdown(
     "referral",
     "booking_referral",
     "subscription_referral",
+    "gift_earning",
     "withdrawal",
   ];
   const expenseStatusFilter = { in: ["approved", "success", "released"] };
@@ -387,6 +413,7 @@ export async function getFinanceBreakdown(
     referral: "Referral Bonuses",
     booking_referral: "Booking Commission",
     subscription_referral: "Subscription Commission",
+    gift_earning: "Gift Earnings",
     withdrawal: "Withdrawals",
   };
   const expenseColors: Record<string, string> = {
@@ -394,6 +421,7 @@ export async function getFinanceBreakdown(
     referral: "bg-yellow-500",
     booking_referral: "bg-teal-500",
     subscription_referral: "bg-cyan-500",
+    gift_earning: "bg-rose-500",
     withdrawal: "bg-red-500",
   };
 
@@ -440,6 +468,7 @@ export async function getModelEarningsTable(
     "referral",
     "booking_referral",
     "subscription_referral",
+    "gift_earning",
   ];
 
   // Get distinct modelIds with earnings
@@ -490,37 +519,38 @@ export async function getModelEarningsTable(
     },
   });
 
-  // Get earnings per model per identifier
-  const earningsQueries = paginatedModelIds.flatMap((modelId) =>
-    earningIdentifiers.map((identifier) =>
-      prisma.transaction_history.aggregate({
-        where: {
-          modelId,
-          identifier,
-          status: statusFilter,
-          ...dateFilter,
-        },
-        _sum: { amount: true },
-      })
-    )
-  );
+  // Get all earnings for paginated models in a single query, grouped by modelId + identifier
+  const earningsGrouped = await prisma.transaction_history.groupBy({
+    by: ["modelId", "identifier"],
+    where: {
+      modelId: { in: paginatedModelIds },
+      identifier: { in: earningIdentifiers },
+      status: statusFilter,
+      ...dateFilter,
+    },
+    _sum: { amount: true },
+  });
 
-  const earningsResults = await Promise.all(earningsQueries);
+  // Build a lookup map: modelId -> identifier -> amount
+  const earningsMap = new Map<string, Map<string, number>>();
+  for (const row of earningsGrouped) {
+    if (!row.modelId) continue;
+    if (!earningsMap.has(row.modelId)) earningsMap.set(row.modelId, new Map());
+    earningsMap.get(row.modelId)!.set(row.identifier, row._sum.amount || 0);
+  }
 
-  const models = paginatedModelIds.map((modelId, modelIndex) => {
+  const models = paginatedModelIds.map((modelId) => {
     const info = modelInfos.find((m) => m.id === modelId);
-    const baseIndex = modelIndex * earningIdentifiers.length;
+    const amounts = earningsMap.get(modelId);
+    const get = (id: string) => amounts?.get(id) || 0;
 
-    const bookingEarnings =
-      earningsResults[baseIndex]._sum.amount || 0;
-    const referralBonuses =
-      earningsResults[baseIndex + 1]._sum.amount || 0;
-    const bookingCommission =
-      earningsResults[baseIndex + 2]._sum.amount || 0;
-    const subscriptionCommission =
-      earningsResults[baseIndex + 3]._sum.amount || 0;
+    const bookingEarnings = get("booking_earning");
+    const referralBonuses = get("referral");
+    const bookingCommission = get("booking_referral");
+    const subscriptionCommission = get("subscription_referral");
+    const giftEarnings = get("gift_earning");
     const totalEarnings =
-      bookingEarnings + referralBonuses + bookingCommission + subscriptionCommission;
+      bookingEarnings + referralBonuses + bookingCommission + subscriptionCommission + giftEarnings;
 
     return {
       modelId,
@@ -532,6 +562,7 @@ export async function getModelEarningsTable(
       referralBonuses,
       bookingCommission,
       subscriptionCommission,
+      giftEarnings,
       totalEarnings,
     };
   });

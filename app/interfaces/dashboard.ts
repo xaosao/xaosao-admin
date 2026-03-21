@@ -9,9 +9,8 @@ export interface IDashboardReport {
   name: string;
   models: number;
   customers: number;
-  chats: number;
-  callSessions: number;
-  videoSessions: number;
-  revenue: number;
-  expended: number;
+  subscriptions: number;
+  completedTransactions: number;
+  bookings: number;
+  posts: number;
 }

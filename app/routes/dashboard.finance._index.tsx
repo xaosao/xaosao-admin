@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { json, useLoaderData, useNavigate, useSearchParams } from "@remix-run/react";
 import {
     ArrowUpCircle,
@@ -11,6 +11,8 @@ import {
     ArrowDownLeft,
     Download,
     UserCheck,
+    CalendarRange,
+    X,
 } from "lucide-react";
 
 // components
@@ -112,8 +114,27 @@ export default function FinancePage() {
         [searchParams, navigate]
     );
 
+    const [showDateRange, setShowDateRange] = useState(!!(filters.fromDate && filters.toDate));
+    const [fromDateTime, setFromDateTime] = useState(filters.fromDate || "");
+    const [toDateTime, setToDateTime] = useState(filters.toDate || "");
+
     const handlePeriodChange = (period: string) => {
+        setShowDateRange(false);
+        setFromDateTime("");
+        setToDateTime("");
         updateFilters({ period, from: "", to: "" });
+    };
+
+    const handleDateRangeApply = () => {
+        if (!fromDateTime || !toDateTime) return;
+        updateFilters({ period: "custom", from: fromDateTime, to: toDateTime });
+    };
+
+    const handleClearDateRange = () => {
+        setShowDateRange(false);
+        setFromDateTime("");
+        setToDateTime("");
+        updateFilters({ period: "all", from: "", to: "" });
     };
 
     const handleCSVExport = () => {
@@ -173,7 +194,7 @@ export default function FinancePage() {
                             <button
                                 key={p.key}
                                 onClick={() => handlePeriodChange(p.key)}
-                                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${filters.period === p.key
+                                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${filters.period === p.key && !showDateRange
                                     ? "bg-white text-gray-900 shadow-sm"
                                     : "text-gray-500 hover:text-gray-700"
                                     }`}
@@ -181,6 +202,16 @@ export default function FinancePage() {
                                 {p.label}
                             </button>
                         ))}
+                        <button
+                            onClick={() => setShowDateRange(!showDateRange)}
+                            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1 ${showDateRange
+                                ? "bg-white text-gray-900 shadow-sm"
+                                : "text-gray-500 hover:text-gray-700"
+                                }`}
+                        >
+                            <CalendarRange className="h-3 w-3" />
+                            Custom
+                        </button>
                     </div>
                     {/* CSV Export */}
                     {canEdit && (
@@ -196,6 +227,48 @@ export default function FinancePage() {
                     )}
                 </div>
             </div>
+
+            {/* Custom Date Range Picker */}
+            {showDateRange && (
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="flex items-center gap-2 flex-1 w-full sm:w-auto">
+                        <label className="text-xs text-gray-500 whitespace-nowrap">From:</label>
+                        <input
+                            type="datetime-local"
+                            value={fromDateTime}
+                            onChange={(e) => setFromDateTime(e.target.value)}
+                            className="flex-1 h-9 px-3 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-300 focus:border-pink-300 bg-white"
+                        />
+                    </div>
+                    <div className="flex items-center gap-2 flex-1 w-full sm:w-auto">
+                        <label className="text-xs text-gray-500 whitespace-nowrap">To:</label>
+                        <input
+                            type="datetime-local"
+                            value={toDateTime}
+                            onChange={(e) => setToDateTime(e.target.value)}
+                            className="flex-1 h-9 px-3 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-300 focus:border-pink-300 bg-white"
+                        />
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                        <Button
+                            size="sm"
+                            className="h-9 bg-pink-500 hover:bg-pink-600 text-white text-xs"
+                            onClick={handleDateRangeApply}
+                            disabled={!fromDateTime || !toDateTime}
+                        >
+                            Apply
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-9 w-9 text-gray-400 hover:text-gray-600"
+                            onClick={handleClearDateRange}
+                        >
+                            <X className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
+            )}
 
             {/* Summary Stat Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
@@ -427,6 +500,10 @@ export default function FinancePage() {
                                             <span className="text-gray-500">Subscription Commission:</span>
                                             <span className="font-medium text-cyan-600">{formatKip(model.subscriptionCommission)}</span>
                                         </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-500">Gift Earnings:</span>
+                                            <span className="font-medium text-rose-600">{formatKip(model.giftEarnings)}</span>
+                                        </div>
                                         <div className="flex justify-between pt-2 border-t">
                                             <span className="text-gray-700 font-semibold">Total:</span>
                                             <span className="font-bold text-gray-900">{formatKip(model.totalEarnings)}</span>
@@ -451,6 +528,7 @@ export default function FinancePage() {
                                     <TableHead className="font-semibold text-right">Referral Bonuses</TableHead>
                                     <TableHead className="font-semibold text-right">Booking Commission</TableHead>
                                     <TableHead className="font-semibold text-right">Subscription Commission</TableHead>
+                                    <TableHead className="font-semibold text-right">Gift Earnings</TableHead>
                                     <TableHead className="font-semibold text-right">Total</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -490,6 +568,9 @@ export default function FinancePage() {
                                             <TableCell className="text-right text-sm font-medium text-cyan-600">
                                                 {formatKip(model.subscriptionCommission)}
                                             </TableCell>
+                                            <TableCell className="text-right text-sm font-medium text-rose-600">
+                                                {formatKip(model.giftEarnings)}
+                                            </TableCell>
                                             <TableCell className="text-right text-sm font-bold text-gray-900">
                                                 {formatKip(model.totalEarnings)}
                                             </TableCell>
@@ -497,7 +578,7 @@ export default function FinancePage() {
                                     ))
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={8} className="text-center py-8">
+                                        <TableCell colSpan={9} className="text-center py-8">
                                             <EmptyPage title="No earnings data" description="No model earnings found for this period." />
                                         </TableCell>
                                     </TableRow>

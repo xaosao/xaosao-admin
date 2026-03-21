@@ -20,12 +20,13 @@ import {
 import {
   Users,
   Phone,
-  Clock,
   Filter,
   UserCheck,
-  DollarSign,
+  CreditCard,
   ArrowUpRight,
   MessageCircle,
+  Receipt,
+  CalendarCheck,
 } from "lucide-react"
 
 // components
@@ -209,20 +210,16 @@ export default function Dashboard() {
         <Card className="border-0 shadow-md rounded-sm">
           <CardHeader className="pb-3">
             <CardTitle className="text-lg font-semibold flex items-center">
-              <DollarSign className="h-5 w-5 mr-2 text-pink-700" />
-              Revenue and Expend Trend
+              <CreditCard className="h-5 w-5 mr-2 text-pink-700" />
+              Subscriptions
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <ChartContainer
               config={{
-                revenue: {
-                  label: "Revenue",
+                subscriptions: {
+                  label: "Subscriptions",
                   color: "#be185d",
-                },
-                expended: {
-                  label: "Expended",
-                  color: "green",
                 },
               }}
               className="h-[300px]"
@@ -235,22 +232,12 @@ export default function Dashboard() {
                   <ChartTooltip content={<CustomTooltip />} />
                   <Area
                     type="monotone"
-                    dataKey="revenue"
-                    stroke="var(--color-revenue)"
-                    fill="var(--color-revenue)"
+                    dataKey="subscriptions"
+                    stroke="var(--color-subscriptions)"
+                    fill="var(--color-subscriptions)"
                     fillOpacity={0.2}
                     strokeWidth={3}
-                    name="Revenue ($)"
-                  />
-
-                  <Area
-                    type="monotone"
-                    dataKey="expended"
-                    stroke="var(--color-expended)"
-                    fill="var(--color-expended)"
-                    fillOpacity={0.2}
-                    strokeWidth={3}
-                    name="Expended ($)"
+                    name="Subscriptions"
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -261,16 +248,16 @@ export default function Dashboard() {
         <Card className="border-0 shadow-md rounded-sm">
           <CardHeader className="pb-3">
             <CardTitle className="text-lg font-semibold flex items-center">
-              <MessageCircle className="h-5 w-5 mr-2 text-pink-700" />
-              Chat Messages
+              <Receipt className="h-5 w-5 mr-2 text-pink-700" />
+              Transactions (Completed)
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <ChartContainer
               config={{
-                chats: {
-                  label: "Chat Messages",
-                  color: "gray",
+                completedTransactions: {
+                  label: "Completed Transactions",
+                  color: "#059669",
                 },
               }}
               className="h-[300px]"
@@ -281,7 +268,7 @@ export default function Dashboard() {
                   <XAxis dataKey="name" />
                   <YAxis />
                   <ChartTooltip content={<CustomTooltip />} />
-                  <Bar dataKey="chats" fill="var(--color-chats)" radius={[4, 4, 0, 0]} name="Chat Messages" />
+                  <Bar dataKey="completedTransactions" fill="var(--color-completedTransactions)" radius={[4, 4, 0, 0]} name="Completed Transactions" />
                 </BarChart>
               </ResponsiveContainer>
             </ChartContainer>
@@ -291,20 +278,20 @@ export default function Dashboard() {
         <Card className="border-0 shadow-md rounded-sm">
           <CardHeader className="pb-3">
             <CardTitle className="text-lg font-semibold flex items-center">
-              <Clock className="h-5 w-5 mr-2 text-pink-700" />
-              Session Types
+              <CalendarCheck className="h-5 w-5 mr-2 text-pink-700" />
+              Bookings & Posts
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <ChartContainer
               config={{
-                callSessions: {
-                  label: "Call Sessions",
+                bookings: {
+                  label: "Bookings",
                   color: "#be185d",
                 },
-                videoSessions: {
-                  label: "Video Sessions",
-                  color: "#831843",
+                posts: {
+                  label: "Posts",
+                  color: "#7c3aed",
                 },
               }}
               className="h-[300px]"
@@ -317,16 +304,16 @@ export default function Dashboard() {
                   <ChartTooltip content={<CustomTooltip />} />
                   <Legend />
                   <Bar
-                    dataKey="callSessions"
-                    fill="var(--color-callSessions)"
+                    dataKey="bookings"
+                    fill="var(--color-bookings)"
                     radius={[4, 4, 0, 0]}
-                    name="Call Sessions"
+                    name="Bookings"
                   />
                   <Bar
-                    dataKey="videoSessions"
-                    fill="var(--color-videoSessions)"
+                    dataKey="posts"
+                    fill="var(--color-posts)"
                     radius={[4, 4, 0, 0]}
-                    name="Video Sessions"
+                    name="Posts"
                   />
                 </BarChart>
               </ResponsiveContainer>

@@ -24,7 +24,6 @@ import {
     MoreVertical,
     MessageCircle,
     Share2,
-    Shield,
 } from "lucide-react";
 
 // components
@@ -258,14 +257,14 @@ export default function CustomersIndex() {
                             </div>
                             <div className="w-full sm:w-56 flex items-center space-x-2">
                                 <input
-                                    type="date"
+                                    type="datetime-local"
                                     name="from"
                                     className="border-gray-200 focus:border-pink-300 focus:ring-pink-300 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                     defaultValue={filters.fromDate}
                                 />
                                 <span className="text-gray-400">-</span>
                                 <input
-                                    type="date"
+                                    type="datetime-local"
                                     name="to"
                                     className="border-gray-200 focus:border-pink-300 focus:ring-pink-300 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                     defaultValue={filters.toDate}
@@ -286,7 +285,7 @@ export default function CustomersIndex() {
                             <div className="block sm:hidden w-36">
                                 <select
                                     name="status"
-                                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    className="flex h-10 w-auto items-center justify-between rounded-md border border-input bg-background py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                     defaultValue={filters.status}
                                 >
                                     <option value="all">All Status</option>
@@ -298,7 +297,7 @@ export default function CustomersIndex() {
                             <div className="block sm:hidden w-44">
                                 <select
                                     name="subscription"
-                                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    className="flex h-10 w-auto items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                     defaultValue={filters.subscription}
                                 >
                                     <option value="all">All Packages</option>
@@ -310,7 +309,7 @@ export default function CustomersIndex() {
                                     <option value="3months">3 Months</option>
                                 </select>
                             </div>
-                            <div className="w-28">
+                            <div className="w-16">
                                 <select
                                     name="showBy"
                                     className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"

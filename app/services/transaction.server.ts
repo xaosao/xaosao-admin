@@ -73,9 +73,13 @@ export async function getTransactions(
         whereClause.createdAt.gte = new Date(fromDate);
       }
       if (toDate) {
-        const endDate = new Date(toDate);
-        endDate.setDate(endDate.getDate() + 1);
-        whereClause.createdAt.lt = endDate;
+        if (toDate.includes("T")) {
+          whereClause.createdAt.lte = new Date(toDate);
+        } else {
+          const endDate = new Date(toDate);
+          endDate.setDate(endDate.getDate() + 1);
+          whereClause.createdAt.lt = endDate;
+        }
       }
     }
 

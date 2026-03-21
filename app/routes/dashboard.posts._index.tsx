@@ -201,14 +201,14 @@ export default function PostsIndex() {
                             </div>
                             <div className="hidden sm:flex w-56 items-center space-x-2">
                                 <input
-                                    type="date"
+                                    type="datetime-local"
                                     name="from"
                                     className="border-gray-200 focus:border-pink-300 focus:ring-pink-300 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                                     defaultValue={filters.fromDate}
                                 />
                                 <span className="text-gray-400">-</span>
                                 <input
-                                    type="date"
+                                    type="datetime-local"
                                     name="to"
                                     className="border-gray-200 focus:border-pink-300 focus:ring-pink-300 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                                     defaultValue={filters.toDate}
@@ -428,9 +428,13 @@ export async function loader({ request }: { request: Request }) {
         where.createdAt = {};
         if (fromDate) where.createdAt.gte = new Date(fromDate);
         if (toDate) {
-            const endDate = new Date(toDate);
-            endDate.setHours(23, 59, 59, 999);
-            where.createdAt.lte = endDate;
+            if (toDate.includes("T")) {
+                where.createdAt.lte = new Date(toDate);
+            } else {
+                const endDate = new Date(toDate);
+                endDate.setHours(23, 59, 59, 999);
+                where.createdAt.lte = endDate;
+            }
         }
     }
 

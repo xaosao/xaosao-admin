@@ -61,7 +61,9 @@ export async function getBookings(options: BookingFilters = {}) {
         where.startDate.gte = new Date(fromDate);
       }
       if (toDate) {
-        where.startDate.lte = new Date(toDate + "T23:59:59.999Z");
+        where.startDate.lte = toDate.includes("T")
+          ? new Date(toDate)
+          : new Date(toDate + "T23:59:59.999Z");
       }
     }
 

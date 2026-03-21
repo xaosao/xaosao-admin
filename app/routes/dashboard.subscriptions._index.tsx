@@ -305,14 +305,14 @@ export default function SubscriptionsIndex() {
                             {/* Date Range */}
                             <div className="w-full sm:w-56 flex items-center space-x-2">
                                 <input
-                                    type="date"
+                                    type="datetime-local"
                                     name="from"
                                     className={inputClass.replace("pl-9 ", "")}
                                     defaultValue={filters.fromDate}
                                 />
                                 <span className="text-gray-400">-</span>
                                 <input
-                                    type="date"
+                                    type="datetime-local"
                                     name="to"
                                     className={inputClass.replace("pl-9 ", "")}
                                     defaultValue={filters.toDate}

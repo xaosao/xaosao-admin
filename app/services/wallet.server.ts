@@ -108,9 +108,13 @@ export async function getWallets(
         whereClause.createdAt.gte = new Date(fromDate);
       }
       if (toDate) {
-        const endDate = new Date(toDate);
-        endDate.setDate(endDate.getDate() + 1);
-        whereClause.createdAt.lt = endDate;
+        if (toDate.includes("T")) {
+          whereClause.createdAt.lte = new Date(toDate);
+        } else {
+          const endDate = new Date(toDate);
+          endDate.setDate(endDate.getDate() + 1);
+          whereClause.createdAt.lt = endDate;
+        }
       }
     }
 
@@ -657,7 +661,7 @@ export async function getWalletSummary(
     // For customers: only count "recharge" (top-up) as incoming, NOT refunds
     // Refunds are returned spending, not new incoming funds
     const earningIdentifiers = isModel
-      ? ["booking_earning", "booking_referral", "subscription_referral", "referral"]
+      ? ["booking_earning", "booking_referral", "subscription_referral", "referral", "gift_earning"]
       : ["recharge"];
 
     const earningStatuses = isModel
@@ -666,7 +670,7 @@ export async function getWalletSummary(
 
     const withdrawalIdentifiers = isModel
       ? ["withdrawal"]
-      : ["subscription", "booking_hold"];
+      : ["subscription", "booking_hold", "gift"];
 
     // For customers: booking_hold uses "held/released/refunded" status, subscription uses "approved"
     // Include "refunded" so that booking_hold + booking_refund properly cancel out

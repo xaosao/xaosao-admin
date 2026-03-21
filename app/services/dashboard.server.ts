@@ -21,14 +21,18 @@ export interface PendingCounts {
   pendingTransactions: number;
   pendingBookings: number;
   newReviews: number;
+  activeSubscriptions: number;
+  activePosts: number;
 }
 
 export async function getPendingCounts(): Promise<PendingCounts> {
   try {
-    // Get reviews from last 7 days as "new" reviews
-    const sevenDaysAgo = subDays(new Date(), 7);
+    // Get reviews from last 7 days as "new" reviews (Laos timezone UTC+7)
+    const LAO_OFFSET_MS = 7 * 60 * 60 * 1000;
+    const nowLao = new Date(Date.now() + LAO_OFFSET_MS);
+    const sevenDaysAgo = new Date(subDays(nowLao, 7).getTime() - LAO_OFFSET_MS);
 
-    const [pendingModels, pendingTransactions, pendingBookings, newReviews] = await Promise.all([
+    const [pendingModels, pendingTransactions, pendingBookings, newReviews, activeSubscriptions, activePosts] = await Promise.all([
       prisma.model.count({
         where: { status: "pending" },
       }),
@@ -43,6 +47,12 @@ export async function getPendingCounts(): Promise<PendingCounts> {
           createdAt: { gte: sevenDaysAgo },
         },
       }),
+      prisma.subscription.count({
+        where: { status: "active" },
+      }),
+      prisma.post.count({
+        where: { status: "active" },
+      }),
     ]);
 
     return {
@@ -50,6 +60,8 @@ export async function getPendingCounts(): Promise<PendingCounts> {
       pendingTransactions,
       pendingBookings,
       newReviews,
+      activeSubscriptions,
+      activePosts,
     };
   } catch (error) {
     console.error("GET_PENDING_COUNTS_FAILED", error);
@@ -58,6 +70,8 @@ export async function getPendingCounts(): Promise<PendingCounts> {
       pendingTransactions: 0,
       pendingBookings: 0,
       newReviews: 0,
+      activeSubscriptions: 0,
+      activePosts: 0,
     };
   }
 }
@@ -119,130 +133,96 @@ export async function getDashboardStats() {
 type Mode = "daily" | "weekly" | "monthly";
 
 export async function getDashboardData(mode: Mode) {
-  const now = new Date();
+  // Use Laos timezone (UTC+7) for date boundaries so chart days match local time
+  const LAO_OFFSET_MS = 7 * 60 * 60 * 1000;
+  const nowUTC = new Date();
+  const nowLao = new Date(nowUTC.getTime() + LAO_OFFSET_MS);
+  const toUTC = (laoDate: Date) => new Date(laoDate.getTime() - LAO_OFFSET_MS);
+
   let ranges: { start: Date; end: Date; name: string }[] = [];
-  const identifiers = ["call_payment", "video_payment", "chat_payment"];
 
   if (mode === "daily") {
-    const weekStart = startOfWeek(now, { weekStartsOn: 1 }); // Monday
+    const weekStart = startOfWeek(nowLao, { weekStartsOn: 1 });
     ranges = Array.from({ length: 7 }).map((_, i) => {
-      const start = addDays(weekStart, i);
-      const end = addDays(start, 1);
+      const startLao = addDays(weekStart, i);
       return {
-        start,
-        end,
-        name: format(start, "EEEE"), // "Monday"
+        start: toUTC(startLao),
+        end: toUTC(addDays(startLao, 1)),
+        name: format(startLao, "EEEE"),
       };
     });
   }
 
   if (mode === "weekly") {
-    const weeks = [3, 2, 1, 0]; // Last 4 weeks
+    const weeks = [3, 2, 1, 0];
     ranges = weeks.map((weekOffset, index) => {
-      const start = startOfWeek(subWeeks(now, weekOffset), {
-        weekStartsOn: 1,
-      });
-      const end = endOfWeek(subWeeks(now, weekOffset), {
-        weekStartsOn: 1,
-      });
+      const startLao = startOfWeek(subWeeks(nowLao, weekOffset), { weekStartsOn: 1 });
+      const endLao = addDays(endOfWeek(subWeeks(nowLao, weekOffset), { weekStartsOn: 1 }), 1);
       return {
-        start,
-        end,
+        start: toUTC(startLao),
+        end: toUTC(endLao),
         name: `Week ${index + 1}`,
       };
     });
   }
 
   if (mode === "monthly") {
-    const year = now.getFullYear();
+    const year = nowLao.getFullYear();
     ranges = Array.from({ length: 12 }).map((_, i) => {
-      const start = startOfMonth(setMonth(new Date(year, 0), i));
-      const end = endOfMonth(start);
+      const startLao = startOfMonth(setMonth(new Date(year, 0), i));
       return {
-        start,
-        end,
-        name: formatDate(start, "LLLL"), // "January"
+        start: toUTC(startLao),
+        end: toUTC(addDays(endOfMonth(startLao), 1)),
+        name: formatDate(startLao, "LLLL"),
       };
     });
   }
 
-  const result = await Promise.all(
-    ranges.map(async ({ start, end, name }) => {
-      const [
-        models,
-        customers,
-        chats,
-        callSessions,
-        videoSessions,
-        revenue,
-        expended,
-      ] = await Promise.all([
-        prisma.model.count({
-          where: {
-            status: "active",
-            createdAt: { gte: start, lt: end },
-          },
-        }),
-        prisma.customer.count({
-          where: {
-            status: "active",
-            createdAt: { gte: start, lt: end },
-          },
-        }),
-        prisma.chat_session.count({
-          where: {
-            sessionStatus: "completed",
-            createdAt: { gte: start, lt: end },
-          },
-        }),
-        prisma.session.count({
-          where: {
-            sessionStatus: "completed",
-            modelService: {
-              service: { name: { startsWith: "Call" } },
-            },
-            createdAt: { gte: start, lt: end },
-          },
-        }),
-        prisma.session.count({
-          where: {
-            sessionStatus: "completed",
-            modelService: {
-              service: { name: { startsWith: "Video" } },
-            },
-            createdAt: { gte: start, lt: end },
-          },
-        }),
-        prisma.transaction_history.aggregate({
-          where: {
-            status: "approved",
-            identifier: { in: identifiers },
-            createdAt: { gte: start, lt: end },
-          },
-          _sum: { amount: true },
-        }),
-        prisma.transaction_history.aggregate({
-          where: {
-            status: "approved",
-            identifier: "withdraw",
-            createdAt: { gte: start, lt: end },
-          },
-          _sum: { amount: true },
-        }),
-      ]);
+  // Query the full date range once per collection (6 queries total instead of 6 x ranges)
+  const globalStart = ranges[0].start;
+  const globalEnd = ranges[ranges.length - 1].end;
+  const dateFilter = { gte: globalStart, lt: globalEnd };
 
-      return {
-        name,
-        models,
-        customers,
-        chats,
-        callSessions,
-        videoSessions,
-        revenue: revenue._sum.amount || 0,
-        expended: expended._sum.amount || 0,
-      };
-    })
-  );
+  const [modelRows, customerRows, subscriptionRows, transactionRows, bookingRows, postRows] = await Promise.all([
+    prisma.model.findMany({
+      where: { status: "active", createdAt: dateFilter },
+      select: { createdAt: true },
+    }),
+    prisma.customer.findMany({
+      where: { status: "active", createdAt: dateFilter },
+      select: { createdAt: true },
+    }),
+    prisma.subscription.findMany({
+      where: { status: "active", createdAt: dateFilter },
+      select: { createdAt: true },
+    }),
+    prisma.transaction_history.findMany({
+      where: { status: { in: ["approved", "success"] }, createdAt: dateFilter },
+      select: { createdAt: true },
+    }),
+    prisma.service_booking.findMany({
+      where: { createdAt: dateFilter },
+      select: { createdAt: true },
+    }),
+    prisma.post.findMany({
+      where: { createdAt: dateFilter },
+      select: { createdAt: true },
+    }),
+  ]);
+
+  // Bucket each record into the correct range
+  const bucketCount = (rows: { createdAt: Date }[], start: Date, end: Date) =>
+    rows.filter((r) => r.createdAt >= start && r.createdAt < end).length;
+
+  const result = ranges.map(({ start, end, name }) => ({
+    name,
+    models: bucketCount(modelRows, start, end),
+    customers: bucketCount(customerRows, start, end),
+    subscriptions: bucketCount(subscriptionRows, start, end),
+    completedTransactions: bucketCount(transactionRows, start, end),
+    bookings: bucketCount(bookingRows, start, end),
+    posts: bucketCount(postRows, start, end),
+  }));
 
   return mode === "weekly" ? result.reverse() : result;
 }

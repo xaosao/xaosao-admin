@@ -9,17 +9,22 @@ import {
   endOfMonth,
 } from "date-fns";
 
+// Laos timezone offset (UTC+7)
+const LAO_OFFSET_MS = 7 * 60 * 60 * 1000;
+const toLaoNow = () => new Date(Date.now() + LAO_OFFSET_MS);
+const toUTCDate = (laoDate: Date) => new Date(laoDate.getTime() - LAO_OFFSET_MS);
+
 export async function getRevenueStats() {
-  const now = new Date();
+  const nowLao = toLaoNow();
 
-  const todayStart = startOfDay(now);
-  const todayEnd = endOfDay(now);
+  const todayStart = toUTCDate(startOfDay(nowLao));
+  const todayEnd = toUTCDate(endOfDay(nowLao));
 
-  const weekStart = startOfWeek(now, { weekStartsOn: 1 }); // Monday
-  const weekEnd = endOfWeek(now, { weekStartsOn: 1 }); // Sunday
+  const weekStart = toUTCDate(startOfWeek(nowLao, { weekStartsOn: 1 })); // Monday
+  const weekEnd = toUTCDate(endOfWeek(nowLao, { weekStartsOn: 1 })); // Sunday
 
-  const monthStart = startOfMonth(now);
-  const monthEnd = endOfMonth(now);
+  const monthStart = toUTCDate(startOfMonth(nowLao));
+  const monthEnd = toUTCDate(endOfMonth(nowLao));
 
   const identifiers = ["call_payment", "video_payment", "chat_payment"];
 
@@ -176,87 +181,65 @@ export async function getRevenueBreakdown() {
 export async function getMonthlyRevenueData(year: number) {
   const identifiers = ["call_payment", "video_payment", "chat_payment"];
   const months = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
   ];
 
-  const monthlyQueries = Array.from({ length: 12 }, (_, index) => {
-    const start = startOfMonth(new Date(year, index, 1));
-    const end = endOfMonth(start);
+  // Single query for the whole year, then bucket in JS
+  const yearStartLao = startOfMonth(new Date(year, 0, 1));
+  const yearEndLao = endOfMonth(new Date(year, 11, 1));
 
-    return prisma.transaction_history.aggregate({
-      where: {
-        status: "approved",
-        identifier: { in: identifiers },
-        createdAt: {
-          gte: start,
-          lte: end,
-        },
-      },
-      _sum: {
-        amount: true,
-      },
-    });
+  const rows = await prisma.transaction_history.findMany({
+    where: {
+      status: "approved",
+      identifier: { in: identifiers },
+      createdAt: { gte: toUTCDate(yearStartLao), lte: toUTCDate(yearEndLao) },
+    },
+    select: { amount: true, createdAt: true },
   });
 
-  const results = await Promise.all(monthlyQueries);
+  // Bucket by month in Laos time
+  const monthTotals = new Array(12).fill(0);
+  for (const row of rows) {
+    const laoTime = new Date(row.createdAt.getTime() + LAO_OFFSET_MS);
+    const m = laoTime.getMonth();
+    monthTotals[m] += Math.abs(row.amount || 0);
+  }
 
-  return results.map((entry, i) => ({
-    month: months[i],
-    revenue: Math.round(entry._sum.amount || 0),
+  return months.map((month, i) => ({
+    month,
+    revenue: Math.round(monthTotals[i]),
   }));
 }
 
 export async function getMonthlyExpenseData(year: number) {
   const identifiers = ["withdraw"];
   const months = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
   ];
 
-  const monthlyQueries = Array.from({ length: 12 }, (_, index) => {
-    const start = startOfMonth(new Date(year, index, 1));
-    const end = endOfMonth(start);
+  const yearStartLao = startOfMonth(new Date(year, 0, 1));
+  const yearEndLao = endOfMonth(new Date(year, 11, 1));
 
-    return prisma.transaction_history.aggregate({
-      where: {
-        status: "approved",
-        identifier: { in: identifiers },
-        createdAt: {
-          gte: start,
-          lte: end,
-        },
-      },
-      _sum: {
-        amount: true,
-      },
-    });
+  const rows = await prisma.transaction_history.findMany({
+    where: {
+      status: "approved",
+      identifier: { in: identifiers },
+      createdAt: { gte: toUTCDate(yearStartLao), lte: toUTCDate(yearEndLao) },
+    },
+    select: { amount: true, createdAt: true },
   });
 
-  const results = await Promise.all(monthlyQueries);
+  const monthTotals = new Array(12).fill(0);
+  for (const row of rows) {
+    const laoTime = new Date(row.createdAt.getTime() + LAO_OFFSET_MS);
+    const m = laoTime.getMonth();
+    monthTotals[m] += Math.abs(row.amount || 0);
+  }
 
-  return results.map((entry, i) => ({
-    month: months[i],
-    expense: Math.round(entry._sum.amount || 0),
+  return months.map((month, i) => ({
+    month,
+    expense: Math.round(monthTotals[i]),
   }));
 }

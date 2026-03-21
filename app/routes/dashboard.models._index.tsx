@@ -320,7 +320,7 @@ export default function Models() {
                             </div>
                             <div className="w-full flex items-center space-x-2">
                                 <input
-                                    type="date"
+                                    type="datetime-local"
                                     name="from"
                                     className="border-gray-200 focus:border-pink-300 focus:ring-pink-300 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                     defaultValue={filters.fromDate}
@@ -328,7 +328,7 @@ export default function Models() {
                                 />
                                 <span className="text-gray-400">-</span>
                                 <input
-                                    type="date"
+                                    type="datetime-local"
                                     name="to"
                                     className="border-gray-200 focus:border-pink-300 focus:ring-pink-300 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                     defaultValue={filters.toDate}
