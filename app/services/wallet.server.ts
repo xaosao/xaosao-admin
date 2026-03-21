@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "./database.server";
+import { parseLaoDate } from "./timezone.server";
 import { UserStatus } from "~/interfaces/base";
 import { createAuditLogs } from "./log.server";
 import { IWalletInputs } from "~/interfaces/wallet";
@@ -105,11 +106,11 @@ export async function getWallets(
     if (fromDate || toDate) {
       whereClause.createdAt = {};
       if (fromDate) {
-        whereClause.createdAt.gte = new Date(fromDate);
+        whereClause.createdAt.gte = parseLaoDate(fromDate);
       }
       if (toDate) {
         if (toDate.includes("T")) {
-          whereClause.createdAt.lte = new Date(toDate);
+          whereClause.createdAt.lte = parseLaoDate(toDate);
         } else {
           const endDate = new Date(toDate);
           endDate.setDate(endDate.getDate() + 1);

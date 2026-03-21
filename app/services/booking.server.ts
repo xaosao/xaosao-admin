@@ -1,4 +1,5 @@
 import { prisma } from "./database.server";
+import { parseLaoDate } from "./timezone.server";
 import { createAuditLogs } from "./log.server";
 import { FieldValidationError } from "./admin.server";
 
@@ -58,11 +59,11 @@ export async function getBookings(options: BookingFilters = {}) {
     if (fromDate || toDate) {
       where.startDate = {};
       if (fromDate) {
-        where.startDate.gte = new Date(fromDate);
+        where.startDate.gte = parseLaoDate(fromDate);
       }
       if (toDate) {
         where.startDate.lte = toDate.includes("T")
-          ? new Date(toDate)
+          ? parseLaoDate(toDate)
           : new Date(toDate + "T23:59:59.999Z");
       }
     }

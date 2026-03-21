@@ -1,4 +1,5 @@
 import { prisma } from "./database.server";
+import { parseLaoDate } from "./timezone.server";
 import {
   startOfDay,
   endOfDay,
@@ -23,13 +24,12 @@ function getDateRange(period: string, fromDate?: string, toDate?: string) {
 
   if (fromDate || toDate) {
     const range: any = {};
-    if (fromDate) range.gte = new Date(fromDate);
+    if (fromDate) range.gte = parseLaoDate(fromDate);
     if (toDate) {
-      const end = new Date(toDate);
-      // If time component is included (datetime-local), use it directly; otherwise add 1 day
       if (toDate.includes("T")) {
-        range.lte = end;
+        range.lte = parseLaoDate(toDate);
       } else {
+        const end = new Date(toDate);
         end.setDate(end.getDate() + 1);
         range.lt = end;
       }

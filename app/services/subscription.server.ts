@@ -1,4 +1,5 @@
 import { prisma } from "./database.server";
+import { parseLaoDate } from "./timezone.server";
 
 interface GetSubscriptionsOptions {
     search?: string;
@@ -48,11 +49,11 @@ export async function getSubscriptions(options: GetSubscriptionsOptions) {
     if (fromDate || toDate) {
         where.createdAt = {};
         if (fromDate) {
-            where.createdAt.gte = new Date(fromDate);
+            where.createdAt.gte = parseLaoDate(fromDate);
         }
         if (toDate) {
             if (toDate.includes("T")) {
-                where.createdAt.lte = new Date(toDate);
+                where.createdAt.lte = parseLaoDate(toDate);
             } else {
                 const endDate = new Date(toDate);
                 endDate.setHours(23, 59, 59, 999);

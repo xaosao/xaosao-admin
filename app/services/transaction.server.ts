@@ -1,4 +1,5 @@
 import { prisma } from "./database.server";
+import { parseLaoDate } from "./timezone.server";
 import { createAuditLogs } from "./log.server";
 import { FieldValidationError } from "./admin.server";
 import { ITransactionInput } from "~/routes/dashboard.transactions.reject.$id";
@@ -70,11 +71,11 @@ export async function getTransactions(
     if (fromDate || toDate) {
       whereClause.createdAt = {};
       if (fromDate) {
-        whereClause.createdAt.gte = new Date(fromDate);
+        whereClause.createdAt.gte = parseLaoDate(fromDate);
       }
       if (toDate) {
         if (toDate.includes("T")) {
-          whereClause.createdAt.lte = new Date(toDate);
+          whereClause.createdAt.lte = parseLaoDate(toDate);
         } else {
           const endDate = new Date(toDate);
           endDate.setDate(endDate.getDate() + 1);

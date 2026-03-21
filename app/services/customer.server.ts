@@ -2,6 +2,7 @@ import { default as bcrypt } from "bcryptjs";
 
 import { ICustomer } from "~/interfaces";
 import { prisma } from "./database.server";
+import { parseLaoDate } from "./timezone.server";
 import { createWallet } from "./wallet.server";
 import { UserStatus } from "~/interfaces/base";
 import { getLocationDetails } from "./ip.server";
@@ -67,11 +68,11 @@ export async function getCustomers(
     if (fromDate || toDate) {
       whereClause.createdAt = {};
       if (fromDate) {
-        whereClause.createdAt.gte = new Date(fromDate);
+        whereClause.createdAt.gte = parseLaoDate(fromDate);
       }
       if (toDate) {
         if (toDate.includes("T")) {
-          whereClause.createdAt.lte = new Date(toDate);
+          whereClause.createdAt.lte = parseLaoDate(toDate);
         } else {
           const endDate = new Date(toDate);
           endDate.setDate(endDate.getDate() + 1);

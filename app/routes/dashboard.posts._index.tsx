@@ -36,6 +36,7 @@ import { capitalizeFirstLetter, formatDate, truncateText } from "~/utils";
 import { useAuthStore } from "~/store/permissionStore";
 import { ForbiddenCard } from "~/components/ui/forbidden-card";
 import { prisma } from "~/services/database.server";
+import { parseLaoDate } from "~/services/timezone.server";
 
 interface LoaderData {
     posts: any[];
@@ -426,10 +427,10 @@ export async function loader({ request }: { request: Request }) {
     }
     if (fromDate || toDate) {
         where.createdAt = {};
-        if (fromDate) where.createdAt.gte = new Date(fromDate);
+        if (fromDate) where.createdAt.gte = parseLaoDate(fromDate);
         if (toDate) {
             if (toDate.includes("T")) {
-                where.createdAt.lte = new Date(toDate);
+                where.createdAt.lte = parseLaoDate(toDate);
             } else {
                 const endDate = new Date(toDate);
                 endDate.setHours(23, 59, 59, 999);

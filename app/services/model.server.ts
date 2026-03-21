@@ -1,4 +1,5 @@
 import { prisma } from "./database.server";
+import { parseLaoDate } from "./timezone.server";
 import { default as bcrypt } from "bcryptjs";
 import { createWallet } from "./wallet.server";
 import { createAuditLogs } from "./log.server";
@@ -75,11 +76,11 @@ export async function getModels(
     if (fromDate || toDate) {
       whereClause.createdAt = {};
       if (fromDate) {
-        whereClause.createdAt.gte = new Date(fromDate);
+        whereClause.createdAt.gte = parseLaoDate(fromDate);
       }
       if (toDate) {
         if (toDate.includes("T")) {
-          whereClause.createdAt.lte = new Date(toDate);
+          whereClause.createdAt.lte = parseLaoDate(toDate);
         } else {
           const endDate = new Date(toDate);
           endDate.setDate(endDate.getDate() + 1);
@@ -470,11 +471,11 @@ export async function getModelsApproval(
     if (fromDate || toDate) {
       whereClause.createdAt = {};
       if (fromDate) {
-        whereClause.createdAt.gte = new Date(fromDate);
+        whereClause.createdAt.gte = parseLaoDate(fromDate);
       }
       if (toDate) {
         if (toDate.includes("T")) {
-          whereClause.createdAt.lte = new Date(toDate);
+          whereClause.createdAt.lte = parseLaoDate(toDate);
         } else {
           const endDate = new Date(toDate);
           endDate.setDate(endDate.getDate() + 1);
