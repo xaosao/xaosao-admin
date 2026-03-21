@@ -273,7 +273,7 @@ export default function SubscriptionsIndex() {
                                 />
                             </div>
                             {/* Status - Desktop */}
-                            <div className="hidden sm:block w-40">
+                            <div className="hidden sm:block w-30">
                                 <select
                                     name="status"
                                     className={selectClass}
@@ -288,7 +288,7 @@ export default function SubscriptionsIndex() {
                                 </select>
                             </div>
                             {/* Package - Desktop */}
-                            <div className="hidden sm:block w-44">
+                            <div className="hidden sm:block w-30">
                                 <select
                                     name="package"
                                     className={selectClass}
@@ -362,7 +362,7 @@ export default function SubscriptionsIndex() {
                                 </select>
                             </div>
                             {/* Show By */}
-                            <div className="w-28">
+                            <div className="w-16">
                                 <select
                                     name="showBy"
                                     className={selectClass}
@@ -830,11 +830,10 @@ export default function SubscriptionsIndex() {
                                     {logsFetcher.data.logs.map((log: any) => (
                                         <div key={log.id} className="border border-gray-100 rounded-lg p-3 hover:bg-gray-50 transition-colors">
                                             <div className="flex items-center justify-between mb-1">
-                                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                                                    log.status === "success"
-                                                        ? "bg-green-100 text-green-700"
-                                                        : "bg-red-100 text-red-700"
-                                                }`}>
+                                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${log.status === "success"
+                                                    ? "bg-green-100 text-green-700"
+                                                    : "bg-red-100 text-red-700"
+                                                    }`}>
                                                     {log.status}
                                                 </span>
                                                 <span className="text-xs text-gray-400">
