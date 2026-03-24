@@ -40,6 +40,7 @@ import {
     Search,
     X,
     Loader2,
+    RotateCcw,
 } from "lucide-react";
 
 // utils and service
@@ -385,6 +386,13 @@ export default function Wallets() {
                                                     </Link>
                                                 </Button>
                                             )}
+                                            {canEdit && wallet.customerId !== null && (
+                                                <Button variant="outline" size="sm" className="h-8 px-2 text-rose-500 border-rose-200 hover:bg-rose-50" asChild>
+                                                    <Link to={`return-fund/${wallet.id}`}>
+                                                        <RotateCcw className="h-3 w-3" />Return
+                                                    </Link>
+                                                </Button>
+                                            )}
                                             {canEdit && (
                                                 <Button variant="outline" size="sm" className="h-8 px-2 text-orange-500 border-orange-200 hover:bg-orange-50" asChild>
                                                     <Link to={`ban/${wallet.id}`}>
@@ -500,6 +508,12 @@ export default function Wallets() {
                                                                 <Link to={`adjust/${wallet.id}`} className="flex space-x-2">
                                                                     <DollarSignIcon className="mr-2 h-3 w-3" />
                                                                     <span>Adjust balance</span>
+                                                                </Link>
+                                                            </DropdownMenuItem>}
+                                                            {canEdit && wallet.customerId !== null && <DropdownMenuItem className="text-sm text-rose-500">
+                                                                <Link to={`return-fund/${wallet.id}`} className="flex space-x-2">
+                                                                    <RotateCcw className="mr-2 h-3 w-3" />
+                                                                    <span>Return Fund</span>
                                                                 </Link>
                                                             </DropdownMenuItem>}
                                                             <DropdownMenuSeparator />

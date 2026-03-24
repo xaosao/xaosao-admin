@@ -37,6 +37,7 @@ const identifierLabels: Record<string, string> = {
     // Customer outgoing
     subscription: "Subscription",
     booking_hold: "Booking Payment",
+    return_fund: "Return Fund",
 };
 
 function formatDate(dateString: string | Date) {
