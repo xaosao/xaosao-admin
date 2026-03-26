@@ -479,6 +479,8 @@ model wallet {
   @@index([customerId])
   @@index([modelId])
   @@index([status])
+  @@index([customerId, status])
+  @@index([modelId, status])
 }
 
 model transaction_history {
@@ -519,6 +521,10 @@ model transaction_history {
   @@index([status])
   @@index([identifier])
   @@index([createdAt])
+  @@index([customerId, status])
+  @@index([modelId, status])
+  @@index([identifier, status])
+  @@index([customerId, createdAt])
 }
 
 model service {
@@ -673,6 +679,9 @@ model service_booking {
   @@index([customerId])
   @@index([modelId])
   @@index([createdAt])
+  @@index([customerId, status])
+  @@index([modelId, status])
+  @@index([status, createdAt])
 }
 
 model session {
@@ -778,6 +787,7 @@ model messages {
 
   @@index([conversationId])
   @@index([sender])
+  @@index([conversationId, createdAt])
 }
 
 model review {
@@ -999,6 +1009,10 @@ model post {
   @@index([modelId])
   @@index([authorType])
   @@index([createdAt])
+  @@index([customerId, status])
+  @@index([modelId, status])
+  @@index([authorType, status])
+  @@index([status, createdAt])
 }
 
 model post_interest {
