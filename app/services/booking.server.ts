@@ -1037,7 +1037,6 @@ export async function verifyAndRefundCompletedBooking(
             firstName: true,
             lastName: true,
             whatsapp: true,
-            Wallet: { select: { id: true, totalBalance: true } },
           },
         },
         model: {
@@ -1046,7 +1045,6 @@ export async function verifyAndRefundCompletedBooking(
             firstName: true,
             lastName: true,
             whatsapp: true,
-            Wallet: { select: { id: true, totalBalance: true } },
           },
         },
         modelService: {
@@ -1070,8 +1068,15 @@ export async function verifyAndRefundCompletedBooking(
     const customerRefundAmount = modelReceivedAmount;   // refund same amount model received (90%)
     const modelDeductAmount = modelReceivedAmount;      // take back everything model received
 
-    const customerWallet = booking.customer?.Wallet?.[0];
-    const modelWallet = booking.model?.Wallet?.[0];
+    // Find wallets directly with status filter
+    const customerWallet = await prisma.wallet.findFirst({
+      where: { customerId: booking.customerId!, status: "active" },
+      select: { id: true, totalBalance: true },
+    });
+    const modelWallet = await prisma.wallet.findFirst({
+      where: { modelId: booking.modelId!, status: "active" },
+      select: { id: true, totalBalance: true },
+    });
 
     if (!customerWallet) throw new Error("Customer wallet not found.");
     if (!modelWallet) throw new Error("Model wallet not found.");

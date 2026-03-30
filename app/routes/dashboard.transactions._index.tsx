@@ -334,11 +334,12 @@ export default function Transactions() {
                                             <div className="flex justify-between items-center">
                                                 <span className="text-gray-500">Amount:</span>
                                                 <span className={`font-bold ${
+                                                    (transaction.identifier === 'booking_refund' && transaction.modelId) ? 'text-rose-500' :
                                                     ['recharge', 'booking_refund', 'booking_earning', 'referral'].includes(transaction.identifier) ? 'text-green-600' :
                                                     ['withdrawal', 'payment', 'subscription'].includes(transaction.identifier) ? 'text-red-600' :
                                                     transaction.identifier === 'booking_hold' ? 'text-orange-600' : 'text-gray-900'
                                                 }`}>
-                                                    {['recharge', 'booking_refund', 'booking_earning', 'referral'].includes(transaction.identifier) ? '+' : '-'}
+                                                    {(transaction.identifier === 'booking_refund' && transaction.modelId) ? '-' : ['recharge', 'booking_refund', 'booking_earning', 'referral'].includes(transaction.identifier) ? '+' : '-'}
                                                     {Math.abs(transaction.amount).toLocaleString()} Kip
                                                 </span>
                                             </div>
@@ -353,12 +354,13 @@ export default function Transactions() {
                                                 <Badge
                                                     variant="outline"
                                                     className={`text-xs ${
+                                                        (transaction.identifier === 'booking_refund' && transaction.modelId) ? 'text-rose-600 border-rose-200' :
                                                         ['recharge', 'booking_refund', 'booking_earning', 'referral'].includes(transaction.identifier) ? 'text-green-800 border-green-200' :
                                                         ['withdrawal', 'payment', 'subscription'].includes(transaction.identifier) ? 'text-red-800 border-red-200' :
                                                         transaction.identifier === 'booking_hold' ? 'text-orange-800 border-orange-200' : 'text-gray-800'
                                                     }`}
                                                 >
-                                                    {['recharge', 'booking_refund', 'booking_earning', 'referral'].includes(transaction.identifier) ? '+' : '-'}
+                                                    {(transaction.identifier === 'booking_refund' && transaction.modelId) ? '-' : ['recharge', 'booking_refund', 'booking_earning', 'referral'].includes(transaction.identifier) ? '+' : '-'}
                                                     {capitalizeFirstLetter(transaction.identifier?.replace('_', ' '))}
                                                 </Badge>
                                             </div>

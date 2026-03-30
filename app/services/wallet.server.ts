@@ -670,7 +670,7 @@ export async function getWalletSummary(
       : ["approved"];
 
     const withdrawalIdentifiers = isModel
-      ? ["withdrawal"]
+      ? ["withdrawal", "booking_refund"]
       : ["subscription", "booking_hold", "gift", "return_fund"];
 
     // For customers: booking_hold uses "held/released/refunded" status, subscription uses "approved"
