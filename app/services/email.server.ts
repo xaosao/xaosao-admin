@@ -45,7 +45,7 @@ interface EmailOptions {
   html: string;
 }
 
-async function sendEmail(options: EmailOptions): Promise<boolean> {
+export async function sendEmail(options: EmailOptions): Promise<boolean> {
   try {
     if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
       console.warn("SMTP credentials not configured. Email not sent.");

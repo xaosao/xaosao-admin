@@ -238,6 +238,9 @@ model model {
   defaultLanguage     String    @default("en") // 11
   defaultTheme        String    @default("light") // 12
 
+  isProfileHidden          Boolean @default(false) // Self-service profile visibility toggle
+  vip                      Boolean @default(false) // VIP status set by admin
+
   // Model type for tiered commission system
   type                     String  @default("normal") // "normal", "special", "partner"
 

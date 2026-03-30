@@ -17,6 +17,7 @@ import {
     Phone,
     EyeOff,
     Coins,
+    ShieldAlert,
 } from "lucide-react";
 
 // components
@@ -63,6 +64,7 @@ const statusConfig: Record<string, { label: string; color: string; icon: any }> 
     cancelled: { label: "Cancelled", color: "bg-gray-100 text-gray-800 border-gray-200", icon: XCircle },
     rejected: { label: "Rejected", color: "bg-red-100 text-red-800 border-red-200", icon: XCircle },
     disputed: { label: "Disputed", color: "bg-orange-100 text-orange-800 border-orange-200", icon: AlertTriangle },
+    admin_refunded: { label: "Admin Refunded", color: "bg-purple-100 text-purple-800 border-purple-200", icon: RotateCcw },
 };
 
 export default function Bookings() {
@@ -70,6 +72,8 @@ export default function Bookings() {
     const [searchParams] = useSearchParams();
     const formRef = useRef<HTMLFormElement>(null);
     const hasPermission = useAuthStore((state) => state.hasPermission);
+    const role = useAuthStore((state) => state.role);
+    const isSuperAdmin = role?.name === "superadmin";
     const { bookings, stats, pagination, filters, success, error } = useLoaderData<LoaderData>();
     usePolling(15_000); // Auto-refresh every 15 seconds
 
@@ -287,6 +291,7 @@ export default function Bookings() {
                                         <option value="cancelled">Cancelled</option>
                                         <option value="rejected">Rejected</option>
                                         <option value="disputed">Disputed</option>
+                                        <option value="admin_refunded">Admin Refunded</option>
                                     </select>
                                 </div>
                                 {/* Date range */}
@@ -332,6 +337,7 @@ export default function Bookings() {
                                         <option value="cancelled">Cancelled</option>
                                         <option value="rejected">Rejected</option>
                                         <option value="disputed">Disputed</option>
+                                        <option value="admin_refunded">Admin Refunded</option>
                                     </select>
                                 </div>
                                 {/* Show by */}
@@ -539,6 +545,14 @@ export default function Bookings() {
                                                                     </Link>
                                                                 </DropdownMenuItem>
                                                             )}
+                                                            {booking.status === "completed" && (new Date().getTime() - new Date(booking.createdAt).getTime() <= 7 * 24 * 60 * 60 * 1000) && (
+                                                                <DropdownMenuItem className="text-sm">
+                                                                    <Link to={`admin-refund/${booking.id}`} className="flex space-x-2">
+                                                                        <ShieldAlert className="mr-2 h-3 w-3 text-red-600" />
+                                                                        <span className="text-red-600">Admin Refund</span>
+                                                                    </Link>
+                                                                </DropdownMenuItem>
+                                                            )}
                                                         </DropdownMenuContent>
                                                     </DropdownMenu>
                                                 </TableCell>
@@ -632,6 +646,14 @@ export default function Bookings() {
                                                                 <Link to={`complete/${booking.id}`} className="flex space-x-2">
                                                                     <CheckCircle className="mr-2 h-3 w-3 text-green-500" />
                                                                     <span>Complete</span>
+                                                                </Link>
+                                                            </DropdownMenuItem>
+                                                        )}
+                                                        {booking.status === "completed" && (new Date().getTime() - new Date(booking.createdAt).getTime() <= 7 * 24 * 60 * 60 * 1000) && (
+                                                            <DropdownMenuItem className="text-sm">
+                                                                <Link to={`admin-refund/${booking.id}`} className="flex space-x-2">
+                                                                    <ShieldAlert className="mr-2 h-3 w-3 text-red-600" />
+                                                                    <span className="text-red-600">Admin Refund</span>
                                                                 </Link>
                                                             </DropdownMenuItem>
                                                         )}

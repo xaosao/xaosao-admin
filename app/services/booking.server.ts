@@ -715,24 +715,18 @@ export async function adminResolveDispute(
 
     if (!booking) {
       throw new FieldValidationError({
-        success: false,
-        error: true,
         message: "The booking does not exist!",
       });
     }
 
     if (booking.status !== "disputed") {
       throw new FieldValidationError({
-        success: false,
-        error: true,
         message: "Only disputed bookings can be resolved!",
       });
     }
 
     if (!booking.modelId || !booking.customerId) {
       throw new FieldValidationError({
-        success: false,
-        error: true,
         message: "Booking missing model or customer information!",
       });
     }
@@ -745,8 +739,6 @@ export async function adminResolveDispute(
 
       if (!modelWallet) {
         throw new FieldValidationError({
-          success: false,
-          error: true,
           message: "Model wallet not found!",
         });
       }
@@ -834,8 +826,6 @@ export async function adminResolveDispute(
 
       if (!customerWallet) {
         throw new FieldValidationError({
-          success: false,
-          error: true,
           message: "Customer wallet not found!",
         });
       }
@@ -934,9 +924,274 @@ export async function adminResolveDispute(
     }
 
     throw new FieldValidationError({
-      success: false,
-      error: true,
       message: "Failed to resolve dispute!",
     });
+  }
+}
+
+// ==========================================
+// In-memory store for admin refund OTP codes
+// ==========================================
+const adminRefundCodes = new Map<string, { code: string; expiresAt: Date; bookingId: string }>();
+
+/**
+ * Generate and send a 6-digit verification code for admin refund
+ */
+export async function sendAdminRefundCode(bookingId: string, adminUserId: string) {
+  // Check daily limit: only 1 admin refund per day
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date();
+  todayEnd.setHours(23, 59, 59, 999);
+
+  const todayRefundCount = await prisma.service_booking.count({
+    where: {
+      status: "admin_refunded",
+      disputeResolvedAt: {
+        gte: todayStart,
+        lte: todayEnd,
+      },
+    },
+  });
+
+  const dailyLimit = process.env.NODE_ENV === "production" ? 1 : 10;
+  if (todayRefundCount >= dailyLimit) {
+    throw new Error(`Daily limit reached. Only ${dailyLimit} completed booking refund(s) allowed per day.`);
+  }
+
+  // Verify booking exists and is completed
+  const booking = await prisma.service_booking.findUnique({
+    where: { id: bookingId },
+  });
+
+  if (!booking) throw new Error("Booking not found.");
+  if (booking.status !== "completed") throw new Error("Only completed bookings can be admin-refunded.");
+  if (booking.paymentStatus === "refunded") throw new Error("This booking has already been refunded.");
+
+  // Generate 6-digit code
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+
+  // Store code keyed by admin user ID
+  adminRefundCodes.set(adminUserId, { code, expiresAt, bookingId });
+
+  // Send code via email
+  const { sendEmail } = await import("./email.server");
+  await sendEmail({
+    to: "xaosao95@gmail.com",
+    subject: `XaoSao Admin Refund Verification Code`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 400px; margin: 0 auto;">
+        <h2 style="color: #e11d48;">Admin Refund Verification</h2>
+        <p>Your verification code for refunding booking <strong>#${bookingId.slice(-6)}</strong>:</p>
+        <div style="background: #f1f5f9; padding: 20px; text-align: center; border-radius: 8px; margin: 16px 0;">
+          <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #1e293b;">${code}</span>
+        </div>
+        <p style="color: #64748b; font-size: 14px;">This code expires in 5 minutes.</p>
+      </div>
+    `,
+  });
+
+  return { success: true, message: "Verification code sent to admin email." };
+}
+
+/**
+ * Verify code and process admin refund for completed booking
+ * - 90% refund to customer
+ * - 5% deduct from model
+ * - 5% kept by system
+ */
+export async function verifyAndRefundCompletedBooking(
+  bookingId: string,
+  adminUserId: string,
+  code: string
+) {
+  // Verify code
+  const stored = adminRefundCodes.get(adminUserId);
+  if (!stored || stored.bookingId !== bookingId) {
+    throw new Error("No verification code found. Please request a new code.");
+  }
+  if (new Date() > stored.expiresAt) {
+    adminRefundCodes.delete(adminUserId);
+    throw new Error("Verification code has expired. Please request a new code.");
+  }
+  if (stored.code !== code) {
+    throw new Error("Invalid verification code.");
+  }
+
+  // Code is valid - remove it
+  adminRefundCodes.delete(adminUserId);
+
+  const auditBase = {
+    action: "ADMIN_REFUND_COMPLETED_BOOKING",
+    user: adminUserId,
+  };
+
+  try {
+    const booking = await prisma.service_booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        customer: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            whatsapp: true,
+            Wallet: { select: { id: true, totalBalance: true } },
+          },
+        },
+        model: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            whatsapp: true,
+            Wallet: { select: { id: true, totalBalance: true } },
+          },
+        },
+        modelService: {
+          select: {
+            service: { select: { name: true, commission: true } },
+          },
+        },
+      },
+    });
+
+    if (!booking) throw new Error("Booking not found.");
+    if (booking.status !== "completed") throw new Error("Only completed bookings can be admin-refunded.");
+    if (booking.paymentStatus === "refunded") throw new Error("This booking has already been refunded.");
+
+    const daysSinceBooking = (new Date().getTime() - new Date(booking.createdAt).getTime()) / (24 * 60 * 60 * 1000);
+    if (daysSinceBooking > 7) throw new Error("Admin refund is only available for bookings within the last 7 days.");
+
+    const bookingPrice = booking.price;
+    const commissionRate = booking.modelService?.service?.commission || 10; // default 10%
+    const modelReceivedAmount = Math.floor(bookingPrice * (1 - commissionRate / 100)); // what model got on completion
+    const customerRefundAmount = modelReceivedAmount;   // refund same amount model received (90%)
+    const modelDeductAmount = modelReceivedAmount;      // take back everything model received
+
+    const customerWallet = booking.customer?.Wallet?.[0];
+    const modelWallet = booking.model?.Wallet?.[0];
+
+    if (!customerWallet) throw new Error("Customer wallet not found.");
+    if (!modelWallet) throw new Error("Model wallet not found.");
+
+    // 1. Create refund transaction for customer (+90%)
+    const customerRefundTx = await prisma.transaction_history.create({
+      data: {
+        identifier: "booking_refund",
+        amount: customerRefundAmount,
+        status: "approved",
+        comission: 0,
+        fee: 0,
+        customerId: booking.customerId,
+        reason: `Admin refund 90% for completed booking #${bookingId.slice(-6)}`,
+      },
+    });
+
+    // 2. Create deduction transaction for model (-5%)
+    const modelDeductTx = await prisma.transaction_history.create({
+      data: {
+        identifier: "booking_refund",
+        amount: modelDeductAmount,
+        status: "approved",
+        comission: 0,
+        fee: 0,
+        modelId: booking.modelId,
+        reason: `Admin deduction for refunded booking #${bookingId.slice(-6)}`,
+      },
+    });
+
+    // 3. Update customer wallet: increment totalBalance (add money back)
+    await prisma.wallet.update({
+      where: { id: customerWallet.id },
+      data: {
+        totalBalance: { increment: customerRefundAmount },
+      },
+    });
+
+    // 4. Update model wallet: decrement totalBalance (take money out)
+    await prisma.wallet.update({
+      where: { id: modelWallet.id },
+      data: {
+        totalBalance: { decrement: modelDeductAmount },
+      },
+    });
+
+    // 5. Update booking status
+    await prisma.service_booking.update({
+      where: { id: bookingId },
+      data: {
+        status: "admin_refunded",
+        paymentStatus: "refunded",
+        disputeResolution: "admin_refunded",
+        disputeResolvedAt: new Date(),
+      },
+    });
+
+    // 6. Audit log
+    await createAuditLogs({
+      ...auditBase,
+      description: `Admin refunded completed booking ${bookingId}. Customer +${customerRefundAmount.toLocaleString()} LAK, Model -${modelDeductAmount.toLocaleString()} LAK.`,
+      status: "success",
+      onSuccess: { customerRefundTx, modelDeductTx },
+    });
+
+    // 7. Send notifications (SMS + in-app)
+    try {
+      const { sendSMS, createCustomerNotification, createModelNotification } = await import("./email.server");
+      const serviceName = booking.modelService?.service?.name || "Service";
+      const customerName = `${booking.customer?.firstName || ""} ${booking.customer?.lastName || ""}`.trim();
+      const modelName = `${booking.model?.firstName || ""} ${booking.model?.lastName || ""}`.trim();
+
+      // In-app notification for customer
+      await createCustomerNotification(booking.customerId!, {
+        type: "payment_refunded",
+        title: "ໄດ້ຮັບເງິນຄືນ!",
+        message: `ການຈອງ "${serviceName}" ໄດ້ຖືກຄືນເງິນ ${customerRefundAmount.toLocaleString()} LAK (90%) ໃສ່ Wallet ຂອງທ່ານແລ້ວ.`,
+        data: { bookingId, amount: customerRefundAmount },
+      });
+
+      // In-app notification for model
+      await createModelNotification(booking.modelId!, {
+        type: "deposit_approved",
+        title: "ການຈອງຖືກຄືນເງິນ",
+        message: `ການຈອງ "${serviceName}" ກັບ ${customerName} ໄດ້ຖືກ admin ຄືນເງິນ. ${modelDeductAmount.toLocaleString()} LAK (5%) ຖືກຫັກອອກຈາກ Wallet ຂອງທ່ານ.`,
+        data: { bookingId, amount: modelDeductAmount },
+      });
+
+      // SMS to customer
+      if (booking.customer?.whatsapp) {
+        const customerPhone = booking.customer.whatsapp.toString();
+        sendSMS(customerPhone, `XaoSao: ການຈອງ "${serviceName}" ໄດ້ຖືກຄືນເງິນ ${customerRefundAmount.toLocaleString()} LAK (90%) ໃສ່ Wallet ຂອງທ່ານແລ້ວ.`).catch(err =>
+          console.error("SMS to customer failed:", err)
+        );
+      }
+
+      // SMS to model
+      if (booking.model?.whatsapp) {
+        const modelPhone = booking.model.whatsapp.toString();
+        sendSMS(modelPhone, `XaoSao: ການຈອງ "${serviceName}" ກັບ ${customerName} ໄດ້ຖືກ admin ຄືນເງິນ. ${modelDeductAmount.toLocaleString()} LAK (5%) ຖືກຫັກອອກຈາກ Wallet ຂອງທ່ານ.`).catch(err =>
+          console.error("SMS to model failed:", err)
+        );
+      }
+    } catch (notificationError) {
+      console.error("Admin refund notification error (non-fatal):", notificationError);
+    }
+
+    return {
+      success: true,
+      customerRefundAmount,
+      modelDeductAmount,
+    };
+  } catch (error) {
+    console.error("ADMIN_REFUND_COMPLETED_BOOKING_FAILED", error);
+    await createAuditLogs({
+      ...auditBase,
+      description: `Failed to admin-refund completed booking ${bookingId}`,
+      status: "failed",
+      onError: error,
+    });
+    throw error;
   }
 }

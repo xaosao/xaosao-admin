@@ -20,7 +20,7 @@ import {
     Shield,
     MessageCircle,
     Share2,
-    Wallet,
+    Crown,
 } from "lucide-react";
 
 import EmptyPage from "~/components/ui/empty";
@@ -78,11 +78,6 @@ function getServicePrice(ms: any): string {
     }
 }
 
-function getModelBalance(model: any): number {
-    const wallet = model.Wallet?.[0];
-    if (!wallet) return 0;
-    return (wallet.totalBalance || 0) - (wallet.totalWithdraw || 0);
-}
 import { getModels, getModelStatus, getPendingModelCount } from "~/services/model.server";
 
 interface LoaderData {
@@ -488,10 +483,12 @@ export default function Models() {
                                             <span className="text-purple-600">Ref: {model.totalReferredModels}M / {model.totalReferredCustomers}C</span>
                                         </div>
                                     )}
-                                    <div className="flex items-center space-x-1">
-                                        <Wallet className="h-3 w-3 text-green-500" />
-                                        <span className="text-green-600">{getModelBalance(model).toLocaleString()} Kip</span>
-                                    </div>
+                                    {model.vip && (
+                                        <div className="flex items-center space-x-1">
+                                            <Crown className="h-3 w-3 text-amber-500" />
+                                            <span className="text-xs text-amber-600 font-semibold">VIP</span>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="flex items-center justify-end gap-2 pt-2 border-t">
@@ -550,7 +547,7 @@ export default function Models() {
                                     <TableHead className="font-semibold">Status</TableHead>
                                     <TableHead className="font-semibold">Rate price</TableHead>
                                     <TableHead className="font-semibold">Referral</TableHead>
-                                    <TableHead className="font-semibold">Balance</TableHead>
+                                    <TableHead className="font-semibold">VIP</TableHead>
                                     <TableHead className="font-semibold">Created at</TableHead>
                                     <TableHead className="font-semibold">Actions</TableHead>
                                 </TableRow>
@@ -588,7 +585,9 @@ export default function Models() {
                                                 {model.address}
                                             </TableCell>
                                             <TableCell>
-                                                <StatusBadge status={model.status} />
+                                                <div className="flex items-center gap-1">
+                                                    <StatusBadge status={model.status} />
+                                                </div>
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex items-start justify-start flex-col text-gray-500 gap-2">
@@ -616,11 +615,13 @@ export default function Models() {
                                                 )}
                                             </TableCell>
                                             <TableCell>
-                                                <div className="flex items-center space-x-1">
-                                                    <Wallet className="h-3 w-3 text-green-500" />
-                                                    <span className="text-sm font-medium text-green-600">{getModelBalance(model).toLocaleString()}</span>
-                                                </div>
-                                                <span className="text-xs text-gray-400">Kip</span>
+                                                {model.vip ? (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-amber-100 text-amber-700 border border-amber-200 font-semibold">
+                                                        <Crown className="h-3 w-3" /> VIP
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-xs text-gray-400">-</span>
+                                                )}
                                             </TableCell>
                                             <TableCell>
                                                 {formatDate1(model.createdAt)}
@@ -665,6 +666,14 @@ export default function Models() {
                                                                 <span>Update service rate</span>
                                                             </Link>
                                                         </DropdownMenuItem>}
+                                                        {canEdit && (
+                                                            <DropdownMenuItem className="text-sm">
+                                                                <Link to={`toggle-vip/${model.id}`} className="flex space-x-2 w-full">
+                                                                    <Crown className={`mr-2 h-3 w-3 ${model.vip ? "text-amber-500" : "text-gray-400"}`} />
+                                                                    <span>{model.vip ? "Remove VIP" : "Set VIP"}</span>
+                                                                </Link>
+                                                            </DropdownMenuItem>
+                                                        )}
                                                         {canDelete && <DropdownMenuItem className="text-sm">
                                                             <Link to={`delete/${model.id}`} className="flex space-x-2 w-full">
                                                                 <Trash2 className="mr-2 h-3 w-3" />
