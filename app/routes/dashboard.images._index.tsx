@@ -42,7 +42,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const page = Number(url.searchParams.get("page") || 1);
     const checkLost = url.searchParams.get("checkLost") === "true";
 
-    const result = await getImages({ search, userType, page, limit: 50 });
+    const result = await getImages({ search, userType, page, limit: 200 });
 
     let brokenUrls: string[] = [];
     if (checkLost) {
