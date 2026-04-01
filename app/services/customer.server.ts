@@ -17,6 +17,7 @@ export async function getCustomers(
   options: {
     search?: string;
     status?: string;
+    gender?: string;
     fromDate?: string;
     toDate?: string;
     subscription?: string;
@@ -28,6 +29,7 @@ export async function getCustomers(
     const {
       search = "",
       status = "all",
+      gender = "all",
       fromDate,
       toDate,
       subscription = "all",
@@ -63,6 +65,10 @@ export async function getCustomers(
 
     if (status && status !== "all") {
       whereClause.status = status;
+    }
+
+    if (gender && gender !== "all") {
+      whereClause.gender = gender;
     }
 
     if (fromDate || toDate) {

@@ -15,6 +15,7 @@ import {
   Megaphone,
   CreditCard,
   Gift,
+  ImageIcon,
 } from "lucide-react";
 
 export const status: any = [
@@ -153,6 +154,12 @@ export const singleNavigation = [
     href: "/dashboard/gifts",
     icon: Gift,
     permission: { group: "gift", action: "view" },
+  },
+  {
+    name: "Images",
+    href: "/dashboard/images",
+    icon: ImageIcon,
+    permission: { group: "admin", action: "view" },
   },
   {
     name: "Reviews",

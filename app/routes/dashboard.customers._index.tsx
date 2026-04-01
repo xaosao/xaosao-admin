@@ -100,6 +100,7 @@ export default function CustomersIndex() {
         (formData: FormData) => {
             const search = formData.get("search") as string;
             const status = formData.get("status") as string;
+            const gender = formData.get("gender") as string;
             const from = formData.get("from") as string;
             const to = formData.get("to") as string;
             const subscription = formData.get("subscription") as string;
@@ -108,6 +109,7 @@ export default function CustomersIndex() {
             updateFilters({
                 search: search || "",
                 status: status || "all",
+                gender: gender || "all",
                 from: from || "",
                 to: to || "",
                 subscription: subscription || "all",
@@ -215,112 +217,79 @@ export default function CustomersIndex() {
                             const formData = new FormData(e.currentTarget);
                             handleSearchSubmit(formData);
                         }}
-                        className="flex flex-col md:flex-row md:items-center md:space-y-0 space-y-2"
+                        className="space-y-2"
                     >
-                        <div className="flex flex-1 items-center space-x-4">
-                            <div className="hidden sm:block relative max-w-xs w-full">
+                        {/* Row 1: Search + Dropdowns */}
+                        <div className="flex flex-wrap items-center gap-2">
+                            <div className="relative w-full sm:w-auto sm:flex-1 sm:max-w-xs">
                                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                                 <input
                                     type="text"
                                     name="search"
                                     placeholder="Search by name, email, or ID..."
-                                    className="pl-9 border-gray-200 focus:border-pink-300 focus:ring-pink-300 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    className="pl-9 border-gray-200 focus:border-pink-300 focus:ring-pink-300 flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                     defaultValue={filters.search}
                                 />
                             </div>
-                            <div className="hidden sm:block w-36">
-                                <select
-                                    name="status"
-                                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                    defaultValue={filters.status}
-                                >
-                                    <option value="all">All Status</option>
-                                    <option value="active">Active</option>
-                                    <option value="suspended">Suspended</option>
-                                    <option value="inactive">Inactive</option>
-                                </select>
-                            </div>
-                            <div className="hidden sm:block w-44">
-                                <select
-                                    name="subscription"
-                                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                    defaultValue={filters.subscription}
-                                >
-                                    <option value="all">All Packages</option>
-                                    <option value="duplicate">Duplicate Account</option>
-                                    <option value="never">Never Subscribed</option>
-                                    <option value="24h">24-Hours</option>
-                                    <option value="1week">1 Week</option>
-                                    <option value="1month">1 Month</option>
-                                    <option value="3months">3 Months</option>
-                                </select>
-                            </div>
-                            <div className="w-full sm:w-56 flex items-center space-x-2">
-                                <input
-                                    type="datetime-local"
-                                    name="from"
-                                    className="border-gray-200 focus:border-pink-300 focus:ring-pink-300 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                    defaultValue={filters.fromDate}
-                                />
-                                <span className="text-gray-400">-</span>
-                                <input
-                                    type="datetime-local"
-                                    name="to"
-                                    className="border-gray-200 focus:border-pink-300 focus:ring-pink-300 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                    defaultValue={filters.toDate}
-                                />
-                            </div>
+                            <select
+                                name="status"
+                                className="h-9 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                                defaultValue={filters.status}
+                            >
+                                <option value="all">All Status</option>
+                                <option value="active">Active</option>
+                                <option value="suspended">Suspended</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                            <select
+                                name="gender"
+                                className="h-9 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                                defaultValue={filters.gender}
+                            >
+                                <option value="all">All Gender</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                                <option value="other">Other</option>
+                            </select>
+                            <select
+                                name="subscription"
+                                className="h-9 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                                defaultValue={filters.subscription}
+                            >
+                                <option value="all">All Packages</option>
+                                <option value="duplicate">Duplicate Account</option>
+                                <option value="never">Never Subscribed</option>
+                                <option value="24h">24-Hours</option>
+                                <option value="1week">1 Week</option>
+                                <option value="1month">1 Month</option>
+                                <option value="3months">3 Months</option>
+                            </select>
+                            <select
+                                name="showBy"
+                                className="h-9 w-16 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                                defaultValue={filters.showBy.toString()}
+                            >
+                                <option value="10">10</option>
+                                <option value="30">30</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
                         </div>
-                        <div className="flex items-center justify-end w-full md:w-auto mt-2 md:mt-0 md:ml-4 space-x-2">
-                            <div className="block sm:hidden relative max-w-xs w-full">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                                <input
-                                    type="text"
-                                    name="search"
-                                    placeholder="Search by name, email, or ID..."
-                                    className="pl-9 border-gray-200 focus:border-pink-300 focus:ring-pink-300 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                    defaultValue={filters.search}
-                                />
-                            </div>
-                            <div className="block sm:hidden w-36">
-                                <select
-                                    name="status"
-                                    className="flex h-10 w-auto items-center justify-between rounded-md border border-input bg-background py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                    defaultValue={filters.status}
-                                >
-                                    <option value="all">All Status</option>
-                                    <option value="active">Active</option>
-                                    <option value="suspended">Suspended</option>
-                                    <option value="inactive">Inactive</option>
-                                </select>
-                            </div>
-                            <div className="block sm:hidden w-44">
-                                <select
-                                    name="subscription"
-                                    className="flex h-10 w-auto items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                    defaultValue={filters.subscription}
-                                >
-                                    <option value="all">All Packages</option>
-                                    <option value="duplicate">Duplicate Account</option>
-                                    <option value="never">Never Subscribed</option>
-                                    <option value="24h">24-Hours</option>
-                                    <option value="1week">1 Week</option>
-                                    <option value="1month">1 Month</option>
-                                    <option value="3months">3 Months</option>
-                                </select>
-                            </div>
-                            <div className="w-16">
-                                <select
-                                    name="showBy"
-                                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                    defaultValue={filters.showBy.toString()}
-                                >
-                                    <option value="10">10</option>
-                                    <option value="30">30</option>
-                                    <option value="50">50</option>
-                                    <option value="100">100</option>
-                                </select>
-                            </div>
+                        {/* Row 2: Date range */}
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="datetime-local"
+                                name="from"
+                                className="h-9 w-full sm:w-auto rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                                defaultValue={filters.fromDate}
+                            />
+                            <span className="text-gray-400 text-sm">-</span>
+                            <input
+                                type="datetime-local"
+                                name="to"
+                                className="h-9 w-full sm:w-auto rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                                defaultValue={filters.toDate}
+                            />
                         </div>
                     </Form>
                 </CardHeader>
@@ -728,6 +697,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     // Extract search parameters
     const search = searchParams.get("search") || "";
     const status = searchParams.get("status") || "all";
+    const gender = searchParams.get("gender") || "all";
     const fromDate = searchParams.get("from") || "";
     const toDate = searchParams.get("to") || "";
     const subscription = searchParams.get("subscription") || "all";
@@ -739,6 +709,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         getCustomers({
             search,
             status,
+            gender,
             fromDate,
             toDate,
             subscription,
@@ -755,6 +726,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         filters: {
             search,
             status,
+            gender,
             fromDate,
             toDate,
             subscription,
