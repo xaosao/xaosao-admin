@@ -18,9 +18,21 @@ const refineSafe = (schema: z.ZodString) =>
     })
     .refine(blockInjection, { message: "Potentially unsafe input detected." });
 
+// Block restricted names (case-insensitive, ignores spaces)
+const blockedNames = ["xaosao", "ເຊົ່າສາວ"];
+const isBlockedName = (value: string) => {
+  const normalized = value.replace(/\s+/g, "").toLowerCase();
+  return !blockedNames.some((name) => normalized.includes(name.toLowerCase()));
+};
+
+const refineNameSafe = (schema: z.ZodString) =>
+  refineSafe(schema).refine(isBlockedName, {
+    message: "This name is not allowed. Please use a different name.",
+  });
+
 // ====================== Customer input validate
 const customerSchema = z.object({
-  firstName: refineSafe(
+  firstName: refineNameSafe(
     z
       .string()
       .max(20, "Invalid first name. Must be at most 20 characters long.")
@@ -76,7 +88,7 @@ export function validateCustomerInput(input: unknown) {
 
 // ====================== Customer input validate
 const customerUpdateSchema = z.object({
-  firstName: refineSafe(
+  firstName: refineNameSafe(
     z
       .string()
       .max(20, "Invalid first name. Must be at most 20 characters long.")
@@ -347,7 +359,7 @@ export function validateServiceInputs(input: IServicesInput) {
 
 // ====================== Models insert input validate
 const modelSchema = z.object({
-  firstName: refineSafe(
+  firstName: refineNameSafe(
     z
       .string()
       .max(20, "Invalid first name. Must be at most 20 characters long.")
@@ -405,7 +417,7 @@ export function validateModelInputs(input: IModelInput) {
 
 // ====================== Models update input validate
 const modelUpdateSchema = z.object({
-  firstName: refineSafe(
+  firstName: refineNameSafe(
     z
       .string()
       .max(20, "Invalid first name. Must be at most 20 characters long.")
