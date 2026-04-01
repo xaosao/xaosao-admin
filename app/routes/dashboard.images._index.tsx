@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Form, json, useLoaderData, useSearchParams, useFetcher, useNavigation } from "@remix-run/react";
 import {
     Search,
@@ -111,7 +111,6 @@ export default function ImagesPage() {
     const [hasMore, setHasMore] = useState(pagination.hasMore);
     const [currentPage, setCurrentPage] = useState(pagination.page);
     const [checkingLost, setCheckingLost] = useState(filters.checkLost);
-    const sentinelRef = useRef<HTMLDivElement>(null);
 
     const canView = hasPermission("admin", "view");
     const canEdit = hasPermission("admin", "edit");
@@ -123,25 +122,13 @@ export default function ImagesPage() {
         setCurrentPage(pagination.page);
     }, [images, pagination]);
 
-    // Infinite scroll observer
-    useEffect(() => {
-        if (!sentinelRef.current || !hasMore) return;
-
-        const observer = new IntersectionObserver(
-            (entries) => {
-                if (entries[0].isIntersecting && hasMore && loadMoreFetcher.state === "idle") {
-                    const nextPage = currentPage + 1;
-                    const params = new URLSearchParams(searchParams);
-                    params.set("page", String(nextPage));
-                    loadMoreFetcher.load(`/dashboard/images?${params.toString()}`);
-                }
-            },
-            { threshold: 0.1 }
-        );
-
-        observer.observe(sentinelRef.current);
-        return () => observer.disconnect();
-    }, [hasMore, currentPage, loadMoreFetcher.state, searchParams]);
+    const handleLoadMore = () => {
+        if (!hasMore || loadMoreFetcher.state !== "idle") return;
+        const nextPage = currentPage + 1;
+        const params = new URLSearchParams(searchParams);
+        params.set("page", String(nextPage));
+        loadMoreFetcher.load(`/dashboard/images?${params.toString()}`);
+    };
 
     // Append loaded images
     useEffect(() => {
@@ -369,15 +356,23 @@ export default function ImagesPage() {
                 </div>
             )}
 
-            {/* Load more sentinel */}
+            {/* Load more button */}
             {hasMore && (
-                <div ref={sentinelRef} className="flex items-center justify-center py-8">
-                    {loadMoreFetcher.state === "loading" && (
-                        <div className="flex items-center gap-2 text-rose-500">
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                            <span className="text-sm">Loading more...</span>
-                        </div>
-                    )}
+                <div className="flex items-center justify-center py-6">
+                    <button
+                        onClick={handleLoadMore}
+                        disabled={loadMoreFetcher.state !== "idle"}
+                        className="flex items-center gap-2 px-6 py-2 bg-rose-500 hover:bg-rose-600 disabled:bg-rose-300 text-white text-sm font-medium rounded-lg transition-colors"
+                    >
+                        {loadMoreFetcher.state === "loading" ? (
+                            <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Loading...
+                            </>
+                        ) : (
+                            <>Load More ({allImages.length} / {pagination.totalCount})</>
+                        )}
+                    </button>
                 </div>
             )}
 
