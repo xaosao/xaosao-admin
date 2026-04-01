@@ -120,25 +120,30 @@ export default function ImagesPage() {
         setAllImages(images as ImageItem[]);
         setHasMore(pagination.hasMore);
         setCurrentPage(pagination.page);
+        setLastLoadedPage(pagination.page);
     }, [images, pagination]);
+
+    const [lastLoadedPage, setLastLoadedPage] = useState(pagination.page);
 
     const handleLoadMore = () => {
         if (!hasMore || loadMoreFetcher.state !== "idle") return;
         const nextPage = currentPage + 1;
         const params = new URLSearchParams(searchParams);
         params.set("page", String(nextPage));
-        loadMoreFetcher.load(`/dashboard/images?${params.toString()}`);
+        loadMoreFetcher.load(`/dashboard/images?index&${params.toString()}`);
     };
 
     // Append loaded images
     useEffect(() => {
         if (loadMoreFetcher.data && loadMoreFetcher.state === "idle") {
             const newData = loadMoreFetcher.data as any;
-            if (newData.images?.length > 0) {
+            const newPage = newData.pagination?.page;
+            if (newPage && newPage !== lastLoadedPage && newData.images?.length > 0) {
                 setAllImages((prev) => [...prev, ...newData.images]);
                 setHasMore(newData.pagination.hasMore);
-                setCurrentPage(newData.pagination.page);
-            } else {
+                setCurrentPage(newPage);
+                setLastLoadedPage(newPage);
+            } else if (newData.images?.length === 0) {
                 setHasMore(false);
             }
         }
