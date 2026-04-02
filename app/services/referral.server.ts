@@ -3,7 +3,7 @@ import { createAuditLogs } from "./log.server";
 import { notifyReferralBonusReceived, notifyReferralTracked, notifyBookingCommissionEarned } from "./email.server";
 
 // Referral reward amount in Kip (for normal model type only)
-export const REFERRAL_REWARD_AMOUNT = 50000;
+export const REFERRAL_REWARD_AMOUNT = 10000;
 
 // Minimum referred models required for commission eligibility
 // Local: 2, Production: 5
