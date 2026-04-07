@@ -92,3 +92,19 @@ export function timeAgo(dateString: string): string {
 
   return "just now";
 }
+
+/**
+ * Short time-ago format: "30 min ago", "2h ago", "4d ago", "3w ago"
+ */
+export function timeAgoShort(dateString: string | Date): string {
+  const past = typeof dateString === "string" ? new Date(dateString) : dateString;
+  const diff = Math.floor((Date.now() - past.getTime()) / 1000);
+
+  if (diff < 60) return "just now";
+  if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
+  if (diff < 2592000) return `${Math.floor(diff / 604800)}w ago`;
+  if (diff < 31536000) return `${Math.floor(diff / 2592000)}mo ago`;
+  return `${Math.floor(diff / 31536000)}y ago`;
+}

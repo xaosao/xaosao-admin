@@ -43,7 +43,7 @@ import { usePolling } from "~/hooks/usePolling";
 
 // service and utils
 import { useAuthStore } from "~/store/permissionStore";
-import { formatDate1 } from "~/utils";
+import { formatDate1, timeAgoShort } from "~/utils";
 import { requireUserPermission, requireUserSession } from "~/services/auth.server";
 import { getBookings, getBookingStats, type BookingStats } from "~/services/booking.server";
 
@@ -460,6 +460,9 @@ export default function Bookings() {
                                                         <p className="text-xs text-gray-400">
                                                             {formatDate1(booking.startDate)}
                                                         </p>
+                                                        <p className="text-[10px] text-gray-400 italic">
+                                                            Created {timeAgoShort(booking.createdAt)}
+                                                        </p>
                                                     </div>
                                                 </TableCell>
                                                 {/* Status */}
@@ -751,6 +754,12 @@ export default function Bookings() {
                                                     <span className="text-xs text-gray-500">Date</span>
                                                     <span className="text-xs text-gray-600">
                                                         {formatDate1(booking.startDate)}
+                                                    </span>
+                                                </div>
+                                                <div className="flex justify-between items-start">
+                                                    <span className="text-xs text-gray-500">Created</span>
+                                                    <span className="text-xs text-gray-600 italic">
+                                                        {timeAgoShort(booking.createdAt)}
                                                     </span>
                                                 </div>
 

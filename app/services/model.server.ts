@@ -55,10 +55,18 @@ export async function getModels(
         },
       ];
 
-      // Allow searching by WhatsApp/phone number
-      const searchNumber = Number(search);
-      if (!isNaN(searchNumber) && searchNumber > 0) {
-        searchConditions.push({ whatsapp: searchNumber });
+      // Allow searching by WhatsApp/phone number (supports partial match)
+      const numericQuery = search.replace(/\D/g, "");
+      if (numericQuery.length >= 2) {
+        const allWithWhatsapp = await prisma.model.findMany({
+          select: { id: true, whatsapp: true },
+        });
+        const matchedIds = allWithWhatsapp
+          .filter((m) => m.whatsapp && String(m.whatsapp).includes(numericQuery))
+          .map((m) => m.id);
+        if (matchedIds.length > 0) {
+          searchConditions.push({ id: { in: matchedIds } });
+        }
       }
 
       whereClause.OR = searchConditions;
@@ -457,10 +465,18 @@ export async function getModelsApproval(
         },
       ];
 
-      // Allow searching by WhatsApp/phone number
-      const searchNumber = Number(search);
-      if (!isNaN(searchNumber) && searchNumber > 0) {
-        searchConditions.push({ whatsapp: searchNumber });
+      // Allow searching by WhatsApp/phone number (supports partial match)
+      const numericQuery = search.replace(/\D/g, "");
+      if (numericQuery.length >= 2) {
+        const allWithWhatsapp = await prisma.model.findMany({
+          select: { id: true, whatsapp: true },
+        });
+        const matchedIds = allWithWhatsapp
+          .filter((m) => m.whatsapp && String(m.whatsapp).includes(numericQuery))
+          .map((m) => m.id);
+        if (matchedIds.length > 0) {
+          searchConditions.push({ id: { in: matchedIds } });
+        }
       }
 
       whereClause.OR = searchConditions;
