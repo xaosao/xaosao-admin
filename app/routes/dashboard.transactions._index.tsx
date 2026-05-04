@@ -16,6 +16,7 @@ import {
     RotateCcw,
     CheckCircle,
     EyeOff,
+    MessageCircle,
 } from "lucide-react";
 
 // components
@@ -207,6 +208,7 @@ export default function Transactions() {
                                         <option value="rejected">Rejected</option>
                                         <option value="pending">Pending</option>
                                         <option value="held">Held</option>
+                                        <option value="awaiting_slip">Awaiting Slip</option>
                                     </select>
                                 </div>
                                 <div className="w-full sm:w-56 flex items-center space-x-1 sm:space-x-2 ml-2 sm:ml-0">
@@ -250,6 +252,7 @@ export default function Transactions() {
                                         <option value="rejected">Rejected</option>
                                         <option value="pending">Pending</option>
                                         <option value="held">Held</option>
+                                        <option value="awaiting_slip">Awaiting Slip</option>
                                     </select>
                                 </div>
                                 <div className="w-28">
@@ -384,6 +387,17 @@ export default function Transactions() {
                                                         <Eye className="h-3 w-3 mr-1" /> View
                                                     </Button>
                                                 </Link>
+                                            )}
+                                            {transaction.status === "awaiting_slip" && (transaction.customer?.whatsapp || transaction.model?.whatsapp) && (
+                                                <a
+                                                    href={`https://wa.me/${(transaction.customer?.whatsapp ?? transaction.model?.whatsapp)}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                >
+                                                    <Button variant="outline" size="sm" className="h-8 text-xs text-green-600 border-green-200 hover:bg-green-50">
+                                                        <MessageCircle className="h-3 w-3 mr-1" /> WhatsApp
+                                                    </Button>
+                                                </a>
                                             )}
                                             {transaction.status === "pending" && canEdit && !transaction.customerHidden && !transaction.modelHidden && (
                                                 <Link to={`approve/${transaction.id}?type=${transaction.customerId === null ? "model" : "customer"}`}>
@@ -556,6 +570,19 @@ export default function Transactions() {
                                                                     <span>View details</span>
                                                                 </Link>
                                                             </DropdownMenuItem>}
+                                                            {transaction.status === "awaiting_slip" && (transaction.customer?.whatsapp || transaction.model?.whatsapp) && (
+                                                                <DropdownMenuItem className="text-sm">
+                                                                    <a
+                                                                        href={`https://wa.me/${transaction.customer?.whatsapp ?? transaction.model?.whatsapp}`}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="flex space-x-2 text-green-600 w-full"
+                                                                    >
+                                                                        <MessageCircle className="mr-2 h-3 w-3" />
+                                                                        <span>Chat on WhatsApp</span>
+                                                                    </a>
+                                                                </DropdownMenuItem>
+                                                            )}
                                                             {transaction.status === "pending" && canEdit && !transaction.customerHidden && !transaction.modelHidden &&
                                                                 <DropdownMenuItem className="text-sm">
                                                                     <Link to={`approve/${transaction.id}?type=${transaction.customerId === null ? "model" : "customer"}`} className="flex space-x-2">
@@ -661,6 +688,7 @@ export async function loader({ request }: { request: Request }) {
             success,
             filters: {
                 search,
+                identifier,
                 status,
                 fromDate,
                 toDate,

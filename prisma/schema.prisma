@@ -164,6 +164,10 @@ model customer {
   sendSMSNoti        Boolean   @default(true) // 8 - default ON for new users
   sendPushNoti       Boolean   @default(false) // 9 - default OFF, modal will prompt to enable
   sendWhatsappNoti   Boolean   @default(false) // 10 - WhatsApp notifications via Twilio
+  // Per-type push mute list — when a notification type is in this array,
+  // the xs_backend notification service skips push delivery (the in-app
+  // row is still written so the user can see it in their feed).
+  mutedNotificationTypes String[] @default([])
   defaultLanguage    String    @default("en") // 11
   defaultTheme       String    @default("light") // 12
 
@@ -192,6 +196,9 @@ model customer {
   model_interactions    model_interactions[]
   walletId              String?                 @db.ObjectId
   reports               reports[]
+  // User-to-user abuse reports (separate from `reports` which is contact-support)
+  user_reports_filed    user_report[]           @relation("ReporterCustomer")
+  user_reports_received user_report[]           @relation("ReportedCustomer")
   friend_contacts       friend_contacts[]
   service_booking       service_booking[]
   subscription          subscription[]
@@ -200,6 +207,9 @@ model customer {
   posts                 post[]
   postInterests         post_interest[]
   postGifts             post_gift[]
+  postComments          post_comment[]
+  dailyChatAccess       daily_chat_access[]
+  directGifts           direct_gift[]
 }
 
 model model {
@@ -228,6 +238,12 @@ model model {
   twofactorOTP        String? //@unique
   twofactorExpiry     DateTime? @default(now())
   twofactorEnabled    Boolean?  @default(false)
+
+  // Phone verification — set to true after the model successfully verifies
+  // the OTP sent to their WhatsApp number during registration. Login is
+  // blocked until this is true (in addition to the admin-approval status check).
+  isPhoneVerified     Boolean   @default(false)
+
   interests           Json? // 2
   relationshipStatus  String? // 3
   career              String? // 5
@@ -236,6 +252,10 @@ model model {
   sendSMSNoti         Boolean   @default(true) // 8 - default ON for new users
   sendPushNoti        Boolean   @default(false) // 9 - default OFF, modal will prompt to enable
   sendWhatsappNoti    Boolean   @default(false) // 10 - WhatsApp notifications via Twilio
+  // Per-type push mute list — see `customer.mutedNotificationTypes`.
+  mutedNotificationTypes String[] @default([])
+  // Firebase Cloud Messaging token (synced from xs_backend) — used for push delivery.
+  fcmToken            String?
   defaultLanguage     String    @default("en") // 11
   defaultTheme        String    @default("light") // 12
 
@@ -256,6 +276,19 @@ model model {
   totalReferredModels      Int     @default(0) // Count of models referred by this model
   totalReferredCustomers   Int     @default(0) // Count of customers referred by this model
   totalReferralEarnings    Float   @default(0) // Total earnings from booking referral commissions (for partner condition)
+
+  // OAuth (synced from xs_backend)
+  googleId       String?
+  oauthProvider  String?
+
+  // Profile / presence (synced from xs_backend)
+  city           String?
+  coverPhotoUrl  String?
+  isOnline       Boolean   @default(false)
+  lastOnlineAt   DateTime?
+
+  // Pre-computed recommendation score (0..1) — updated hourly by xs_backend
+  recommendationScore Float @default(0)
 
   status    ModelStatus @default(pending)
   createdAt DateTime    @default(now())
@@ -288,6 +321,9 @@ model model {
   customer_interactions customer_interactions[]
   model_interactions    model_interactions[]
   reports               reports[]
+  // User-to-user abuse reports (separate from `reports` which is contact-support)
+  user_reports_filed    user_report[]           @relation("ReporterModel")
+  user_reports_received user_report[]           @relation("ReportedModel")
   friend_contacts       friend_contacts[]
   service_booking       service_booking[]
   banks                 banks[]
@@ -295,6 +331,9 @@ model model {
   posts                 post[]
   postInterests         post_interest[]
   postGiftsReceived     post_gift[]
+  postComments          post_comment[]
+  dailyChatAccess       daily_chat_access[]
+  directGiftsReceived   direct_gift[]
 }
 
 // subscription
@@ -368,6 +407,62 @@ model reports {
 
   customer   customer? @relation(fields: [customerId], references: [id])
   customerId String?   @db.ObjectId
+}
+
+/// User-to-user abuse report. Distinct from `reports` (contact-support).
+/// Filed by either a customer OR a model against either a customer OR a model.
+/// Exactly one of reporter{Customer,Model}Id is set; same for reported.
+model user_report {
+  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
+
+  // --- Reporter -----------------------------------------------------
+  reporterType       String                          // "customer" | "model"
+  reporterCustomerId String?  @db.ObjectId
+  reporterModelId    String?  @db.ObjectId
+
+  // --- Reported -----------------------------------------------------
+  reportedType       String                          // "customer" | "model"
+  reportedCustomerId String?  @db.ObjectId
+  reportedModelId    String?  @db.ObjectId
+
+  // --- Content ------------------------------------------------------
+  // reason values:
+  //   harassment | scam_or_fraud | spam | fake_profile | underage
+  //   violence_or_threats | inappropriate_content | no_show | other
+  reason             String
+  description        String
+  evidenceUrls       String[]                        // optional screenshot URLs
+
+  // --- Optional context (what the report is about) ------------------
+  // relatedType: "booking" | "chat_message" | "post" | "profile" | null
+  relatedType        String?
+  relatedId          String?  @db.ObjectId
+
+  // --- Admin review / lifecycle ------------------------------------
+  // status:     pending | under_review | resolved | dismissed
+  // resolution: warning_issued | content_removed | account_suspended |
+  //             account_banned | no_violation | insufficient_evidence | other
+  status             String   @default("pending")
+  resolution         String?
+  adminNotes         String?
+  reviewedById       String?  @db.ObjectId
+  reviewedAt         DateTime?
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  // Back-relations
+  reporterCustomer   customer? @relation("ReporterCustomer", fields: [reporterCustomerId], references: [id])
+  reporterModel      model?    @relation("ReporterModel",    fields: [reporterModelId],    references: [id])
+  reportedCustomer   customer? @relation("ReportedCustomer", fields: [reportedCustomerId], references: [id])
+  reportedModel      model?    @relation("ReportedModel",    fields: [reportedModelId],    references: [id])
+
+  @@index([status, createdAt])
+  @@index([reporterType, reporterCustomerId])
+  @@index([reporterType, reporterModelId])
+  @@index([reportedType, reportedCustomerId])
+  @@index([reportedType, reportedModelId])
+  @@index([createdAt])
 }
 
 model images {
@@ -659,6 +754,11 @@ model service_booking {
   customerPeerId    String?     // Customer's PeerJS peer ID
   modelPeerId       String?     // Model's PeerJS peer ID
 
+  // Model's review of customer (set after booking is completed)
+  modelRating       Int?
+  modelComment      String?
+  modelReviewedAt   DateTime?
+
   hasTip         Boolean @default(false)
 
   // Soft delete fields
@@ -723,13 +823,43 @@ model conversation {
   id     String @id @default(auto()) @map("_id") @db.ObjectId
   status String @default("active")
 
+  // Per-side block flags. `status` is "blocked" whenever either flag is
+  // true; both flags can be true at once (mutual block).
+  blockedByCustomer Boolean @default(false)
+  blockedByModel    Boolean @default(false)
+
   model   model?  @relation(fields: [modelId], references: [id])
   modelId String? @db.ObjectId
 
   customer   customer? @relation(fields: [customerId], references: [id])
   customerId String?   @db.ObjectId
 
-  lastMessage  DateTime?
+  // Optional booking this conversation is tied to (xs_backend only).
+  bookingId String? @db.ObjectId
+
+  lastMessage         DateTime?
+  lastMessageText     String?
+  lastMessageType     String?
+  lastMessageMediaUrl String?
+  lastMessageSenderId String?   @db.ObjectId
+
+  customerUnreadCount Int @default(0)
+  modelUnreadCount    Int @default(0)
+
+  // Per-user settings / flags
+  customerArchived      Boolean @default(false)
+  modelArchived         Boolean @default(false)
+  customerNotifications Boolean @default(true)
+  modelNotifications    Boolean @default(true)
+  customerPinned        Boolean @default(false)
+  modelPinned           Boolean @default(false)
+
+  // Per-user soft delete
+  customerDeleted   Boolean   @default(false)
+  modelDeleted      Boolean   @default(false)
+  customerDeletedAt DateTime?
+  modelDeletedAt    DateTime?
+
   createdAt    DateTime       @default(now())
   updatedAt    DateTime?      @updatedAt
   chat_session chat_session[]
@@ -782,8 +912,20 @@ model messages {
   fileName         String?
   fileSize         String?
   isRead           Boolean @default(false)
+  /// @deprecated — legacy global delete flag. New deletes use the per-side
+  /// `customerDeleted` / `modelDeleted` flags below instead.
   isDeleted        Boolean @default(false)
   replyToMessageId String? @db.ObjectId
+
+  // Per-side soft delete. Either participant may hide a message from
+  // their own view at any time; the other side still sees it and the row
+  // is never removed from storage.
+  customerDeleted   Boolean   @default(false)
+  modelDeleted      Boolean   @default(false)
+  customerDeletedAt DateTime?
+  modelDeletedAt    DateTime?
+
+  metadata Json?
 
   sendAt    DateTime
   readAt    DateTime?
@@ -1008,6 +1150,7 @@ model post {
   service     service?        @relation(fields: [serviceId], references: [id])
   interests   post_interest[]
   gifts       post_gift[]
+  comments    post_comment[]
 
   @@index([status])
   @@index([customerId])
@@ -1053,7 +1196,8 @@ model gift {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  postGifts post_gift[]
+  postGifts   post_gift[]
+  directGifts direct_gift[]
 }
 
 model post_gift {
@@ -1075,4 +1219,100 @@ model post_gift {
 
   @@index([postId])
   @@index([customerId])
+}
+
+// ==================== Post Comments ====================
+
+model post_comment {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  postId     String   @db.ObjectId
+  userType   String   // "customer" or "model"
+  customerId String?  @db.ObjectId
+  modelId    String?  @db.ObjectId
+  parentId   String?  @db.ObjectId // reply to another comment
+  content    String
+  createdAt  DateTime @default(now())
+
+  post       post           @relation(fields: [postId], references: [id])
+  customer   customer?      @relation(fields: [customerId], references: [id])
+  model      model?         @relation(fields: [modelId], references: [id])
+  parent     post_comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replies    post_comment[] @relation("CommentReplies")
+
+  @@index([postId])
+  @@index([parentId])
+  @@index([createdAt])
+  @@index([postId, createdAt])
+}
+
+// ==================== Chat Access Tracking ====================
+
+model daily_chat_access {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  customerId String   @db.ObjectId
+  modelId    String   @db.ObjectId
+  date       String   // "2026-03-30" format (Laos timezone date)
+  createdAt  DateTime @default(now())
+
+  customer   customer @relation(fields: [customerId], references: [id])
+  model      model    @relation(fields: [modelId], references: [id])
+
+  @@unique([customerId, modelId, date])
+  @@index([customerId, date])
+}
+
+// ==================== Direct Gifts ====================
+
+model direct_gift {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  giftId     String   @db.ObjectId
+  customerId String   @db.ObjectId
+  modelId    String   @db.ObjectId
+  amount     Float
+  createdAt  DateTime @default(now())
+
+  gift       gift     @relation(fields: [giftId], references: [id])
+  customer   customer @relation(fields: [customerId], references: [id])
+  model      model    @relation(fields: [modelId], references: [id])
+
+  @@index([customerId, modelId])
+}
+
+// ==================== System Feedback (Bug Reports / Feature Requests) ====================
+
+enum FeedbackType {
+  bug
+  feature_request
+  general
+  payment_issue
+  performance
+  other
+}
+
+enum FeedbackStatus {
+  open
+  in_progress
+  resolved
+  closed
+}
+
+model system_feedback {
+  id              String         @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String         @db.ObjectId
+  userType        String         // "customer" or "model"
+  type            FeedbackType   @default(general)
+  subject         String
+  description     String
+  screenshotUrls  String[]
+  deviceInfo      String?
+  appVersion      String?
+  status          FeedbackStatus @default(open)
+  adminResponse   String?
+  resolvedById    String?        @db.ObjectId
+  resolvedAt      DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([userId])
+  @@index([status])
 }

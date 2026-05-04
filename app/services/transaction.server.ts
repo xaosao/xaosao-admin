@@ -66,6 +66,9 @@ export async function getTransactions(
 
     if (status && status !== "all") {
       whereClause.status = status;
+    } else {
+      // Hide awaiting_slip from the default "all" view — admin must filter explicitly
+      whereClause.status = { not: "awaiting_slip" };
     }
 
     if (fromDate || toDate) {
@@ -99,6 +102,7 @@ export async function getTransactions(
               lastName: true,
               gender: true,
               profile: true,
+              whatsapp: true,
             },
           },
           customer: {
@@ -107,6 +111,7 @@ export async function getTransactions(
               firstName: true,
               lastName: true,
               profile: true,
+              whatsapp: true,
             },
           },
         },
@@ -340,8 +345,10 @@ export async function rejectTransaction(
 
 export async function getTransactionStatus() {
   try {
-    const [total, approved, rejected, pending] = await Promise.all([
-      prisma.transaction_history.count(),
+    const [total, approved, rejected, pending, awaitingSlip] = await Promise.all([
+      prisma.transaction_history.count({
+        where: { status: { not: "awaiting_slip" } },
+      }),
       prisma.transaction_history.count({
         where: { status: "approved" },
       }),
@@ -350,6 +357,9 @@ export async function getTransactionStatus() {
       }),
       prisma.transaction_history.count({
         where: { status: "pending" },
+      }),
+      prisma.transaction_history.count({
+        where: { status: "awaiting_slip" },
       }),
     ]);
 
@@ -379,6 +389,12 @@ export async function getTransactionStatus() {
         value: format(pending),
         icon: "CircleDollarSign",
         color: "text-yellow-600",
+      },
+      {
+        title: "Awaiting Slip",
+        value: format(awaitingSlip),
+        icon: "CircleDollarSign",
+        color: "text-amber-600",
       },
     ];
 

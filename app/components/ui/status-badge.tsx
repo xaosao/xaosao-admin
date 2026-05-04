@@ -20,6 +20,11 @@ const useStatus = {
     COMPLETED: "Completed",
     CANCELED: "cancelled",
     EXPIRED: "expired",
+    AWAITING_SLIP: "awaiting_slip",
+};
+
+const STATUS_LABELS: Record<string, string> = {
+    awaiting_slip: "Awaiting Slip",
 };
 
 const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
@@ -91,6 +96,11 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
                     className: "bg-gray-100 text-gray-800",
                     weight: "bg-gray-500",
                 };
+            case useStatus.AWAITING_SLIP:
+                return {
+                    className: "bg-amber-100 text-amber-800",
+                    weight: "bg-amber-500",
+                };
             default:
                 return {
                     className: "bg-gray-200 text-gray-800",
@@ -106,7 +116,7 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
             className={`${className} inline-flex items-center text-xs font-medium whitespace-nowrap px-2.5 py-1 rounded-lg`}
         >
             <span className={`w-2 h-2 me-1 rounded-full ${weight}`}></span>
-            {capitalizeFirstLetter(status)}
+            {STATUS_LABELS[status] ?? capitalizeFirstLetter(status)}
         </span>
     );
 };
