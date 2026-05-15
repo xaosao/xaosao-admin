@@ -137,6 +137,7 @@ model customer {
   password           String
   latitude           Float
   longitude          Float
+  locationUpdatedAt  DateTime?
   country            String
   ip                 String?
   whatsapp           Int?
@@ -227,6 +228,7 @@ model model {
   profile             String?
   latitude            Float?
   longitude           Float?
+  locationUpdatedAt   DateTime?
   location            Json?
   hourly_rate_talking Float?
   hourly_rate_video   Float?
@@ -545,18 +547,18 @@ model friend_contacts {
 model wallet {
   id            String   @id @default(auto()) @map("_id") @db.ObjectId
   // For Customer: total approved recharges | For Model: total approved earnings
-  totalBalance  Float    @default(0)
+  totalBalance  Float?   @default(0)
   // For Model only: pending earnings from confirmed bookings (0 for customers)
-  totalPending  Float    @default(0)
+  totalPending  Float?   @default(0)
   // For Customer only: total spent on bookings/subscriptions (0 for models)
-  totalSpend    Float    @default(0)
+  totalSpend    Float?   @default(0)
   // For Model only: total approved withdrawals (0 for customers)
-  totalWithdraw Float    @default(0)
+  totalWithdraw Float?   @default(0)
   // For Customer only: total refunded amount (0 for models)
-  totalRefunded Float    @default(0)
+  totalRefunded Float?   @default(0)
   // Deprecated fields - kept for backwards compatibility
-  totalRecharge Float    @default(0)
-  totalDeposit  Float    @default(0)
+  totalRecharge Float?   @default(0)
+  totalDeposit  Float?   @default(0)
   status        String   @default("active")
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -1315,4 +1317,15 @@ model system_feedback {
 
   @@index([userId])
   @@index([status])
+}
+
+// ==================== System Configuration ====================
+
+model system_config {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  key         String   @unique
+  value       String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
