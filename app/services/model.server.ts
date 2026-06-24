@@ -829,7 +829,11 @@ export async function approveModel(id: string, userId: string) {
   }
 }
 
-export async function rejectModel(id: string, userId: string) {
+export async function rejectModel(
+  id: string,
+  userId: string,
+  rejectReason: string | null = null,
+) {
   if (!id || !userId) throw new Error("Missing model reject data!");
   const auditBase = {
     action: "REJECT_MODEL",
@@ -856,19 +860,26 @@ export async function rejectModel(id: string, userId: string) {
     });
 
     if (model.id) {
+      // Include the reason in the audit log description so the WHY is
+      // preserved without adding a column to the model schema.
+      const auditDescription = rejectReason
+        ? `Reject new model: ${model.id} successfully. Reason: ${rejectReason}`
+        : `Reject new model: ${model.id} successfully.`;
       await createAuditLogs({
         ...auditBase,
-        description: `Reject new model: ${model.id} successfully.`,
+        description: auditDescription,
         status: "success",
-        onSuccess: model,
+        onSuccess: { ...model, rejectReason },
       });
 
-      // Send email and SMS notification to the model
+      // Notify the model — reason flows through to the in-app body,
+      // push banner data, and SMS.
       notifyModelRejected({
         id: model.id,
         firstName: model.firstName,
         lastName: model.lastName,
         whatsapp: model.whatsapp,
+        rejectReason,
       });
 
       // Clean up all model files from BunnyCDN

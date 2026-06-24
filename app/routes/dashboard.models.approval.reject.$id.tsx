@@ -99,6 +99,22 @@ export default function RejectModelModal() {
                         )}
                     </div>
                     <Form method="patch" className="space-y-4">
+                        <div>
+                            <label htmlFor="rejectReason" className="block text-sm font-medium text-gray-700 mb-1">
+                                Reason for rejection <span className="text-gray-400 text-xs">(optional, shared with the model)</span>
+                            </label>
+                            <textarea
+                                id="rejectReason"
+                                name="rejectReason"
+                                rows={3}
+                                maxLength={500}
+                                placeholder="e.g. Profile photo is unclear / ID document doesn't match / Phone number unreachable"
+                                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 placeholder-gray-400"
+                            />
+                            <p className="text-xs text-gray-400 mt-1">
+                                Will appear in the model's in-app notification, push banner, and SMS.
+                            </p>
+                        </div>
                         <div className="flex justify-end space-x-2 pt-4">
                             <Button type="button" variant="outline" onClick={closeHandler} disabled={isSubmitting}>
                                 Cancel
@@ -138,7 +154,13 @@ export async function action({ params, request }: ActionFunctionArgs) {
     const serviceId = params.id;
     if (request.method === "PATCH") {
         try {
-            const res = await rejectModel(serviceId as string, userId);
+            const formData = await request.formData();
+            const rejectReasonRaw = formData.get("rejectReason");
+            const rejectReason =
+                typeof rejectReasonRaw === "string" && rejectReasonRaw.trim().length > 0
+                    ? rejectReasonRaw.trim().slice(0, 500)
+                    : null;
+            const res = await rejectModel(serviceId as string, userId, rejectReason);
             if (res.id) {
                 return redirect("/dashboard/models/approval?success=Rejected+model+successfully");
             }

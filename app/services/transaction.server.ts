@@ -317,6 +317,7 @@ export async function rejectTransaction(
           amount: res.amount,
           identifier: res.identifier,
           model: res.model,
+          modelId: res.modelId,
           rejectReason: res.rejectReason,
         });
       } else if (res.customer && res.customerId) {

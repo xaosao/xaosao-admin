@@ -7,6 +7,94 @@ import { prisma } from "./database.server";
 const ADMIN_EMAIL = "xaosao95@gmail.com";
 
 // ========================================
+// xs_backend admin notification bridge
+// ========================================
+//
+// Single helper for delivering a notification to a customer or model
+// THROUGH xs_backend. xs_backend writes the canonical in-app row to
+// `customer_notification` / `model_notification`, fires FCM push to
+// every registered device (Flutter app + any web subscribers), and
+// honors per-user push preferences.
+//
+// Use this for any user-facing notification triggered from admin. The
+// admin's own web-push (`sendPushToModel` / `sendPushToCustomer` below)
+// is retained as a no-op fallback for browser-based admin subscribers
+// but should NOT be relied on for the Flutter app — FCM tokens stored
+// in `push_subscription` aren't valid Web-Push subscriptions, so the
+// webpush.sendNotification call will fail silently for them.
+//
+// Env vars expected:
+//   CLIENT_BACKEND_URL    e.g. https://api.xaosao.com  (no trailing /)
+//   BACKEND_ADMIN_API_KEY same value as xs_backend's `process.env.ADMIN_API_KEY`
+const BACKEND_URL = process.env.CLIENT_BACKEND_URL;
+const BACKEND_ADMIN_API_KEY = process.env.BACKEND_ADMIN_API_KEY;
+
+type BackendNotifyInput = {
+  userType: "customer" | "model";
+  userId: string;
+  type: string;
+  title: string;
+  message: string;
+  data?: Record<string, unknown>;
+  /** Pass `false` to write the in-app row only (no push). Defaults to true. */
+  push?: boolean;
+};
+
+/**
+ * Forward a notification to xs_backend. Fire-and-forget — never throws.
+ * Failures are logged so they don't break the admin action that triggered
+ * the notification.
+ */
+export async function notifyViaBackend(
+  input: BackendNotifyInput
+): Promise<void> {
+  if (!BACKEND_URL || !BACKEND_ADMIN_API_KEY) {
+    console.warn(
+      `[Notify Admin] CLIENT_BACKEND_URL or BACKEND_ADMIN_API_KEY not set — skipping ${input.type} for ${input.userType}:${input.userId}`
+    );
+    return;
+  }
+
+  const base = BACKEND_URL.replace(/\/+$/, "");
+  try {
+    const res = await fetch(`${base}/api/v1/admin/notifications`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Admin-API-Key": BACKEND_ADMIN_API_KEY,
+        // Some platforms route this through nginx — being explicit avoids
+        // CSRF middleware on the backend treating us as a browser.
+        "X-Platform": "admin",
+      },
+      body: JSON.stringify({
+        userType: input.userType,
+        userId: input.userId,
+        type: input.type,
+        title: input.title,
+        message: input.message,
+        data: input.data ?? {},
+        push: input.push ?? true,
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      console.error(
+        `[Notify Admin] xs_backend returned ${res.status} for ${input.type} ${input.userType}:${input.userId} — ${body}`
+      );
+      return;
+    }
+    console.log(
+      `[Notify Admin] xs_backend OK — ${input.type} → ${input.userType}:${input.userId}`
+    );
+  } catch (err) {
+    console.error(
+      `[Notify Admin] xs_backend call failed for ${input.type} ${input.userType}:${input.userId}:`,
+      err
+    );
+  }
+}
+
+// ========================================
 // VAPID Configuration for Push Notifications
 // ========================================
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
@@ -385,15 +473,21 @@ export async function notifyModelApproved(
 ): Promise<void> {
   const modelName = `${model.firstName} ${model.lastName || ""}`.trim();
 
-  // 1. Create in-app notification
-  await createModelNotification(model.id, {
-    type: "profile_approved",
+  // 1. In-app row + FCM push through xs_backend. Canonical type
+  //    `account_approved` matches xs_backend's NOTIFICATION_TYPE enum
+  //    and the Flutter router (deep-links to profile screen).
+  await notifyViaBackend({
+    userType: "model",
+    userId: model.id,
+    type: "account_approved",
     title: "ບັນຊີໄດ້ຮັບການອະນຸມັດ!",
     message: `ຍິນດີດ້ວຍ ${modelName}! ບັນຊີຂອງທ່ານໄດ້ຮັບການອະນຸມັດແລ້ວ. ທ່ານສາມາດຮັບການຈອງຈາກລູກຄ້າໄດ້ແລ້ວ.`,
-    data: {},
+    data: {
+      screen: "profile",
+    },
   });
 
-  // 2. Send SMS
+  // 2. SMS (kept).
   if (model.whatsapp) {
     const smsMessage = `XaoSao: ຍິນດີດ້ວຍ ${modelName}! ບັນຊີຂອງທ່ານໄດ້ຮັບການອະນຸມັດແລ້ວ. ກະລຸນາເຂົ້າສູ່ລະບົບເພື່ອເລີ່ມຕົ້ນຮັບການຈອງ.`;
     console.log(`Sending approval SMS to ${model.whatsapp}: ${smsMessage}`);
@@ -404,13 +498,13 @@ export async function notifyModelApproved(
     console.warn("Model has no whatsapp number, cannot send approval SMS");
   }
 
-  // 3. Send push notification
+  // 3. Web-Push fallback for browser subscribers (no-op for Flutter/FCM).
   await sendPushToModel(model.id, {
     title: "ບັນຊີໄດ້ຮັບການອະນຸມັດ! 🎉",
     body: `ຍິນດີດ້ວຍ ${modelName}! ທ່ານສາມາດຮັບການຈອງຈາກລູກຄ້າໄດ້ແລ້ວ.`,
-    tag: `profile-approved-${model.id}`,
+    tag: `account-approved-${model.id}`,
     data: {
-      type: "profile_approved",
+      type: "account_approved",
       url: "/model",
     },
   });
@@ -421,13 +515,34 @@ export async function notifyModelApproved(
 }
 
 export async function notifyModelRejected(
-  model: ModelNotificationData
+  model: ModelNotificationData & { rejectReason?: string | null }
 ): Promise<void> {
   const modelName = `${model.firstName} ${model.lastName || ""}`.trim();
+  const reason = model.rejectReason ?? null;
+  const inAppBody = `ສະບາຍດີ ${modelName}, ບັນຊີຂອງທ່ານບໍ່ໄດ້ຮັບການອະນຸມັດໃນຄັ້ງນີ້.${
+    reason ? ` ເຫດຜົນ: ${reason}` : ""
+  } ກະລຸນາຕິດຕໍ່ພວກເຮົາສຳລັບຂໍ້ມູນເພີ່ມເຕີມ.`;
 
-  // Send SMS only
+  // 1. In-app row + FCM push through xs_backend (canonical type
+  //    `account_rejected`). This was missing before — model rejection
+  //    used to send SMS only.
+  await notifyViaBackend({
+    userType: "model",
+    userId: model.id,
+    type: "account_rejected",
+    title: "ບັນຊີບໍ່ໄດ້ຮັບການອະນຸມັດ",
+    message: inAppBody,
+    data: {
+      screen: "profile",
+      reason,
+    },
+  });
+
+  // 2. SMS (kept).
   if (model.whatsapp) {
-    const smsMessage = `XaoSao: ສະບາຍດີ ${modelName}, ບັນຊີຂອງທ່ານບໍ່ໄດ້ຮັບການອະນຸມັດໃນຄັ້ງນີ້. ກະລຸນາຕິດຕໍ່ພວກເຮົາສຳລັບຂໍ້ມູນເພີ່ມເຕີມ. 2091082600`;
+    const smsMessage = `XaoSao: ສະບາຍດີ ${modelName}, ບັນຊີຂອງທ່ານບໍ່ໄດ້ຮັບການອະນຸມັດໃນຄັ້ງນີ້.${
+      reason ? ` ເຫດຜົນ: ${reason}` : ""
+    } ກະລຸນາຕິດຕໍ່ພວກເຮົາສຳລັບຂໍ້ມູນເພີ່ມເຕີມ. 2091082600`;
     console.log(`Sending rejection SMS to ${model.whatsapp}: ${smsMessage}`);
     sendSMS(model.whatsapp.toString(), smsMessage).catch((err) =>
       console.error("Failed to send model rejection SMS:", err)
@@ -435,6 +550,21 @@ export async function notifyModelRejected(
   } else {
     console.warn("Model has no whatsapp number, cannot send rejection SMS");
   }
+
+  // 3. Web-Push fallback for browser subscribers (no-op for Flutter/FCM).
+  await sendPushToModel(model.id, {
+    title: "ບັນຊີບໍ່ໄດ້ຮັບການອະນຸມັດ",
+    body: `ສະບາຍດີ ${modelName}, ກະລຸນາຕິດຕໍ່ຝ່າຍຊ່ວຍເຫຼືອ.`,
+    tag: `account-rejected-${model.id}`,
+    data: {
+      type: "account_rejected",
+      url: "/model-auth/login",
+    },
+  });
+
+  console.log(
+    `[Notification Admin] Model rejection notifications sent to ${model.id}`
+  );
 }
 
 // ========================================
@@ -459,9 +589,6 @@ export async function notifyTransactionApproved(
   if (!transaction.model) return;
 
   const modelId = transaction.modelId;
-  const modelName = `${transaction.model.firstName} ${
-    transaction.model.lastName || ""
-  }`.trim();
   const transactionType =
     transaction.identifier === "withdrawal"
       ? "ການຖອນເງິນ"
@@ -471,17 +598,25 @@ export async function notifyTransactionApproved(
       ? "ການຖອນເງິນໄດ້ຮັບອະນຸມັດ!"
       : "ທຸລະກຳໄດ້ຮັບອະນຸມັດ!";
 
-  // 1. Create in-app notification
+  // 1. In-app row + FCM push through xs_backend (one call covers both).
+  //    Canonical type `withdraw_approved` is what the Flutter notification
+  //    router uses to deep-link into the wallet screen.
   if (modelId) {
-    await createModelNotification(modelId, {
+    await notifyViaBackend({
+      userType: "model",
+      userId: modelId,
       type: "withdraw_approved",
       title: transactionTypeTitle,
       message: `${transactionType} ${transaction.amount.toLocaleString()} LAK ຂອງທ່ານໄດ້ຮັບການອະນຸມັດແລ້ວ.`,
-      data: { transactionId: transaction.id, amount: transaction.amount },
+      data: {
+        screen: "wallet",
+        transactionId: transaction.id,
+        amount: transaction.amount,
+      },
     });
   }
 
-  // 2. Send SMS
+  // 2. SMS (kept — works for users who haven't installed the app).
   if (transaction.model.whatsapp) {
     const smsMessage = `XaoSao: ${transactionType} ${transaction.amount.toLocaleString()} LAK ຂອງທ່ານໄດ້ຮັບການອະນຸມັດແລ້ວ!`;
     console.log(
@@ -496,7 +631,8 @@ export async function notifyTransactionApproved(
     );
   }
 
-  // 3. Send push notification
+  // 3. Web-Push fallback for any browser-based subscribers (no-op for
+  //    Flutter / FCM tokens — those are handled by xs_backend above).
   if (modelId) {
     await sendPushToModel(modelId, {
       title: transactionTypeTitle,
@@ -518,18 +654,44 @@ export async function notifyTransactionApproved(
 }
 
 export async function notifyTransactionRejected(
-  transaction: TransactionNotificationData
+  transaction: TransactionNotificationData & { modelId?: string }
 ): Promise<void> {
   if (!transaction.model) return;
 
+  const modelId = transaction.modelId;
   const transactionType =
     transaction.identifier === "withdrawal"
       ? "ການຖອນເງິນ"
       : transaction.identifier;
+  const title = "ການຖອນເງິນບໍ່ໄດ້ຮັບອະນຸມັດ";
+  const inAppBody = `${transactionType} ${transaction.amount.toLocaleString()} LAK ຂອງທ່ານບໍ່ໄດ້ຮັບການອະນຸມັດ.${
+    transaction.rejectReason ? ` ເຫດຜົນ: ${transaction.rejectReason}` : ""
+  } ກະລຸນາຕິດຕໍ່ຝ່າຍຊ່ວຍເຫຼືອ.`;
 
-  // Send SMS only
+  // 1. In-app row + FCM push through xs_backend (canonical type
+  //    `withdraw_rejected`). This was missing before — model reject used
+  //    to send SMS only, no in-app, no push to the Flutter app.
+  if (modelId) {
+    await notifyViaBackend({
+      userType: "model",
+      userId: modelId,
+      type: "withdraw_rejected",
+      title,
+      message: inAppBody,
+      data: {
+        screen: "wallet",
+        transactionId: transaction.id,
+        amount: transaction.amount,
+        reason: transaction.rejectReason ?? null,
+      },
+    });
+  }
+
+  // 2. SMS (kept).
   if (transaction.model.whatsapp) {
-    const smsMessage = `XaoSao: ${transactionType} ${transaction.amount.toLocaleString()} LAK ຂອງທ່ານບໍ່ໄດ້ຮັບການອະນຸມັດ. ກະລຸນາຕິດຕໍ່ຝ່າຍຊ່ວຍເຫຼືອ. 2091082600`;
+    const smsMessage = `XaoSao: ${transactionType} ${transaction.amount.toLocaleString()} LAK ຂອງທ່ານບໍ່ໄດ້ຮັບການອະນຸມັດ.${
+      transaction.rejectReason ? ` ເຫດຜົນ: ${transaction.rejectReason}` : ""
+    } ກະລຸນາຕິດຕໍ່ຝ່າຍຊ່ວຍເຫຼືອ. 2091082600`;
     console.log(
       `Sending transaction rejection SMS to ${transaction.model.whatsapp}: ${smsMessage}`
     );
@@ -541,6 +703,26 @@ export async function notifyTransactionRejected(
       "Model has no whatsapp number, cannot send transaction rejection SMS"
     );
   }
+
+  // 3. Web-Push fallback for browser subscribers (no-op for Flutter/FCM).
+  if (modelId) {
+    await sendPushToModel(modelId, {
+      title,
+      body: `${transaction.amount.toLocaleString()} LAK — ກະລຸນາຕິດຕໍ່ຝ່າຍຊ່ວຍເຫຼືອ`,
+      tag: `transaction-rejected-${transaction.id}`,
+      data: {
+        type: "withdraw_rejected",
+        url: "/model/settings/wallet",
+        amount: transaction.amount,
+      },
+    });
+  }
+
+  console.log(
+    `[Notification Admin] Model withdrawal rejection notifications sent to ${
+      modelId || "unknown"
+    }`
+  );
 }
 
 // ========================================
@@ -574,15 +756,23 @@ export async function notifyCustomerRechargeApproved(
     `[Notification Admin] Sending recharge approval notifications to customer ${customerId}`
   );
 
-  // 1. Create in-app notification
-  await createCustomerNotification(customerId, {
-    type: "deposit_approved",
+  // 1. In-app row + FCM push through xs_backend (canonical type
+  //    `topup_approved` — matches xs_backend's NOTIFICATION_TYPE enum
+  //    and the Flutter router's wallet deep-link).
+  await notifyViaBackend({
+    userType: "customer",
+    userId: customerId,
+    type: "topup_approved",
     title: "ເງິນເຂົ້າບັນຊີແລ້ວ!",
     message: `ການເຕີມເງິນ ${amount.toLocaleString()} LAK ຂອງທ່ານໄດ້ຮັບການອະນຸມັດແລ້ວ. ຍອດເງິນໄດ້ເພີ່ມໃສ່ Wallet ຂອງທ່ານແລ້ວ.`,
-    data: { transactionId: id, amount },
+    data: {
+      screen: "wallet",
+      transactionId: id,
+      amount,
+    },
   });
 
-  // 2. Send SMS
+  // 2. SMS (kept).
   if (customer.whatsapp) {
     const smsMessage = `XaoSao: ສະບາຍດີ ${customerName}! ການເຕີມເງິນ ${amount.toLocaleString()} LAK ຂອງທ່ານໄດ້ຮັບການອະນຸມັດແລ້ວ. ກວດເບິ່ງ Wallet ຂອງທ່ານໃນແອັບ.`;
     console.log(
@@ -597,13 +787,13 @@ export async function notifyCustomerRechargeApproved(
     );
   }
 
-  // 3. Send push notification
+  // 3. Web-Push fallback for browser subscribers (no-op for Flutter/FCM).
   await sendPushToCustomer(customerId, {
     title: "ເງິນເຂົ້າບັນຊີແລ້ວ! 💰",
     body: `${amount.toLocaleString()} LAK ໄດ້ເພີ່ມໃສ່ Wallet ຂອງທ່ານແລ້ວ`,
     tag: `recharge-approved-${id}`,
     data: {
-      type: "deposit_approved",
+      type: "topup_approved",
       url: "/customer/wallets",
       amount,
     },
@@ -622,25 +812,30 @@ export async function notifyCustomerRechargeRejected(
   data: CustomerRechargeNotificationData & { rejectReason?: string | null }
 ): Promise<void> {
   const { id, amount, customerId, customer, rejectReason } = data;
-  const customerName = `${customer.firstName} ${
-    customer.lastName || ""
-  }`.trim();
 
   console.log(
     `[Notification Admin] Sending recharge rejection notifications to customer ${customerId}`
   );
 
-  // 1. Create in-app notification
-  await createCustomerNotification(customerId, {
-    type: "deposit_rejected",
+  // 1. In-app row + FCM push through xs_backend (canonical type
+  //    `topup_rejected`).
+  await notifyViaBackend({
+    userType: "customer",
+    userId: customerId,
+    type: "topup_rejected",
     title: "ການເຕີມເງິນບໍ່ໄດ້ຮັບອະນຸມັດ",
     message: `ການເຕີມເງິນ ${amount.toLocaleString()} LAK ຂອງທ່ານບໍ່ໄດ້ຮັບການອະນຸມັດ.${
       rejectReason ? ` ເຫດຜົນ: ${rejectReason}` : ""
     } ກະລຸນາຕິດຕໍ່ຝ່າຍຊ່ວຍເຫຼືອ.`,
-    data: { transactionId: id, amount, rejectReason },
+    data: {
+      screen: "wallet",
+      transactionId: id,
+      amount,
+      reason: rejectReason ?? null,
+    },
   });
 
-  // 2. Send SMS
+  // 2. SMS (kept).
   if (customer.whatsapp) {
     const smsMessage = `XaoSao: ການເຕີມເງິນ ${amount.toLocaleString()} LAK ຂອງທ່ານບໍ່ໄດ້ຮັບການອະນຸມັດ.${
       rejectReason ? ` ເຫດຜົນ: ${rejectReason}` : ""
@@ -657,13 +852,13 @@ export async function notifyCustomerRechargeRejected(
     );
   }
 
-  // 3. Send push notification
+  // 3. Web-Push fallback for browser subscribers (no-op for Flutter/FCM).
   await sendPushToCustomer(customerId, {
     title: "ການເຕີມເງິນບໍ່ໄດ້ຮັບອະນຸມັດ",
     body: `${amount.toLocaleString()} LAK - ກະລຸນາຕິດຕໍ່ຝ່າຍຊ່ວຍເຫຼືອ`,
     tag: `recharge-rejected-${id}`,
     data: {
-      type: "deposit_rejected",
+      type: "topup_rejected",
       url: "/customer/wallets",
       amount,
     },
@@ -740,6 +935,10 @@ export async function sendPushToModel(
 
     let sent = 0;
     for (const sub of subscriptions) {
+      // Skip FCM-shaped subscriptions (Flutter mobile) — only Web-Push
+      // browser subscriptions populate `auth` + `p256dh`. See the customer
+      // version of this loop for the full reasoning.
+      if (!sub.auth || !sub.p256dh) continue;
       try {
         await webpush.sendNotification(
           {
@@ -1268,6 +1467,13 @@ export async function sendPushToCustomer(
 
     let sent = 0;
     for (const sub of subscriptions) {
+      // Skip rows that aren't actual Web-Push subscriptions. `push_subscription`
+      // is shared with FCM tokens (Flutter mobile): those rows have only
+      // `endpoint` populated, `auth` and `p256dh` are null/empty. webpush
+      // throws "must have 'auth' and 'p256dh' keys" on them — pre-filter so
+      // the legitimate web-push rows still get delivered without spammy
+      // error logs polluting the output.
+      if (!sub.auth || !sub.p256dh) continue;
       try {
         await webpush.sendNotification(
           {
@@ -1533,6 +1739,11 @@ interface AdminBookingRefundData {
 /**
  * Send notifications when admin refunds a booking
  * Notifies: Customer and Model
+ *
+ * Uses xs_backend's `booking_refunded` notification — that path writes the
+ * canonical in-app row AND fires FCM push to the Flutter app, the same way
+ * deposit approve/reject does. The admin-side web-push fallback is kept as
+ * an extra signal for any browser admin subscribers.
  */
 export async function notifyAdminBookingRefunded(
   data: AdminBookingRefundData
@@ -1552,45 +1763,59 @@ export async function notifyAdminBookingRefunded(
     `[Notification Admin] Sending booking refund notifications for booking ${bookingId}`
   );
 
-  // 1. Notify Customer - Payment has been refunded
-  await createCustomerNotification(customerId, {
-    type: "payment_refunded",
-    title: "Booking Refunded",
-    message: `Your booking for "${serviceName}" has been refunded. ${refundAmount.toLocaleString()} LAK has been returned to your wallet.${
-      reason ? ` Reason: ${reason}` : ""
+  // 1. Customer — in-app row + FCM push via xs_backend
+  await notifyViaBackend({
+    userType: "customer",
+    userId: customerId,
+    type: "booking_refunded",
+    title: "ການຈອງຖືກຄືນເງິນ",
+    message: `ການຈອງ "${serviceName}" ຂອງທ່ານໄດ້ຖືກຄືນເງິນແລ້ວ. ${refundAmount.toLocaleString()} LAK ໄດ້ຖືກສົ່ງຄືນໃສ່ Wallet ຂອງທ່ານ.${
+      reason ? ` ເຫດຜົນ: ${reason}` : ""
     }`,
-    data: { bookingId, modelId, amount: refundAmount },
+    data: {
+      screen: "wallet",
+      bookingId,
+      amount: refundAmount,
+      reason: reason ?? null,
+    },
   });
 
-  // Send SMS to customer
+  // 2. Customer SMS
   const customerSmsMessage = `XaoSao: ການຈອງ "${serviceName}" ຂອງທ່ານໄດ້ຖືກຄືນເງິນແລ້ວ. ${refundAmount.toLocaleString()} LAK ໄດ້ຖືກສົ່ງຄືນໃສ່ Wallet ຂອງທ່ານ.${
     reason ? ` ເຫດຜົນ: ${reason}` : ""
   }`;
   sendSMSToCustomer(customerId, customerSmsMessage);
 
-  // Send push to customer
+  // 3. Browser web-push fallback (no-op for Flutter)
   sendPushToCustomer(customerId, {
-    title: "Booking Refunded",
+    title: "ການຈອງຖືກຄືນເງິນ",
     body: `${refundAmount.toLocaleString()} LAK refunded for "${serviceName}"`,
     tag: `booking-refund-${bookingId}`,
     data: {
-      type: "payment_refunded",
+      type: "booking_refunded",
       bookingId,
       url: "/customer/wallets",
     },
   });
 
-  // 2. Notify Model - Booking has been refunded
-  await createModelNotification(modelId, {
-    type: "deposit_approved",
+  // 4. Model — in-app row + FCM push via xs_backend
+  await notifyViaBackend({
+    userType: "model",
+    userId: modelId,
+    type: "booking_refunded",
     title: "ການຈອງຖືກຄືນເງິນ",
     message: `ການຈອງ "${serviceName}" ກັບ ${customerName} ໄດ້ຖືກຄືນເງິນໃຫ້ລູກຄ້າແລ້ວ.${
       reason ? ` ເຫດຜົນ: ${reason}` : ""
     }`,
-    data: { bookingId, customerId },
+    data: {
+      screen: "wallet",
+      bookingId,
+      amount: refundAmount,
+      reason: reason ?? null,
+    },
   });
 
-  // Send SMS to model
+  // 5. Model SMS
   const modelPhone = await getModelPhone(modelId);
   if (modelPhone) {
     const modelSmsMessage = `XaoSao: ການຈອງ "${serviceName}" ກັບ ${customerName} ໄດ້ຖືກຄືນເງິນໃຫ້ລູກຄ້າແລ້ວ.${
@@ -1601,13 +1826,13 @@ export async function notifyAdminBookingRefunded(
     );
   }
 
-  // Send push to model
+  // 6. Browser web-push fallback for model
   await sendPushToModel(modelId, {
     title: "ການຈອງຖືກຄືນເງິນ",
     body: `"${serviceName}" ກັບ ${customerName} ຖືກຄືນເງິນແລ້ວ`,
     tag: `booking-refund-model-${bookingId}`,
     data: {
-      type: "booking_cancelled",
+      type: "booking_refunded",
       bookingId,
       url: "/model/dating",
     },
