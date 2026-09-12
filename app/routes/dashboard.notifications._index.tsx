@@ -44,9 +44,7 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
-  MessageSquare,
   Smartphone,
-  Mail,
   Ban,
 } from "lucide-react";
 
@@ -355,14 +353,8 @@ export default function NotificationsList() {
                           {notification.channelInApp && (
                             <Bell className="h-3.5 w-3.5 text-blue-500" title="In-App" />
                           )}
-                          {notification.channelSMS && (
-                            <MessageSquare className="h-3.5 w-3.5 text-green-500" title="SMS" />
-                          )}
                           {notification.channelPush && (
                             <Smartphone className="h-3.5 w-3.5 text-purple-500" title="Push" />
-                          )}
-                          {notification.channelWhatsApp && (
-                            <Mail className="h-3.5 w-3.5 text-emerald-500" title="WhatsApp" />
                           )}
                         </div>
                       </TableCell>

@@ -14,9 +14,7 @@ import { Card, CardContent } from "~/components/ui/card";
 import { ForbiddenCard } from "~/components/ui/forbidden-card";
 import {
   Bell,
-  MessageSquare,
   Smartphone,
-  Mail,
   Users,
   Send,
   CheckCircle,
@@ -241,19 +239,9 @@ export default function NotificationDetail() {
                       <Bell className="h-3 w-3" /> In-App
                     </span>
                   )}
-                  {notification.channelSMS && (
-                    <span className="flex items-center gap-1 text-xs text-green-600">
-                      <MessageSquare className="h-3 w-3" /> SMS
-                    </span>
-                  )}
                   {notification.channelPush && (
                     <span className="flex items-center gap-1 text-xs text-purple-600">
                       <Smartphone className="h-3 w-3" /> Push
-                    </span>
-                  )}
-                  {notification.channelWhatsApp && (
-                    <span className="flex items-center gap-1 text-xs text-emerald-600">
-                      <Mail className="h-3 w-3" /> WhatsApp
                     </span>
                   )}
                 </div>

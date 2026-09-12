@@ -735,6 +735,18 @@ export async function deleteModel(id: string, userId: string) {
     user: userId,
   };
   try {
+    // Prisma+Mongo does NOT cascade delete. Wipe dependent rows BEFORE
+    // dropping the model, otherwise they orphan with a stale `modelId`
+    // that no longer resolves. The admin viewer hides them, but they
+    // stay in Mongo forever and confuse future audits.
+    const [imgDel, bankDel] = await Promise.all([
+      prisma.images.deleteMany({ where: { modelId: id } }),
+      prisma.banks.deleteMany({ where: { modelId: id } }),
+    ]);
+    console.log(
+      `[Delete Model] Cleaned ${imgDel.count} images and ${bankDel.count} banks for model ${id}`
+    );
+
     const model = await prisma.model.delete({
       where: { id },
     });
@@ -881,6 +893,26 @@ export async function rejectModel(
         whatsapp: model.whatsapp,
         rejectReason,
       });
+
+      // Clean up DB rows FIRST, then wipe CDN files.
+      //
+      // Historic bug: cleanupModelFiles deletes the entire
+      // `m-{id}-{name}/` folder on BunnyCDN, but the `images` and
+      // `banks` rows keep pointing at those URLs. The admin viewer then
+      // renders them all as "Lost" and users see broken gallery cards
+      // forever. Wipe the DB pointers alongside the files so nothing
+      // dangles.
+      try {
+        const [imgDel, bankDel] = await Promise.all([
+          prisma.images.deleteMany({ where: { modelId: model.id } }),
+          prisma.banks.deleteMany({ where: { modelId: model.id } }),
+        ]);
+        console.log(
+          `[Reject Cleanup] Deleted ${imgDel.count} image rows and ${bankDel.count} bank rows for model ${model.id}`
+        );
+      } catch (err) {
+        console.error(`[Reject Cleanup] DB row cleanup failed for model ${model.id}:`, err);
+      }
 
       // Clean up all model files from BunnyCDN
       try {

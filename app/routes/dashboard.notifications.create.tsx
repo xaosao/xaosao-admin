@@ -42,21 +42,35 @@ export default function CreateNotification() {
   // Template variables
   const titleRef = useRef<HTMLInputElement>(null);
   const messageRef = useRef<HTMLTextAreaElement>(null);
+  const laTitleRef = useRef<HTMLInputElement>(null);
+  const laMessageRef = useRef<HTMLTextAreaElement>(null);
   const templateVars = [
     { label: "First Name", value: "{{firstname}}" },
     { label: "Last Name", value: "{{lastname}}" },
     { label: "Full Name", value: "{{fullname}}" },
   ];
 
-  function insertVariable(field: "title" | "message", variable: string) {
-    const el = field === "title" ? titleRef.current : messageRef.current;
+  type TemplateField = "title" | "message" | "laTitle" | "laMessage";
+
+  function insertVariable(field: TemplateField, variable: string) {
+    const refs: Record<
+      TemplateField,
+      HTMLInputElement | HTMLTextAreaElement | null
+    > = {
+      title: titleRef.current,
+      message: messageRef.current,
+      laTitle: laTitleRef.current,
+      laMessage: laMessageRef.current,
+    };
+    const el = refs[field];
     if (!el) return;
+    const isInput = field === "title" || field === "laTitle";
     const start = el.selectionStart ?? el.value.length;
     const end = el.selectionEnd ?? el.value.length;
     const newValue = el.value.slice(0, start) + variable + el.value.slice(end);
     // Update the input value and trigger React change
     const nativeSetter = Object.getOwnPropertyDescriptor(
-      field === "title" ? HTMLInputElement.prototype : HTMLTextAreaElement.prototype,
+      isInput ? HTMLInputElement.prototype : HTMLTextAreaElement.prototype,
       "value"
     )?.set;
     nativeSetter?.call(el, newValue);
@@ -151,6 +165,71 @@ export default function CreateNotification() {
               placeholder="e.g. ສະບາຍດີ, {{firstname}} ເຈົ້າໄດ້ເປີດບໍລິການແລ້ວບໍ?"
               className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300 focus:border-pink-300"
             />
+          </div>
+
+          {/* Lao copy. The app is Lao-first: when these are filled they are
+              what the push banner shows. Left blank, the English above is
+              used for both. */}
+          <div className="pt-2 border-t border-dashed border-gray-200 space-y-4">
+            <p className="text-xs text-gray-500">
+              Lao version — shown on the push banner and in-app for Lao
+              users. Leave blank to reuse the English text above.
+            </p>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label htmlFor="laTitle" className="text-xs text-gray-500">
+                  Lao Title
+                </label>
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-gray-400 mr-1">Insert:</span>
+                  {templateVars.map((v) => (
+                    <button
+                      key={v.value}
+                      type="button"
+                      onClick={() => insertVariable("laTitle", v.value)}
+                      className="px-1.5 py-0.5 text-[10px] rounded bg-pink-50 text-pink-600 hover:bg-pink-100 border border-pink-200 font-mono"
+                    >
+                      {v.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <Input
+                ref={laTitleRef}
+                id="laTitle"
+                name="laTitle"
+                placeholder="e.g. ສະບາຍດີ, {{firstname}}!"
+                className="border-gray-200"
+              />
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label htmlFor="laMessage" className="text-xs text-gray-500">
+                  Lao Message
+                </label>
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-gray-400 mr-1">Insert:</span>
+                  {templateVars.map((v) => (
+                    <button
+                      key={v.value}
+                      type="button"
+                      onClick={() => insertVariable("laMessage", v.value)}
+                      className="px-1.5 py-0.5 text-[10px] rounded bg-pink-50 text-pink-600 hover:bg-pink-100 border border-pink-200 font-mono"
+                    >
+                      {v.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <textarea
+                ref={laMessageRef}
+                id="laMessage"
+                name="laMessage"
+                rows={4}
+                placeholder="e.g. ສະບາຍດີ, {{firstname}} ເຈົ້າໄດ້ເປີດບໍລິການແລ້ວບໍ?"
+                className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300 focus:border-pink-300"
+              />
+            </div>
           </div>
         </div>
 
@@ -288,46 +367,46 @@ export default function CreateNotification() {
 
         {/* Section 3: Delivery Channels */}
         <div className="space-y-4">
-          <h3 className="text-sm font-semibold text-gray-900">
-            Delivery Channels
-          </h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <label className="flex items-center space-x-2 p-3 border rounded-md hover:bg-gray-50 cursor-pointer">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900">
+              Delivery Channels
+            </h3>
+            <p className="text-xs text-gray-500 mt-1">
+              Push reaches the Android app through Firebase and installed
+              iPhone home-screen apps through Web Push. Both are sent by the
+              backend.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label className="flex items-start space-x-2 p-3 border rounded-md hover:bg-gray-50 cursor-pointer">
               <input
                 type="checkbox"
                 name="channelInApp"
                 value="true"
                 defaultChecked
-                className="rounded border-gray-300 text-rose-500 focus:ring-rose-500"
+                className="mt-0.5 rounded border-gray-300 text-rose-500 focus:ring-rose-500"
               />
-              <span className="text-sm text-gray-700">In-App</span>
+              <span>
+                <span className="block text-sm text-gray-700">In-App</span>
+                <span className="block text-xs text-gray-400">
+                  Shows in the notification list inside the app
+                </span>
+              </span>
             </label>
-            <label className="flex items-center space-x-2 p-3 border rounded-md hover:bg-gray-50 cursor-pointer">
-              <input
-                type="checkbox"
-                name="channelSMS"
-                value="true"
-                className="rounded border-gray-300 text-rose-500 focus:ring-rose-500"
-              />
-              <span className="text-sm text-gray-700">SMS</span>
-            </label>
-            <label className="flex items-center space-x-2 p-3 border rounded-md hover:bg-gray-50 cursor-pointer">
+            <label className="flex items-start space-x-2 p-3 border rounded-md hover:bg-gray-50 cursor-pointer">
               <input
                 type="checkbox"
                 name="channelPush"
                 value="true"
-                className="rounded border-gray-300 text-rose-500 focus:ring-rose-500"
+                defaultChecked
+                className="mt-0.5 rounded border-gray-300 text-rose-500 focus:ring-rose-500"
               />
-              <span className="text-sm text-gray-700">Push</span>
-            </label>
-            <label className="flex items-center space-x-2 p-3 border rounded-md hover:bg-gray-50 cursor-pointer">
-              <input
-                type="checkbox"
-                name="channelWhatsApp"
-                value="true"
-                className="rounded border-gray-300 text-rose-500 focus:ring-rose-500"
-              />
-              <span className="text-sm text-gray-700">WhatsApp</span>
+              <span>
+                <span className="block text-sm text-gray-700">Push</span>
+                <span className="block text-xs text-gray-400">
+                  Banner on Android app and installed iPhone PWA
+                </span>
+              </span>
             </label>
           </div>
         </div>
@@ -529,6 +608,9 @@ export async function action({ request }: ActionFunctionArgs) {
 
   const title = formData.get("title") as string;
   const message = formData.get("message") as string;
+  const laTitle = ((formData.get("laTitle") as string) || "").trim() || null;
+  const laMessage =
+    ((formData.get("laMessage") as string) || "").trim() || null;
   const targetUserType = formData.get("targetUserType") as string;
   const targetGender = (formData.get("targetGender") as string) || null;
   const targetAgeMin = formData.get("targetAgeMin")
@@ -544,9 +626,7 @@ export async function action({ request }: ActionFunctionArgs) {
   const targetImages = (formData.get("targetImages") as string) || null;
 
   const channelInApp = formData.get("channelInApp") === "true";
-  const channelSMS = formData.get("channelSMS") === "true";
   const channelPush = formData.get("channelPush") === "true";
-  const channelWhatsApp = formData.get("channelWhatsApp") === "true";
 
   const scheduleType = formData.get("scheduleType") as string;
   const scheduledAtRaw = formData.get("scheduledAt") as string;
@@ -559,8 +639,8 @@ export async function action({ request }: ActionFunctionArgs) {
     return json({ error: "Title and message are required" });
   }
 
-  if (!channelInApp && !channelSMS && !channelPush && !channelWhatsApp) {
-    return json({ error: "At least one delivery channel must be selected" });
+  if (!channelInApp && !channelPush) {
+    return json({ error: "Select at least one delivery channel" });
   }
 
   // Calculate scheduledAt based on recurrence type
@@ -601,6 +681,8 @@ export async function action({ request }: ActionFunctionArgs) {
     const notification = await createBroadcastNotification({
       title,
       message,
+      laTitle,
+      laMessage,
       targetUserType,
       targetGender,
       targetAgeMin,
@@ -610,10 +692,8 @@ export async function action({ request }: ActionFunctionArgs) {
       targetService,
       targetBooking,
       targetImages,
-      channelSMS,
       channelPush,
       channelInApp,
-      channelWhatsApp,
       scheduleType,
       scheduledAt,
       recurrence,

@@ -1113,6 +1113,11 @@ model broadcast_notification {
   title   String
   message String
 
+  // Lao copy, typed by the admin. Optional — when blank the backend falls
+  // back to the English title/message rather than showing an empty banner.
+  laTitle   String?
+  laMessage String?
+
   // Targeting
   targetUserType String  // "customer", "model", "all"
   targetGender   String? // "male", "female", null = all
@@ -1124,11 +1129,10 @@ model broadcast_notification {
   targetBooking  String? // "never_booked", "never_got_booked", null = all
   targetImages   String? // "incomplete" (less than 6 images), null = all
 
-  // Delivery channels (which channels to send on)
-  channelSMS      Boolean @default(false)
-  channelPush     Boolean @default(false)
-  channelInApp    Boolean @default(true)
-  channelWhatsApp Boolean @default(false)
+  // Delivery channels. SMS and WhatsApp were removed — broadcasts are
+  // in-app and push only, both delivered by xs_backend.
+  channelPush  Boolean @default(true)
+  channelInApp Boolean @default(true)
 
   // Scheduling
   scheduleType   String    // "immediate", "scheduled"

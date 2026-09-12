@@ -1,6 +1,5 @@
 import { prisma } from "./database.server";
-import { sendSMS, sendPushToModel, sendPushToCustomer, createModelNotification, createCustomerNotification } from "./email.server";
-import { sendWhatsApp } from "./whatsapp.server";
+import { notifyManyViaBackend, notifyViaBackend } from "./email.server";
 import type { broadcast_notification } from "@prisma/client";
 
 // ========================================
@@ -33,6 +32,8 @@ interface BroadcastFilters {
 interface CreateBroadcastData {
   title: string;
   message: string;
+  laTitle?: string | null;
+  laMessage?: string | null;
   targetUserType: string;
   targetGender?: string | null;
   targetAgeMin?: number | null;
@@ -42,10 +43,8 @@ interface CreateBroadcastData {
   targetService?: string | null;
   targetBooking?: string | null;
   targetImages?: string | null;
-  channelSMS: boolean;
   channelPush: boolean;
   channelInApp: boolean;
-  channelWhatsApp: boolean;
   scheduleType: string;
   scheduledAt?: Date | null;
   recurrence: string;
@@ -422,31 +421,12 @@ export async function sendBroadcast(notificationId: string): Promise<void> {
       data: { totalRecipients: users.length },
     });
 
-    let sentCount = 0;
-    let failedCount = 0;
-
-    // Process users in batches of 50
-    const BATCH_SIZE = 50;
-    for (let i = 0; i < users.length; i += BATCH_SIZE) {
-      const batch = users.slice(i, i + BATCH_SIZE);
-
-      const results = await Promise.allSettled(
-        batch.map((user) => sendToUser(user, notification))
-      );
-
-      for (const result of results) {
-        if (result.status === "fulfilled" && result.value) {
-          sentCount++;
-        } else {
-          failedCount++;
-        }
-      }
-
-      // Small delay between batches to avoid rate limits
-      if (i + BATCH_SIZE < users.length) {
-        await new Promise((resolve) => setTimeout(resolve, 500));
-      }
-    }
+    // Delivery runs on xs_backend — in-app row, Firebase push for the
+    // Android app, and Web Push for installed PWAs.
+    const { sentCount, failedCount } = await deliverBroadcast(
+      users,
+      notification
+    );
 
     // Calculate next run for recurring notifications
     let nextRunAt: Date | null = null;
@@ -498,91 +478,117 @@ export async function sendBroadcast(notificationId: string): Promise<void> {
 }
 
 /**
- * Send notification to a single user via all enabled channels
+ * True when the copy contains a per-recipient template variable.
+ *
+ * Text without variables is identical for everyone, so the whole audience
+ * goes out in a few bulk calls. Text WITH variables has to be rendered per
+ * user, which means one call each — correct, but much slower, so we only
+ * pay for it when the admin actually used a variable.
  */
-async function sendToUser(
-  user: TargetUser,
+function hasTemplateVars(...texts: (string | null | undefined)[]): boolean {
+  return texts.some((t) => !!t && /\{\{(firstname|lastname|fullname)\}\}/i.test(t));
+}
+
+/**
+ * Deliver a broadcast to its resolved audience through xs_backend.
+ *
+ * Every transport lives on the backend: the in-app row, Firebase for the
+ * Android app, and Web Push for installed PWAs (which is how iOS users
+ * receive anything at all). The admin no longer writes notification rows
+ * or sends push itself, so there is exactly one implementation of
+ * delivery instead of one per caller.
+ *
+ * `channelInApp` and `channelPush` map onto the backend's `push` flag:
+ * the in-app row is always written, and push is suppressed when the admin
+ * left the push channel unticked.
+ */
+async function deliverBroadcast(
+  users: TargetUser[],
   notification: broadcast_notification
-): Promise<boolean> {
-  let anySent = false;
+): Promise<{ sentCount: number; failedCount: number }> {
+  let sentCount = 0;
+  let failedCount = 0;
 
-  // Replace template variables with user-specific data
-  const title = replaceTemplateVars(notification.title, user);
-  const message = replaceTemplateVars(notification.message, user);
-
-  try {
-    // In-App Notification
-    if (notification.channelInApp) {
-      try {
-        if (user.userType === "customer") {
-          await createCustomerNotification(user.id, {
-            type: "broadcast",
-            title,
-            message,
-            data: { broadcastId: notification.id },
-          });
-        } else {
-          await createModelNotification(user.id, {
-            type: "broadcast",
-            title,
-            message,
-            data: { broadcastId: notification.id },
-          });
-        }
-        anySent = true;
-      } catch (err) {
-        console.error(`[Broadcast] In-app failed for ${user.userType} ${user.id}:`, err);
-      }
-    }
-
-    // SMS Notification (broadcast bypasses user preference — admin chose this channel)
-    if (notification.channelSMS && user.phone) {
-      try {
-        const smsMessage = `XaoSao: ${title}\n${message}`;
-        const sent = await sendSMS(user.phone.toString(), smsMessage);
-        if (sent) anySent = true;
-      } catch (err) {
-        console.error(`[Broadcast] SMS failed for ${user.userType} ${user.id}:`, err);
-      }
-    }
-
-    // Push Notification (broadcast bypasses user preference — admin chose this channel)
-    if (notification.channelPush) {
-      try {
-        const pushPayload = {
-          title,
-          body: message,
-          tag: `broadcast-${notification.id}`,
-          data: { url: "/", type: "broadcast", broadcastId: notification.id },
-        };
-
-        if (user.userType === "customer") {
-          await sendPushToCustomer(user.id, pushPayload);
-        } else {
-          await sendPushToModel(user.id, pushPayload);
-        }
-        anySent = true;
-      } catch (err) {
-        console.error(`[Broadcast] Push failed for ${user.userType} ${user.id}:`, err);
-      }
-    }
-
-    // WhatsApp Notification (broadcast bypasses user preference — admin chose this channel)
-    if (notification.channelWhatsApp && user.phone) {
-      try {
-        const whatsappMessage = `*${title}*\n\n${message}`;
-        const sent = await sendWhatsApp(user.phone, whatsappMessage);
-        if (sent) anySent = true;
-      } catch (err) {
-        console.error(`[Broadcast] WhatsApp failed for ${user.userType} ${user.id}:`, err);
-      }
-    }
-
-    return anySent;
-  } catch (error) {
-    console.error(`[Broadcast] Failed for ${user.userType} ${user.id}:`, error);
-    return false;
+  const wantsPush = notification.channelPush;
+  const wantsInApp = notification.channelInApp;
+  if (!wantsInApp && !wantsPush) {
+    return { sentCount, failedCount };
   }
+
+  const laTitle = (notification as { laTitle?: string | null }).laTitle ?? undefined;
+  const laMessage =
+    (notification as { laMessage?: string | null }).laMessage ?? undefined;
+  const payloadData = { screen: "home", broadcastId: notification.id };
+
+  const personalised = hasTemplateVars(
+    notification.title,
+    notification.message,
+    laTitle,
+    laMessage
+  );
+
+  // ── Personalised path: render per user, one call each ───────────────
+  if (personalised) {
+    const BATCH_SIZE = 50;
+    for (let i = 0; i < users.length; i += BATCH_SIZE) {
+      const batch = users.slice(i, i + BATCH_SIZE);
+      const results = await Promise.allSettled(
+        batch.map((user) =>
+          notifyViaBackend({
+            userType: user.userType,
+            userId: user.id,
+            type: "admin_broadcast",
+            title: replaceTemplateVars(notification.title, user),
+            message: replaceTemplateVars(notification.message, user),
+            la_title: laTitle ? replaceTemplateVars(laTitle, user) : undefined,
+            la_message: laMessage
+              ? replaceTemplateVars(laMessage, user)
+              : undefined,
+            is_admin: true,
+            raw_text: true,
+            data: payloadData,
+            push: wantsPush,
+          })
+        )
+      );
+      for (const r of results) {
+        if (r.status === "fulfilled") sentCount++;
+        else failedCount++;
+      }
+      if (i + BATCH_SIZE < users.length) {
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      }
+    }
+    return { sentCount, failedCount };
+  }
+
+  // ── Uniform path: one call per 500 recipients, split by audience ────
+  // The bulk endpoint takes a single userType, so customers and models go
+  // in separate runs.
+  const BULK_SIZE = 500;
+  for (const userType of ["customer", "model"] as const) {
+    const ids = users.filter((u) => u.userType === userType).map((u) => u.id);
+    for (let i = 0; i < ids.length; i += BULK_SIZE) {
+      const chunk = ids.slice(i, i + BULK_SIZE);
+      const result = await notifyManyViaBackend({
+        userType,
+        userIds: chunk,
+        type: "admin_broadcast",
+        title: notification.title,
+        message: notification.message,
+        la_title: laTitle,
+        la_message: laMessage,
+        is_admin: true,
+        raw_text: true,
+        data: payloadData,
+        push: wantsPush,
+      });
+      sentCount += result.ok;
+      failedCount += result.failed;
+    }
+  }
+
+  return { sentCount, failedCount };
 }
 
 // ========================================
@@ -717,6 +723,8 @@ export async function createBroadcastNotification(data: CreateBroadcastData): Pr
     data: {
       title: data.title,
       message: data.message,
+      laTitle: data.laTitle || null,
+      laMessage: data.laMessage || null,
       targetUserType: data.targetUserType,
       targetGender: data.targetGender || null,
       targetAgeMin: data.targetAgeMin || null,
@@ -726,10 +734,8 @@ export async function createBroadcastNotification(data: CreateBroadcastData): Pr
       targetService: data.targetService || null,
       targetBooking: data.targetBooking || null,
       targetImages: data.targetImages || null,
-      channelSMS: data.channelSMS,
       channelPush: data.channelPush,
       channelInApp: data.channelInApp,
-      channelWhatsApp: data.channelWhatsApp,
       scheduleType: data.scheduleType,
       scheduledAt: data.scheduledAt || null,
       recurrence: data.recurrence,

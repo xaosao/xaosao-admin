@@ -35,6 +35,17 @@ type BackendNotifyInput = {
   type: string;
   title: string;
   message: string;
+  /** Lao copy. Omit to let the backend resolve it from its text table. */
+  la_title?: string;
+  la_message?: string;
+  /** True when an admin composed this by hand in the dashboard. */
+  is_admin?: boolean;
+  /**
+   * Persist the title/message verbatim instead of letting the backend's
+   * translation table overwrite them. Defaults to `is_admin` on the
+   * backend side, so admin-typed copy always survives.
+   */
+  raw_text?: boolean;
   data?: Record<string, unknown>;
   /** Pass `false` to write the in-app row only (no push). Defaults to true. */
   push?: boolean;
@@ -72,6 +83,10 @@ export async function notifyViaBackend(
         type: input.type,
         title: input.title,
         message: input.message,
+        la_title: input.la_title,
+        la_message: input.la_message,
+        is_admin: input.is_admin ?? false,
+        raw_text: input.raw_text,
         data: input.data ?? {},
         push: input.push ?? true,
       }),
@@ -89,6 +104,189 @@ export async function notifyViaBackend(
   } catch (err) {
     console.error(
       `[Notify Admin] xs_backend call failed for ${input.type} ${input.userType}:${input.userId}:`,
+      err
+    );
+  }
+}
+
+type BackendBulkNotifyInput = {
+  userType: "customer" | "model";
+  userIds: string[];
+  type: string;
+  title: string;
+  message: string;
+  la_title?: string;
+  la_message?: string;
+  is_admin?: boolean;
+  raw_text?: boolean;
+  data?: Record<string, unknown>;
+  push?: boolean;
+};
+
+/**
+ * Send ONE notification to many recipients through xs_backend.
+ *
+ * This is how admin broadcasts reach users. The backend owns every
+ * transport: it writes the in-app row, pushes to the Android app over
+ * Firebase, and pushes to installed PWAs (iOS) over Web Push. Doing it
+ * here with Prisma would only ever write the row, which is why Android
+ * users never saw a broadcast banner before.
+ *
+ * Returns how many recipients the backend accepted so the caller can keep
+ * its sent/failed counters. Never throws.
+ */
+export async function notifyManyViaBackend(
+  input: BackendBulkNotifyInput
+): Promise<{ ok: number; failed: number }> {
+  const total = input.userIds.length;
+  if (total === 0) return { ok: 0, failed: 0 };
+
+  if (!BACKEND_URL || !BACKEND_ADMIN_API_KEY) {
+    console.warn(
+      `[Notify Admin] CLIENT_BACKEND_URL or BACKEND_ADMIN_API_KEY not set — skipping bulk ${input.type} for ${total} ${input.userType}(s)`
+    );
+    return { ok: 0, failed: total };
+  }
+
+  const base = BACKEND_URL.replace(/\/+$/, "");
+  try {
+    const res = await fetch(`${base}/api/v1/admin/notifications/bulk`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Admin-API-Key": BACKEND_ADMIN_API_KEY,
+        "X-Platform": "admin",
+      },
+      body: JSON.stringify({
+        userType: input.userType,
+        userIds: input.userIds,
+        type: input.type,
+        title: input.title,
+        message: input.message,
+        la_title: input.la_title,
+        la_message: input.la_message,
+        is_admin: input.is_admin ?? true,
+        raw_text: input.raw_text ?? true,
+        data: input.data ?? {},
+        push: input.push ?? true,
+      }),
+    });
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      console.error(
+        `[Notify Admin] bulk send returned ${res.status} for ${input.type} (${total} recipients) — ${body}`
+      );
+      return { ok: 0, failed: total };
+    }
+
+    const json = (await res.json().catch(() => null)) as {
+      data?: { ok?: number; failed?: number };
+    } | null;
+    const ok = json?.data?.ok ?? total;
+    const failed = json?.data?.failed ?? total - ok;
+    console.log(
+      `[Notify Admin] bulk ${input.type} → ${input.userType}: ok=${ok} failed=${failed}`
+    );
+    return { ok, failed };
+  } catch (err) {
+    console.error(
+      `[Notify Admin] bulk send failed for ${input.type} (${total} recipients):`,
+      err
+    );
+    return { ok: 0, failed: total };
+  }
+}
+
+/**
+ * Tell every customer that a newly APPROVED model has joined.
+ *
+ * xs_backend used to fan this out at the end of model registration, which
+ * meant customers were notified about models an admin then rejected —
+ * tapping the notification opened a profile that isn't there. The fan-out
+ * now hangs off admin approval instead, and xs_backend re-checks that the
+ * model is actually active before sending, so a double call is harmless.
+ *
+ * Fire-and-forget: a failed broadcast must never fail the approval.
+ */
+export async function broadcastNewModelToCustomers(
+  modelId: string
+): Promise<void> {
+  if (!BACKEND_URL || !BACKEND_ADMIN_API_KEY) {
+    console.warn(
+      `[Notify Admin] CLIENT_BACKEND_URL or BACKEND_ADMIN_API_KEY not set — skipping new-model broadcast for ${modelId}`
+    );
+    return;
+  }
+
+  const base = BACKEND_URL.replace(/\/+$/, "");
+  try {
+    const res = await fetch(`${base}/api/v1/admin/notifications/broadcast/new-model`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Admin-API-Key": BACKEND_ADMIN_API_KEY,
+        "X-Platform": "admin",
+      },
+      body: JSON.stringify({ modelId }),
+    });
+    const body = await res.text().catch(() => "");
+    if (!res.ok) {
+      console.error(
+        `[Notify Admin] new-model broadcast returned ${res.status} for model ${modelId} — ${body}`
+      );
+      return;
+    }
+    console.log(
+      `[Notify Admin] new-model broadcast OK for model ${modelId} — ${body}`
+    );
+  } catch (err) {
+    console.error(
+      `[Notify Admin] new-model broadcast failed for model ${modelId}:`,
+      err
+    );
+  }
+}
+
+/**
+ * Delete any new-model announcements pointing at a model the admin just
+ * rejected. Only matters for models announced by the old register-time
+ * broadcast — without this their notifications sit in every customer's
+ * list and open nothing.
+ */
+export async function revokeNewModelBroadcast(modelId: string): Promise<void> {
+  if (!BACKEND_URL || !BACKEND_ADMIN_API_KEY) {
+    console.warn(
+      `[Notify Admin] CLIENT_BACKEND_URL or BACKEND_ADMIN_API_KEY not set — skipping broadcast revoke for ${modelId}`
+    );
+    return;
+  }
+
+  const base = BACKEND_URL.replace(/\/+$/, "");
+  try {
+    const res = await fetch(
+      `${base}/api/v1/admin/notifications/broadcast/new-model/${modelId}`,
+      {
+        method: "DELETE",
+        headers: {
+          "X-Admin-API-Key": BACKEND_ADMIN_API_KEY,
+          "X-Platform": "admin",
+        },
+      }
+    );
+    const body = await res.text().catch(() => "");
+    if (!res.ok) {
+      console.error(
+        `[Notify Admin] broadcast revoke returned ${res.status} for model ${modelId} — ${body}`
+      );
+      return;
+    }
+    console.log(
+      `[Notify Admin] broadcast revoke OK for model ${modelId} — ${body}`
+    );
+  } catch (err) {
+    console.error(
+      `[Notify Admin] broadcast revoke failed for model ${modelId}:`,
       err
     );
   }
@@ -509,6 +707,13 @@ export async function notifyModelApproved(
     },
   });
 
+  // 4. Announce the model to every customer. This is the ONLY place the
+  //    fan-out happens — registration no longer broadcasts, so customers
+  //    never hear about a model the admin goes on to reject.
+  broadcastNewModelToCustomers(model.id).catch((err) =>
+    console.error("Failed to broadcast new model to customers:", err)
+  );
+
   console.log(
     `[Notification Admin] Model approval notifications sent to ${model.id}`
   );
@@ -561,6 +766,13 @@ export async function notifyModelRejected(
       url: "/model-auth/login",
     },
   });
+
+  // 4. No customer-facing announcement on rejection. Clear any stale one
+  //    left by the old register-time broadcast so customers stop tapping
+  //    through to a profile that no longer resolves.
+  revokeNewModelBroadcast(model.id).catch((err) =>
+    console.error("Failed to revoke new-model broadcast:", err)
+  );
 
   console.log(
     `[Notification Admin] Model rejection notifications sent to ${model.id}`
@@ -1777,6 +1989,10 @@ export async function notifyAdminBookingRefunded(
       bookingId,
       amount: refundAmount,
       reason: reason ?? null,
+      // Booking refund leaves the booking in cancelled+refunded — the
+      // Flutter app reads these to patch the row in-place.
+      status: "cancelled",
+      paymentStatus: "refunded",
     },
   });
 
@@ -1812,6 +2028,8 @@ export async function notifyAdminBookingRefunded(
       bookingId,
       amount: refundAmount,
       reason: reason ?? null,
+      status: "cancelled",
+      paymentStatus: "refunded",
     },
   });
 

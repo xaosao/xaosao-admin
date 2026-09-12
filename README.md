@@ -43,6 +43,46 @@ npx prisma generate
 npx prisma db push
 ```
 
+## Admin user
+
+The dashboard has no public sign-up. The first admin is created by a seed
+script, which also creates the `Super Admin` role and every permission
+(19 menus x 4 actions: create, edit, view, delete) and links them all to
+that role.
+
+```bash
+npx tsx scripts/seed-admin.ts
+```
+
+The script is safe to re-run: it skips the role, the user, the permissions
+and the permission-role links if they already exist.
+
+### Example admin user
+
+These are the credentials the seed script creates. Sign in at
+[/signin](http://localhost:3000/signin) — the login form matches on
+**email**, not username.
+
+| Field        | Value               |
+| ------------ | ------------------- |
+| Email        | `paokue@xaosao.com` |
+| Password     | `Admin@1234`        |
+| Username     | `paokue`            |
+| Name         | Pao Kue             |
+| Staff number | `XS-0001`           |
+| Role         | Super Admin         |
+| Status       | `active`            |
+| Two-factor   | disabled            |
+
+To seed a different admin, edit `ADMIN_DATA` at the top of
+`scripts/seed-admin.ts` before running it. `number`, `tel` and `email` are
+unique in the schema, so each admin needs its own values.
+
+> **Change this password before the app is reachable by anyone else.** It
+> ships in the repo, it grants every permission in the dashboard, and the
+> `DATABASE_URL` above points at a shared Atlas cluster rather than a local
+> MongoDB — so a default left in place is live, not just local.
+
 ## Migration Scripts
 
 ### Wallet Balance Migration
