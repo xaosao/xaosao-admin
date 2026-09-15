@@ -1,5 +1,5 @@
 import { prisma } from "./database.server";
-import { notifyManyViaBackend, notifyViaBackend } from "./email.server";
+import { notifyManyViaBackend } from "./email.server";
 import type { broadcast_notification } from "@prisma/client";
 
 // ========================================
@@ -527,52 +527,34 @@ async function deliverBroadcast(
     laMessage
   );
 
-  // ── Personalised path: render per user, one call each ───────────────
-  if (personalised) {
-    const BATCH_SIZE = 50;
-    for (let i = 0; i < users.length; i += BATCH_SIZE) {
-      const batch = users.slice(i, i + BATCH_SIZE);
-      const results = await Promise.allSettled(
-        batch.map((user) =>
-          notifyViaBackend({
-            userType: user.userType,
-            userId: user.id,
-            type: "admin_broadcast",
-            title: replaceTemplateVars(notification.title, user),
-            message: replaceTemplateVars(notification.message, user),
-            la_title: laTitle ? replaceTemplateVars(laTitle, user) : undefined,
-            la_message: laMessage
-              ? replaceTemplateVars(laMessage, user)
-              : undefined,
-            is_admin: true,
-            raw_text: true,
-            data: payloadData,
-            push: wantsPush,
-          })
-        )
-      );
-      for (const r of results) {
-        if (r.status === "fulfilled") sentCount++;
-        else failedCount++;
-      }
-      if (i + BATCH_SIZE < users.length) {
-        await new Promise((resolve) => setTimeout(resolve, 300));
-      }
-    }
-    return { sentCount, failedCount };
-  }
-
-  // ── Uniform path: one call per 500 recipients, split by audience ────
-  // The bulk endpoint takes a single userType, so customers and models go
-  // in separate runs.
+  // One request per 500 recipients, whether or not the copy is templated.
+  // Personalised sends used to go one HTTP call per person, which blew
+  // straight through the backend's 100-requests-per-minute limit and
+  // failed the whole broadcast with 429s partway down the list.
   const BULK_SIZE = 500;
   for (const userType of ["customer", "model"] as const) {
-    const ids = users.filter((u) => u.userType === userType).map((u) => u.id);
-    for (let i = 0; i < ids.length; i += BULK_SIZE) {
-      const chunk = ids.slice(i, i + BULK_SIZE);
+    const audience = users.filter((u) => u.userType === userType);
+
+    for (let i = 0; i < audience.length; i += BULK_SIZE) {
+      const chunk = audience.slice(i, i + BULK_SIZE);
+
       const result = await notifyManyViaBackend({
         userType,
-        userIds: chunk,
+        ...(personalised
+          ? {
+              recipients: chunk.map((user) => ({
+                userId: user.id,
+                title: replaceTemplateVars(notification.title, user),
+                message: replaceTemplateVars(notification.message, user),
+                la_title: laTitle
+                  ? replaceTemplateVars(laTitle, user)
+                  : undefined,
+                la_message: laMessage
+                  ? replaceTemplateVars(laMessage, user)
+                  : undefined,
+              })),
+            }
+          : { userIds: chunk.map((u) => u.id) }),
         type: "admin_broadcast",
         title: notification.title,
         message: notification.message,
@@ -583,6 +565,7 @@ async function deliverBroadcast(
         data: payloadData,
         push: wantsPush,
       });
+
       sentCount += result.ok;
       failedCount += result.failed;
     }

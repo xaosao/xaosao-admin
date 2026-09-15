@@ -109,9 +109,21 @@ export async function notifyViaBackend(
   }
 }
 
+/** One recipient of a bulk send, with optional per-person copy. */
+export type BulkRecipient = {
+  userId: string;
+  title?: string;
+  message?: string;
+  la_title?: string;
+  la_message?: string;
+};
+
 type BackendBulkNotifyInput = {
   userType: "customer" | "model";
-  userIds: string[];
+  /** Identical copy for everyone. Pass exactly one of these two. */
+  userIds?: string[];
+  /** Per-person copy, for templated broadcasts. */
+  recipients?: BulkRecipient[];
   type: string;
   title: string;
   message: string;
@@ -138,7 +150,7 @@ type BackendBulkNotifyInput = {
 export async function notifyManyViaBackend(
   input: BackendBulkNotifyInput
 ): Promise<{ ok: number; failed: number }> {
-  const total = input.userIds.length;
+  const total = input.recipients?.length ?? input.userIds?.length ?? 0;
   if (total === 0) return { ok: 0, failed: 0 };
 
   if (!BACKEND_URL || !BACKEND_ADMIN_API_KEY) {
@@ -159,7 +171,11 @@ export async function notifyManyViaBackend(
       },
       body: JSON.stringify({
         userType: input.userType,
-        userIds: input.userIds,
+        // The backend requires exactly one of these, so send only the
+        // one that was provided.
+        ...(input.recipients
+          ? { recipients: input.recipients }
+          : { userIds: input.userIds }),
         type: input.type,
         title: input.title,
         message: input.message,
