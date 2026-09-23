@@ -1144,25 +1144,37 @@ export async function verifyAndRefundCompletedBooking(
 
     // 7. Send notifications (SMS + in-app)
     try {
-      const { sendSMS, createCustomerNotification, createModelNotification } = await import("./email.server");
+      const { sendSMS, notifyViaBackend } = await import("./email.server");
       const serviceName = booking.modelService?.service?.name || "Service";
       const customerName = `${booking.customer?.firstName || ""} ${booking.customer?.lastName || ""}`.trim();
       const modelName = `${booking.model?.firstName || ""} ${booking.model?.lastName || ""}`.trim();
 
-      // In-app notification for customer
-      await createCustomerNotification(booking.customerId!, {
-        type: "payment_refunded",
+      // In-app row + push for both sides, through xs_backend. These were
+      // Prisma writes, so neither party got a push on any device.
+      await notifyViaBackend({
+        userType: "customer",
+        userId: booking.customerId!,
+        type: "booking_refunded",
         title: "ໄດ້ຮັບເງິນຄືນ!",
         message: `ການຈອງ "${serviceName}" ໄດ້ຖືກຄືນເງິນ ${customerRefundAmount.toLocaleString()} LAK (90%) ໃສ່ Wallet ຂອງທ່ານແລ້ວ.`,
-        data: { bookingId, amount: customerRefundAmount },
+        data: {
+          screen: "booking_detail",
+          bookingId,
+          amount: customerRefundAmount,
+        },
       });
 
-      // In-app notification for model
-      await createModelNotification(booking.modelId!, {
-        type: "deposit_approved",
+      await notifyViaBackend({
+        userType: "model",
+        userId: booking.modelId!,
+        type: "booking_refunded",
         title: "ການຈອງຖືກຄືນເງິນ",
         message: `ການຈອງ "${serviceName}" ກັບ ${customerName} ໄດ້ຖືກ admin ຄືນເງິນ. ${modelDeductAmount.toLocaleString()} LAK (5%) ຖືກຫັກອອກຈາກ Wallet ຂອງທ່ານ.`,
-        data: { bookingId, amount: modelDeductAmount },
+        data: {
+          screen: "booking_detail",
+          bookingId,
+          amount: modelDeductAmount,
+        },
       });
 
       // SMS to customer

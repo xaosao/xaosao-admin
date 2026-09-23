@@ -712,16 +712,6 @@ export async function notifyModelApproved(
     console.warn("Model has no whatsapp number, cannot send approval SMS");
   }
 
-  // 3. Web-Push fallback for browser subscribers (no-op for Flutter/FCM).
-  await sendPushToModel(model.id, {
-    title: "ບັນຊີໄດ້ຮັບການອະນຸມັດ! 🎉",
-    body: `ຍິນດີດ້ວຍ ${modelName}! ທ່ານສາມາດຮັບການຈອງຈາກລູກຄ້າໄດ້ແລ້ວ.`,
-    tag: `account-approved-${model.id}`,
-    data: {
-      type: "account_approved",
-      url: "/model",
-    },
-  });
 
   // 4. Announce the model to every customer. This is the ONLY place the
   //    fan-out happens — registration no longer broadcasts, so customers
@@ -772,16 +762,6 @@ export async function notifyModelRejected(
     console.warn("Model has no whatsapp number, cannot send rejection SMS");
   }
 
-  // 3. Web-Push fallback for browser subscribers (no-op for Flutter/FCM).
-  await sendPushToModel(model.id, {
-    title: "ບັນຊີບໍ່ໄດ້ຮັບການອະນຸມັດ",
-    body: `ສະບາຍດີ ${modelName}, ກະລຸນາຕິດຕໍ່ຝ່າຍຊ່ວຍເຫຼືອ.`,
-    tag: `account-rejected-${model.id}`,
-    data: {
-      type: "account_rejected",
-      url: "/model-auth/login",
-    },
-  });
 
   // 4. No customer-facing announcement on rejection. Clear any stale one
   //    left by the old register-time broadcast so customers stop tapping
@@ -862,16 +842,6 @@ export async function notifyTransactionApproved(
   // 3. Web-Push fallback for any browser-based subscribers (no-op for
   //    Flutter / FCM tokens — those are handled by xs_backend above).
   if (modelId) {
-    await sendPushToModel(modelId, {
-      title: transactionTypeTitle,
-      body: `${transactionType} ${transaction.amount.toLocaleString()} LAK ໄດ້ຮັບອະນຸມັດແລ້ວ!`,
-      tag: `transaction-approved-${transaction.id}`,
-      data: {
-        type: "withdraw_approved",
-        url: "/model/settings/wallet",
-        amount: transaction.amount,
-      },
-    });
   }
 
   console.log(
@@ -934,16 +904,6 @@ export async function notifyTransactionRejected(
 
   // 3. Web-Push fallback for browser subscribers (no-op for Flutter/FCM).
   if (modelId) {
-    await sendPushToModel(modelId, {
-      title,
-      body: `${transaction.amount.toLocaleString()} LAK — ກະລຸນາຕິດຕໍ່ຝ່າຍຊ່ວຍເຫຼືອ`,
-      tag: `transaction-rejected-${transaction.id}`,
-      data: {
-        type: "withdraw_rejected",
-        url: "/model/settings/wallet",
-        amount: transaction.amount,
-      },
-    });
   }
 
   console.log(
@@ -1015,17 +975,6 @@ export async function notifyCustomerRechargeApproved(
     );
   }
 
-  // 3. Web-Push fallback for browser subscribers (no-op for Flutter/FCM).
-  await sendPushToCustomer(customerId, {
-    title: "ເງິນເຂົ້າບັນຊີແລ້ວ! 💰",
-    body: `${amount.toLocaleString()} LAK ໄດ້ເພີ່ມໃສ່ Wallet ຂອງທ່ານແລ້ວ`,
-    tag: `recharge-approved-${id}`,
-    data: {
-      type: "topup_approved",
-      url: "/customer/wallets",
-      amount,
-    },
-  });
 
   console.log(
     `[Notification Admin] Customer recharge approval notifications sent to ${customerId}`
@@ -1080,17 +1029,6 @@ export async function notifyCustomerRechargeRejected(
     );
   }
 
-  // 3. Web-Push fallback for browser subscribers (no-op for Flutter/FCM).
-  await sendPushToCustomer(customerId, {
-    title: "ການເຕີມເງິນບໍ່ໄດ້ຮັບອະນຸມັດ",
-    body: `${amount.toLocaleString()} LAK - ກະລຸນາຕິດຕໍ່ຝ່າຍຊ່ວຍເຫຼືອ`,
-    tag: `recharge-rejected-${id}`,
-    data: {
-      type: "topup_rejected",
-      url: "/customer/wallets",
-      amount,
-    },
-  });
 
   console.log(
     `[Notification Admin] Customer recharge rejection notifications sent to ${customerId}`
@@ -1347,22 +1285,23 @@ export async function notifyReferralBonusReceived(
   console.log(
     `[Notification Admin] Creating in-app notification for referrer ${referrerId}`
   );
-  try {
-    await createModelNotification(referrerId, {
-      type: "referral_bonus",
-      title: "ໄດ້ຮັບໂບນັດແນະນຳ!",
-      message: `ທ່ານໄດ້ຮັບ ${amount.toLocaleString()} ກີບ ຈາກການແນະນຳ ${referredModelName}!`,
-      data: { amount, referredModelName, transactionId },
-    });
-    console.log(
-      `[Notification Admin] In-app notification created successfully`
-    );
-  } catch (err) {
-    console.error(
-      `[Notification Admin] Failed to create in-app notification:`,
-      err
-    );
-  }
+  // Through xs_backend so this reaches the Flutter app over Firebase and
+  // the installed PWA over Web Push, not just browser subscribers. Writing
+  // the row directly with Prisma (as this used to) skipped push entirely
+  // for anyone on the mobile app.
+  await notifyViaBackend({
+    userType: "model",
+    userId: referrerId,
+    type: "referral_bonus",
+    title: "ໄດ້ຮັບໂບນັດແນະນຳ!",
+    message: `ທ່ານໄດ້ຮັບ ${amount.toLocaleString()} ກີບ ຈາກການແນະນຳ ${referredModelName}!`,
+    data: {
+      screen: "wallet",
+      amount,
+      referredName: referredModelName,
+      transactionId,
+    },
+  });
 
   // 2. Send SMS to referrer
   if (referrerWhatsapp) {
@@ -1382,18 +1321,6 @@ export async function notifyReferralBonusReceived(
     );
   }
 
-  // 3. Send push notification
-  await sendPushToModel(referrerId, {
-    title: "ໄດ້ຮັບໂບນັດແນະນຳ! 🎉",
-    body: `ທ່ານໄດ້ຮັບ ${amount.toLocaleString()} ກີບ ຈາກການແນະນຳ ${referredModelName}!`,
-    tag: `referral-bonus-${transactionId || Date.now()}`,
-    data: {
-      type: "referral_bonus",
-      url: "/model/settings/wallet",
-      amount,
-      referredModelName,
-    },
-  });
 
   console.log(
     `[Notification Admin] Referral bonus notifications sent to ${referrerId}`
@@ -1433,22 +1360,20 @@ export async function notifyReferralTracked(data: {
   console.log(
     `[Notification Admin] Creating in-app notification for referrer ${referrerId}`
   );
-  try {
-    await createModelNotification(referrerId, {
-      type: "referral_bonus",
-      title: "ແນະນຳໂມເດວສຳເລັດ!",
-      message: `${referredModelName} ໄດ້ຮັບການອະນຸມັດ! ທ່ານຈະໄດ້ຮັບ ${commissionRate} ຈາກການຈອງຂອງພວກເຂົາ.`,
-      data: { referredModelName, totalReferred },
-    });
-    console.log(
-      `[Notification Admin] In-app notification created successfully`
-    );
-  } catch (err) {
-    console.error(
-      `[Notification Admin] Failed to create in-app notification:`,
-      err
-    );
-  }
+  // Through xs_backend so the Flutter app and the installed PWA both get a
+  // push, not only browser subscribers.
+  await notifyViaBackend({
+    userType: "model",
+    userId: referrerId,
+    type: "referral_tracked",
+    title: "ແນະນຳໂມເດວສຳເລັດ!",
+    message: `${referredModelName} ໄດ້ຮັບການອະນຸມັດ! ທ່ານຈະໄດ້ຮັບ ${commissionRate} ຈາກການຈອງຂອງພວກເຂົາ.`,
+    data: {
+      screen: "referral",
+      referredName: referredModelName,
+      totalReferred,
+    },
+  });
 
   // 2. Send SMS to referrer
   if (referrerWhatsapp) {
@@ -1472,17 +1397,6 @@ export async function notifyReferralTracked(data: {
   console.log(
     `[Notification Admin] Sending push notification to referrer ${referrerId}`
   );
-  await sendPushToModel(referrerId, {
-    title: "ແນະນຳໂມເດວສຳເລັດ! ✨",
-    body: `${referredModelName} ໄດ້ຮັບການອະນຸມັດ! ທ່ານຈະໄດ້ຮັບ ${commissionRate} ຈາກການຈອງຂອງພວກເຂົາ.`,
-    tag: `referral-tracked-${Date.now()}`,
-    data: {
-      type: "referral_bonus",
-      url: "/model/referral",
-      referredModelName,
-      totalReferred,
-    },
-  });
 
   console.log(
     `[Notification Admin] Referral tracked notifications sent to ${referrerId}`
@@ -1530,31 +1444,26 @@ export async function notifyBookingCommissionEarned(data: {
   console.log(
     `[Notification Admin] Creating in-app notification for referrer ${referrerId}`
   );
-  try {
-    await createModelNotification(referrerId, {
-      type: "commission_earned",
-      title: "ໄດ້ຮັບຄ່ານາຍໜ້າການຈອງ!",
-      message: `ທ່ານໄດ້ຮັບ ${commissionAmount.toLocaleString()} ກີບ (${
-        commissionRate * 100
-      }%) ຈາກການຈອງຂອງ ${bookedModelName}!`,
-      data: {
-        commissionAmount,
-        commissionRate,
-        bookedModelName,
-        bookingId,
-        bookingPrice,
-        transactionId,
-      },
-    });
-    console.log(
-      `[Notification Admin] In-app notification created successfully`
-    );
-  } catch (err) {
-    console.error(
-      `[Notification Admin] Failed to create in-app notification:`,
-      err
-    );
-  }
+  // Through xs_backend so the Flutter app and the installed PWA both get a
+  // push, not only browser subscribers.
+  await notifyViaBackend({
+    userType: "model",
+    userId: referrerId,
+    type: "commission_earned",
+    title: "ໄດ້ຮັບຄ່ານາຍໜ້າການຈອງ!",
+    message: `ທ່ານໄດ້ຮັບ ${commissionAmount.toLocaleString()} ກີບ (${
+      commissionRate * 100
+    }%) ຈາກການຈອງຂອງ ${bookedModelName}!`,
+    data: {
+      screen: "wallet",
+      amount: commissionAmount,
+      commissionRate,
+      bookedModelName,
+      bookingId,
+      bookingPrice,
+      transactionId,
+    },
+  });
 
   // 2. Send SMS to referrer
   if (referrerWhatsapp) {
@@ -1580,19 +1489,6 @@ export async function notifyBookingCommissionEarned(data: {
   console.log(
     `[Notification Admin] Sending push notification to referrer ${referrerId}`
   );
-  await sendPushToModel(referrerId, {
-    title: "ໄດ້ຮັບຄ່ານາຍໜ້າການຈອງ! 💰",
-    body: `ທ່ານໄດ້ຮັບ ${commissionAmount.toLocaleString()} ກີບ (${
-      commissionRate * 100
-    }%) ຈາກການຈອງຂອງ ${bookedModelName}!`,
-    tag: `booking-commission-${transactionId}`,
-    data: {
-      type: "commission_earned",
-      url: "/model/settings/wallet",
-      commissionAmount,
-      bookingId,
-    },
-  });
 
   console.log(
     `[Notification Admin] Booking commission notifications sent to ${referrerId}`
@@ -1848,36 +1744,44 @@ export async function notifyAdminBookingCompleted(
     `[Notification Admin] Sending booking complete notifications for booking ${bookingId}`
   );
 
-  // 1. Notify Customer - Payment has been released
-  await createCustomerNotification(customerId, {
-    type: "payment_released",
+  // 1. Notify Customer — payment released.
+  //
+  // Through xs_backend, using the canonical `booking_completed` type, so
+  // this reaches the Flutter app over Firebase and the installed PWA over
+  // Web Push. Writing the row with Prisma and pushing separately (as this
+  // did) meant mobile users got no push at all.
+  await notifyViaBackend({
+    userType: "customer",
+    userId: customerId,
+    type: "booking_completed",
     title: "Booking Completed",
     message: `Your booking for "${serviceName}" with ${modelName} has been completed. Payment of ${totalAmount.toLocaleString()} LAK has been released.`,
-    data: { bookingId, modelId },
+    data: {
+      screen: "booking_detail",
+      bookingId,
+      modelId,
+      amount: totalAmount,
+    },
   });
 
   // Send SMS to customer
   const customerSmsMessage = `XaoSao: ການຈອງ "${serviceName}" ຂອງທ່ານກັບ ${modelName} ສຳເລັດແລ້ວ. ການຊຳລະເງິນ ${totalAmount.toLocaleString()} LAK ໄດ້ຖືກປ່ອຍແລ້ວ.`;
   sendSMSToCustomer(customerId, customerSmsMessage);
 
-  // Send push to customer
-  sendPushToCustomer(customerId, {
-    title: "Booking Completed",
-    body: `Your "${serviceName}" booking with ${modelName} is complete`,
-    tag: `booking-complete-${bookingId}`,
-    data: {
-      type: "payment_released",
-      bookingId,
-      url: "/customer/dates-history",
-    },
-  });
 
   // 2. Notify Model - Payment has been received
-  await createModelNotification(modelId, {
-    type: "deposit_approved",
+  await notifyViaBackend({
+    userType: "model",
+    userId: modelId,
+    type: "booking_payout_released",
     title: "ໄດ້ຮັບເງິນແລ້ວ!",
     message: `ທ່ານໄດ້ຮັບ ${netAmount.toLocaleString()} LAK ຈາກການຈອງ "${serviceName}" ກັບ ${customerName}.`,
-    data: { bookingId, customerId, amount: netAmount },
+    data: {
+      screen: "wallet",
+      bookingId,
+      customerId,
+      amount: netAmount,
+    },
   });
 
   // Send SMS to model
@@ -1889,25 +1793,21 @@ export async function notifyAdminBookingCompleted(
     );
   }
 
-  // Send push to model
-  await sendPushToModel(modelId, {
-    title: "ໄດ້ຮັບເງິນແລ້ວ! 💰",
-    body: `${netAmount.toLocaleString()} LAK ຈາກການຈອງ "${serviceName}"`,
-    tag: `payment-released-${bookingId}`,
-    data: {
-      type: "payment_released",
-      bookingId,
-      url: "/model/settings/wallet",
-    },
-  });
 
   // 3. Notify Referrer (if eligible and has commission)
   if (referrer && referrer.commissionAmount > 0) {
-    await createModelNotification(referrer.id, {
-      type: "referral_bonus",
+    await notifyViaBackend({
+      userType: "model",
+      userId: referrer.id,
+      type: "commission_earned",
       title: "ໄດ້ຮັບຄ່ານາຍໜ້າ!",
       message: `ທ່ານໄດ້ຮັບ ${referrer.commissionAmount.toLocaleString()} LAK ຄ່ານາຍໜ້າຈາກການຈອງຂອງ ${modelName}.`,
-      data: { bookingId, modelId, amount: referrer.commissionAmount },
+      data: {
+        screen: "wallet",
+        bookingId,
+        amount: referrer.commissionAmount,
+        bookedModelName: modelName,
+      },
     });
 
     // Send SMS to referrer
@@ -1920,17 +1820,6 @@ export async function notifyAdminBookingCompleted(
       );
     }
 
-    // Send push to referrer
-    await sendPushToModel(referrer.id, {
-      title: "ໄດ້ຮັບຄ່ານາຍໜ້າ! 🎉",
-      body: `${referrer.commissionAmount.toLocaleString()} LAK ຈາກການຈອງຂອງ ${modelName}`,
-      tag: `referral-commission-${bookingId}`,
-      data: {
-        type: "referral_bonus",
-        bookingId,
-        url: "/model/settings/wallet",
-      },
-    });
   }
 
   console.log(
@@ -2018,17 +1907,6 @@ export async function notifyAdminBookingRefunded(
   }`;
   sendSMSToCustomer(customerId, customerSmsMessage);
 
-  // 3. Browser web-push fallback (no-op for Flutter)
-  sendPushToCustomer(customerId, {
-    title: "ການຈອງຖືກຄືນເງິນ",
-    body: `${refundAmount.toLocaleString()} LAK refunded for "${serviceName}"`,
-    tag: `booking-refund-${bookingId}`,
-    data: {
-      type: "booking_refunded",
-      bookingId,
-      url: "/customer/wallets",
-    },
-  });
 
   // 4. Model — in-app row + FCM push via xs_backend
   await notifyViaBackend({
@@ -2060,17 +1938,6 @@ export async function notifyAdminBookingRefunded(
     );
   }
 
-  // 6. Browser web-push fallback for model
-  await sendPushToModel(modelId, {
-    title: "ການຈອງຖືກຄືນເງິນ",
-    body: `"${serviceName}" ກັບ ${customerName} ຖືກຄືນເງິນແລ້ວ`,
-    tag: `booking-refund-model-${bookingId}`,
-    data: {
-      type: "booking_refunded",
-      bookingId,
-      url: "/model/dating",
-    },
-  });
 
   console.log(
     `[Notification Admin] Admin booking refund notifications sent for booking ${bookingId}`

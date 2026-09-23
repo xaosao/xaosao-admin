@@ -13,7 +13,7 @@ import { useAuthStore } from "~/store/permissionStore"
 import { getWallet } from "~/services/wallet.server"
 import { prisma } from "~/services/database.server"
 import { requireUserPermission, requireUserSession } from "~/services/auth.server"
-import { createCustomerNotification } from "~/services/email.server"
+import { notifyViaBackend } from "~/services/email.server"
 import { createAuditLogs } from "~/services/log.server"
 
 export default function ReturnFundModal() {
@@ -190,12 +190,15 @@ export async function action({ params, request }: ActionFunctionArgs) {
             },
         })
 
-        // Send in-app notification to customer
-        await createCustomerNotification(wallet.customerId, {
-            type: "deposit_approved",
+        // In-app row + push, through xs_backend. Writing the row directly
+        // with Prisma gave the customer no push on any device.
+        await notifyViaBackend({
+            userType: "customer",
+            userId: wallet.customerId,
+            type: "topup_approved",
             title: "ໄດ້ຮັບຄືນເງິນ!",
             message: `ທ່ານໄດ້ຮັບການຄືນເງິນ ${amount.toLocaleString()} LAK ໃສ່ Wallet ຂອງທ່ານແລ້ວ.`,
-            data: { transactionId: transaction.id, amount },
+            data: { screen: "wallet", transactionId: transaction.id, amount },
         })
 
         // Audit log
