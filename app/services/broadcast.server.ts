@@ -372,7 +372,16 @@ function replaceTemplateVars(text: string, user: TargetUser): string {
 /**
  * Send broadcast notification to all target users
  */
-export async function sendBroadcast(notificationId: string): Promise<void> {
+export async function sendBroadcast(
+  notificationId: string,
+  options: { force?: boolean } = {}
+): Promise<void> {
+  // `force` is set by an explicit admin resend. It waives the guards below,
+  // which exist to stop the scheduler and the create action from sending the
+  // same broadcast twice by accident. A human clicking Resend is not an
+  // accident, so those guards would otherwise silently do nothing.
+  const { force = false } = options;
+
   try {
     // Fetch notification (status is already "sending" — set by scheduler or create action)
     const notification = await prisma.broadcast_notification.findUnique({
@@ -385,13 +394,13 @@ export async function sendBroadcast(notificationId: string): Promise<void> {
     }
 
     // Safety: skip if this notification was already sent/cancelled/failed
-    if (["sent", "cancelled", "failed"].includes(notification.status)) {
+    if (!force && ["sent", "cancelled", "failed"].includes(notification.status)) {
       console.log(`[Broadcast] Notification ${notificationId} already in terminal state "${notification.status}", skipping`);
       return;
     }
 
     // Safety: skip if this one-time notification was already sent recently (dedup guard)
-    if (notification.recurrence === "once" && notification.sentAt) {
+    if (!force && notification.recurrence === "once" && notification.sentAt) {
       const sentAgo = Date.now() - new Date(notification.sentAt).getTime();
       if (sentAgo < 5 * 60 * 1000) { // within last 5 minutes
         console.log(`[Broadcast] Notification ${notificationId} was already sent ${Math.round(sentAgo / 1000)}s ago, skipping duplicate`);
@@ -403,7 +412,9 @@ export async function sendBroadcast(notificationId: string): Promise<void> {
     // atomically claim it to prevent duplicates
     if (notification.status !== "sending") {
       const claimed = await prisma.broadcast_notification.updateMany({
-        where: { id: notificationId, status: "scheduled" },
+        where: force
+          ? { id: notificationId }
+          : { id: notificationId, status: "scheduled" },
         data: { status: "sending" },
       });
       if (claimed.count === 0) {
@@ -728,6 +739,60 @@ export async function createBroadcastNotification(data: CreateBroadcastData): Pr
       createdBy: data.createdBy,
     },
   });
+}
+
+/**
+ * Resend an existing broadcast to its audience, without creating a new one.
+ *
+ * The audience is re-resolved at send time rather than reusing the original
+ * recipient list, so a resend reaches anyone who has since joined and matches
+ * the same filters, and skips anyone who no longer does. That is almost
+ * always what "send it again" means, and it keeps the stored broadcast as a
+ * single reusable definition rather than a frozen snapshot.
+ *
+ * Only a finished broadcast can be resent. One still queued or mid-send is
+ * refused, so a click can't race the scheduler and double-send.
+ */
+export async function resendBroadcastNotification(
+  id: string
+): Promise<broadcast_notification> {
+  const existing = await prisma.broadcast_notification.findUnique({
+    where: { id },
+  });
+
+  if (!existing) {
+    throw new Error("Notification not found");
+  }
+
+  if (existing.status === "sending") {
+    throw new Error("This notification is being sent right now");
+  }
+
+  if (!["sent", "failed", "cancelled"].includes(existing.status)) {
+    throw new Error(
+      `Only a finished notification can be resent (this one is "${existing.status}")`
+    );
+  }
+
+  // Reset the counters so the new run's stats aren't added to the old run's.
+  const reset = await prisma.broadcast_notification.update({
+    where: { id },
+    data: {
+      status: "sending",
+      sentCount: 0,
+      failedCount: 0,
+      totalRecipients: 0,
+      updatedAt: new Date(),
+    },
+  });
+
+  // Fire and forget: delivery can take a while for a large audience, and the
+  // admin request shouldn't sit waiting on it. Progress lands on the row.
+  sendBroadcast(id, { force: true }).catch((err) =>
+    console.error(`[Broadcast] Resend failed for ${id}:`, err)
+  );
+
+  return reset;
 }
 
 /**

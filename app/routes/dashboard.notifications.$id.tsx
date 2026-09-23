@@ -21,6 +21,7 @@ import {
   XCircle,
   Clock,
   Ban,
+  RefreshCw,
 } from "lucide-react";
 
 // Backend
@@ -260,6 +261,19 @@ export default function NotificationDetail() {
               <Button variant="outline" className="text-red-500 border-red-200">
                 <Ban className="h-4 w-4 mr-2" />
                 Cancel Notification
+              </Button>
+            </Link>
+          )}
+          {/* Only once a run has finished — resending mid-send would race
+              the scheduler and deliver twice. */}
+          {["sent", "failed", "cancelled"].includes(notification.status) && (
+            <Link to={`/dashboard/notifications/${notification.id}/resend`}>
+              <Button
+                variant="outline"
+                className="text-pink-600 border-pink-200"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Resend
               </Button>
             </Link>
           )}

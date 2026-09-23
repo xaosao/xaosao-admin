@@ -46,6 +46,7 @@ import {
   AlertCircle,
   Smartphone,
   Ban,
+  RefreshCw,
 } from "lucide-react";
 
 // Backend
@@ -437,6 +438,24 @@ export default function NotificationsList() {
                                   >
                                     <Ban className="mr-2 h-3 w-3" />
                                     <span>Cancel</span>
+                                  </Link>
+                                </DropdownMenuItem>
+                              )}
+
+                            {/* Resend only makes sense once a run has
+                                finished — otherwise it would race the
+                                scheduler and double-send. */}
+                            {canCreate &&
+                              ["sent", "failed", "cancelled"].includes(
+                                notification.status
+                              ) && (
+                                <DropdownMenuItem className="text-sm">
+                                  <Link
+                                    to={`${notification.id}/resend`}
+                                    className="flex space-x-2 text-gray-500 w-full"
+                                  >
+                                    <RefreshCw className="mr-2 h-3 w-3" />
+                                    <span>Resend</span>
                                   </Link>
                                 </DropdownMenuItem>
                               )}
