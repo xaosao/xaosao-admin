@@ -21,6 +21,7 @@ import {
     MessageCircle,
     Share2,
     Crown,
+  PhoneCall,
 } from "lucide-react";
 
 import EmptyPage from "~/components/ui/empty";
@@ -450,8 +451,24 @@ export default function Models() {
                                         <p className="text-gray-700">{model.address || "N/A"}</p>
                                     </div>
                                     <div>
-                                        <span className="text-gray-400">Created:</span>
-                                        <p className="text-gray-700">{formatDate1(model.createdAt)}</p>
+                                        <span className="text-gray-400">Last login:</span>
+                                        <p className="text-gray-700">
+                                            {model.lastLoginAt
+                                                ? formatDate1(model.lastLoginAt)
+                                                : "Never"}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <span className="text-gray-400">Contacted:</span>
+                                        <p className="text-gray-700">
+                                            {model.contactCount
+                                                ? `${model.contactCount}x${
+                                                      model.lastContactedAt
+                                                          ? ` · ${formatDate1(model.lastContactedAt)}`
+                                                          : ""
+                                                  }`
+                                                : "Not yet"}
+                                        </p>
                                     </div>
                                 </div>
 
@@ -548,7 +565,8 @@ export default function Models() {
                                     <TableHead className="font-semibold">Rate price</TableHead>
                                     <TableHead className="font-semibold">Referral</TableHead>
                                     <TableHead className="font-semibold">VIP</TableHead>
-                                    <TableHead className="font-semibold">Created at</TableHead>
+                                    <TableHead className="font-semibold">Contacted</TableHead>
+                                    <TableHead className="font-semibold">Last login</TableHead>
                                     <TableHead className="font-semibold">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -624,7 +642,28 @@ export default function Models() {
                                                 )}
                                             </TableCell>
                                             <TableCell>
-                                                {formatDate1(model.createdAt)}
+                                                {model.contactCount ? (
+                                                    <div className="flex flex-col">
+                                                        <span className="inline-flex w-fit items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                                                            <PhoneCall className="h-3 w-3" />
+                                                            {model.contactCount}x
+                                                        </span>
+                                                        {model.lastContactedAt && (
+                                                            <span className="mt-0.5 text-[11px] text-gray-400">
+                                                                {formatDate1(model.lastContactedAt)}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-xs text-gray-400">Not yet</span>
+                                                )}
+                                            </TableCell>
+                                            <TableCell>
+                                                {model.lastLoginAt ? (
+                                                    formatDate1(model.lastLoginAt)
+                                                ) : (
+                                                    <span className="text-gray-400">Never</span>
+                                                )}
                                             </TableCell>
                                             <TableCell>
                                                 <DropdownMenu>
@@ -648,6 +687,12 @@ export default function Models() {
                                                             <Link to={`${model.id}`} className="flex space-x-2 w-full">
                                                                 <UserPen className="mr-2 h-3 w-3" />
                                                                 <span>Edit </span>
+                                                            </Link>
+                                                        </DropdownMenuItem>}
+                                                        {canEdit && <DropdownMenuItem className="text-sm">
+                                                            <Link to={`contact/${model.id}`} className="flex space-x-2 w-full text-gray-500">
+                                                                <PhoneCall className="mr-2 h-3 w-3" />
+                                                                <span>Mark as contacted</span>
                                                             </Link>
                                                         </DropdownMenuItem>}
                                                         {canEdit && <DropdownMenuItem className="text-sm">
@@ -749,7 +794,10 @@ export async function loader({ request }: { request: Request }) {
 
     // Extract search parameters
     const search = searchParams.get("search") || "";
-    const status = searchParams.get("status") || "all";
+    // Default to active models. The list is mostly used to work with
+    // models who can actually take bookings; pending, rejected and deleted
+    // ones are still one click away in the status filter.
+    const status = searchParams.get("status") || "active";
     const type = searchParams.get("type") || "all";
     const referralCount = searchParams.get("referralCount") || "all";
     const fromDate = searchParams.get("from") || "";

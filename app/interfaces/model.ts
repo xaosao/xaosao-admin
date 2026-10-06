@@ -3,6 +3,16 @@ import { IModelService } from "./service";
 
 export interface IModels extends BaseEntity {
   id: string;
+  /**
+   * Last successful login, read from the newest MODEL_LOGIN audit log.
+   * Null when the model has never logged in — there is no lastLoginAt
+   * column on the model itself, so this is derived at query time.
+   */
+  lastLoginAt?: string | null;
+  /** How many times an admin has contacted this model. */
+  contactCount?: number;
+  /** When they were last contacted, or null if never. */
+  lastContactedAt?: string | null;
   firstName: string;
   lastName?: string;
   username: string;

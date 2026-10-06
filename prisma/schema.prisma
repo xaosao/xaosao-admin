@@ -52,6 +52,7 @@ model user {
   approveModel       model[]               @relation("ApprovedBy")
   rejectModel        model[]               @relation("RejectedBy")
   deleteModel        model[]               @relation("DeletedBy")
+  contactedModels    model_contact[]       @relation("ContactedBy")
   createService      service[]             @relation("CreatedBy")
   updateService      service[]             @relation("UpdatedBy")
   deleteService      service[]             @relation("DeletedBy")
@@ -264,6 +265,12 @@ model model {
   mutedNotificationTypes String[] @default([])
   // Firebase Cloud Messaging token (synced from xs_backend) — used for push delivery.
   fcmToken            String?
+  // Last successful login, written by both the web client and xs_backend.
+  // Stored on the model (rather than derived from audit_logs every time) so
+  // the admin list can sort by it in the database. MongoDB sorts null below
+  // dates, so `orderBy desc` puts recent logins first and never-logged-in
+  // models last, which is exactly what the list wants.
+  lastLoginAt         DateTime?
   defaultLanguage     String    @default("en") // 11
   defaultTheme        String    @default("light") // 12
 
@@ -349,6 +356,9 @@ model model {
   @@index([referredById])
   @@index([status, gender])
   @@index([status, lastOnlineAt])
+
+  // Contact attempts logged by admins (append-only; see model_contact).
+  contacts model_contact[]
 }
 
 // subscription
@@ -989,6 +999,25 @@ model review {
   @@index([modelId, createdAt])
   @@index([customerId, createdAt])
   @@index([sessionId])
+}
+
+/// One row per time an admin contacted a model. A model can be contacted
+/// many times, so this is an append-only log rather than a flag — the count
+/// and the most recent date are both derived from it.
+model model_contact {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  note      String?
+  createdAt DateTime @default(now())
+
+  model   model  @relation(fields: [modelId], references: [id])
+  modelId String @db.ObjectId
+
+  // The admin who made contact.
+  contactedBy   user   @relation("ContactedBy", fields: [contactedById], references: [id])
+  contactedById String @db.ObjectId
+
+  @@index([modelId, createdAt])
+  @@index([contactedById, createdAt])
 }
 
 model audit_logs {

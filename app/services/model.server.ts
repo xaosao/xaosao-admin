@@ -158,7 +158,10 @@ export async function getModels(
     const [models, totalCount] = await Promise.all([
       prisma.model.findMany({
         where: whereClause,
-        orderBy: { createdAt: "desc" },
+        // Most recently active first. MongoDB sorts null below any date,
+        // so descending puts recent logins at the top and models who have
+        // never logged in at the bottom, newest signup first among those.
+        orderBy: [{ lastLoginAt: "desc" }, { createdAt: "desc" }],
         skip,
         take: limit,
         include: {
@@ -210,11 +213,25 @@ export async function getModels(
       }
     }
 
-    // Attach referrer info to each model
-    const modelsWithReferrer = models.map((m) => ({
-      ...m,
-      referredBy: m.referredById ? referrerMap.get(m.referredById) || null : null,
-    }));
+    // Contact stats for the models on this page — how many times each has
+    // been contacted and when last. One grouped query, scoped to the page.
+    const contactStats = await getModelContactStats(models.map((m) => m.id));
+
+    // Attach referrer info. `lastLoginAt` is a column on the model now,
+    // written on every successful login by both the web client and
+    // xs_backend, so it arrives with the query above and the list can order
+    // by it in the database instead of after paging.
+    const modelsWithReferrer = models.map((m) => {
+      const contact = contactStats.get(m.id);
+      return {
+        ...m,
+        referredBy: m.referredById
+          ? referrerMap.get(m.referredById) || null
+          : null,
+        contactCount: contact?.count ?? 0,
+        lastContactedAt: contact?.lastContactedAt ?? null,
+      };
+    });
 
     const totalPages = Math.ceil(totalCount / limit);
     const hasNextPage = page < totalPages;
@@ -235,6 +252,87 @@ export async function getModels(
     console.error("GET_MODELS_FAILED", error);
     throw new Error("Failed to fetch models!");
   }
+}
+
+/**
+ * Record that an admin contacted a model.
+ *
+ * Append-only: a model can be contacted any number of times, so this adds a
+ * row rather than flipping a flag. The count and the most recent date are
+ * both derived from these rows, which also keeps a per-admin history of who
+ * reached out and when.
+ */
+export async function logModelContact(
+  modelId: string,
+  contactedById: string,
+  note?: string | null
+) {
+  if (!modelId || !contactedById) {
+    throw new Error("Missing model contact data!");
+  }
+
+  const model = await prisma.model.findUnique({ where: { id: modelId } });
+  if (!model) {
+    throw new FieldValidationError({ id: "Model not found!" });
+  }
+
+  const contact = await prisma.model_contact.create({
+    data: {
+      modelId,
+      contactedById,
+      note: note?.trim() || null,
+    },
+  });
+
+  await createAuditLogs({
+    action: "CONTACT_MODEL",
+    user: contactedById,
+    description: note
+      ? `Contacted model ${modelId}. Note: ${note}`
+      : `Contacted model ${modelId}.`,
+    status: "success",
+    onSuccess: contact,
+  });
+
+  return contact;
+}
+
+/** Contact count + most recent contact for a set of models, in one query. */
+export async function getModelContactStats(modelIds: string[]) {
+  const stats = new Map<string, { count: number; lastContactedAt: Date }>();
+  if (modelIds.length === 0) return stats;
+
+  try {
+    const rows = await prisma.model_contact.groupBy({
+      by: ["modelId"],
+      where: { modelId: { in: modelIds } },
+      _count: { _all: true },
+      _max: { createdAt: true },
+    });
+    for (const row of rows) {
+      if (!row.modelId || !row._max.createdAt) continue;
+      stats.set(row.modelId, {
+        count: row._count._all,
+        lastContactedAt: row._max.createdAt,
+      });
+    }
+  } catch (error) {
+    // Never let this take down the list — the column falls back to zero.
+    console.error("GET_MODEL_CONTACT_STATS_FAILED", error);
+  }
+
+  return stats;
+}
+
+/** Full contact history for one model, newest first. */
+export async function getModelContacts(modelId: string) {
+  return prisma.model_contact.findMany({
+    where: { modelId },
+    orderBy: { createdAt: "desc" },
+    include: {
+      contactedBy: { select: { id: true, firstName: true, lastName: true } },
+    },
+  });
 }
 
 export async function getModel(id: string) {
