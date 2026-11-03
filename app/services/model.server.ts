@@ -6,6 +6,9 @@ import { createAuditLogs } from "./log.server";
 import { UserStatus } from "~/interfaces/base";
 import { getLocationDetails } from "./ip.server";
 import { FieldValidationError } from "./admin.server";
+
+/** How long a model has to act on a revision link before it stops working. */
+const REVISION_LINK_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 import { createModalService } from "./service.server";
 import { IModelInput, IModelUpdateInput } from "~/interfaces/model";
 import { extractFilenameFromCDNSafe } from "~/utils";
@@ -935,6 +938,96 @@ export async function approveModel(id: string, userId: string) {
     });
     throw new FieldValidationError({
       id: "Failed to approve model account!",
+    });
+  }
+}
+
+/**
+ * Ask a model to fix something, instead of rejecting them.
+ *
+ * Reject is final: the account is deactivated, their files are wiped and
+ * their phone number stays taken, so they can never sign up again. That is
+ * far too blunt for "your profile photo is blurry".
+ *
+ * This is the recoverable path. The model keeps their account, gets the
+ * reason by SMS with a one-off link, fixes whatever was wrong and
+ * resubmits — which puts them back to `pending` for a second look.
+ *
+ * They still cannot log in while in this state (unapproved accounts never
+ * can), which is exactly why the link carries its own token.
+ */
+export async function requestModelRevision(
+  id: string,
+  userId: string,
+  reason: string
+) {
+  if (!id || !userId) throw new Error("Missing model revision data!");
+
+  const trimmed = (reason || "").trim();
+  if (trimmed.length < 5) {
+    throw new FieldValidationError({
+      reason: "Please describe what the model needs to change.",
+    });
+  }
+
+  const auditBase = { action: "REQUEST_MODEL_REVISION", user: userId };
+
+  try {
+    const existingModel = await prisma.model.findFirst({ where: { id } });
+    if (!existingModel) {
+      throw new FieldValidationError({ id: "Model is not found!" });
+    }
+
+    // 32 random bytes — unguessable, and the only key to the fix page.
+    const { randomBytes } = await import("node:crypto");
+    const token = randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + REVISION_LINK_TTL_MS);
+
+    const model = await prisma.model.update({
+      where: { id },
+      data: {
+        status: "revision_required",
+        revisionReason: trimmed,
+        revisionToken: token,
+        revisionTokenExpiresAt: expiresAt,
+        revisionRequestedAt: new Date(),
+        revisionRequestedById: userId,
+        updatedAt: new Date(),
+      },
+    });
+
+    await createAuditLogs({
+      ...auditBase,
+      description: `Requested changes from model ${model.id}. Reason: ${trimmed}`,
+      status: "success",
+      onSuccess: { ...model, revisionToken: undefined },
+    });
+
+    // SMS is the only channel that reaches them: they cannot log in, so an
+    // in-app notification would sit unread behind a login wall.
+    const { notifyModelRevisionRequested } = await import("./email.server");
+    notifyModelRevisionRequested({
+      id: model.id,
+      firstName: model.firstName,
+      lastName: model.lastName,
+      whatsapp: model.whatsapp,
+      reason: trimmed,
+      token,
+      expiresAt,
+    });
+
+    return model;
+  } catch (error) {
+    console.error("REQUEST_MODEL_REVISION_FAILED", error);
+    if (error instanceof FieldValidationError) throw error;
+    await createAuditLogs({
+      ...auditBase,
+      description: `Request changes from model ${id} failed.`,
+      status: "failed",
+      onError: error,
+    });
+    throw new FieldValidationError({
+      id: "Failed to request changes from this model!",
     });
   }
 }

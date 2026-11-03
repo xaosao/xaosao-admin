@@ -25,6 +25,7 @@ import {
     ArrowLeft,
     Check,
     MessageCircle,
+  PencilLine,
 } from "lucide-react";
 
 // hooks
@@ -312,6 +313,11 @@ export default function ModelsApprovalPage() {
                                                     <Check className="h-3 w-3" />Approve
                                                 </Link>
                                             </Button>
+                                            <Button size="sm" className="h-8 px-2 bg-white hover:bg-amber-50 text-amber-600 border border-amber-500" asChild>
+                                                <Link to={`revision/${model.id}`}>
+                                                    <PencilLine className="h-3 w-3" />Ask to fix
+                                                </Link>
+                                            </Button>
                                             <Button size="sm" className="h-8 px-2 bg-white hover:bg-red-50 text-red-500 border border-red-500" asChild>
                                                 <Link to={`reject/${model.id}`}>
                                                     <X className="h-3 w-3" />Reject
@@ -402,6 +408,12 @@ export default function ModelsApprovalPage() {
                                                     <Link to={`${model.id}`} className="flex items-center justify-center">
                                                         <Check className="h-4 w-4 mr-1" />
                                                         Approve
+                                                    </Link>
+                                                </Button>}
+                                                {canEdit && <Button className="bg-white hover:bg-white hover:opacity-90 text-amber-600 border border-amber-500 px-2">
+                                                    <Link to={`revision/${model.id}`} className="flex items-center justify-center">
+                                                        <PencilLine className="h-3 w-3 mr-1" />
+                                                        Ask to fix
                                                     </Link>
                                                 </Button>}
                                                 {canEdit && <Button className="bg-white hover:bg-white hover:opacity-90 text-red-500 border border-red-500 px-2">

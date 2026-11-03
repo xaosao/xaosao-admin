@@ -125,6 +125,34 @@ export default function ReapproveTransactionModal() {
                         </CardContent>
                     </Card>
                     <Form method="patch" className="space-y-4">
+                        <Card>
+                            <CardContent className="p-4 space-y-2">
+                                <label
+                                    htmlFor="approvedAmount"
+                                    className="text-sm font-semibold text-gray-800"
+                                >
+                                    Amount to approve (LAK)
+                                </label>
+                                <input
+                                    id="approvedAmount"
+                                    name="approvedAmount"
+                                    type="number"
+                                    min={1}
+                                    step={1}
+                                    defaultValue={transaction.amount ?? ""}
+                                    className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 focus:border-amber-300"
+                                />
+                                <p className="text-xs text-gray-500">
+                                    Requested:{" "}
+                                    <span className="font-medium text-gray-700">
+                                        {(transaction.amount ?? 0).toLocaleString()} LAK
+                                    </span>
+                                    . Change this if the real transfer was a different
+                                    figure — the corrected amount is what gets credited
+                                    and saved.
+                                </p>
+                            </CardContent>
+                        </Card>
                         <div className="flex justify-end space-x-2 pt-4">
                             <Button type="button" variant="outline" onClick={closeHandler} disabled={isSubmitting}>
                                 Cancel
@@ -174,13 +202,36 @@ export async function action({ params, request }: ActionFunctionArgs) {
 
     if (request.method === "PATCH") {
         try {
-            const res = await reapproveTransaction(transactionId as string, userId, type);
+            // Same correction as the approve flow — see approveTransaction.
+            const formData = await request.formData();
+            const raw = (formData.get("approvedAmount") as string | null)?.trim();
+            const approvedAmount =
+                raw && raw.length > 0 ? Number(raw.replace(/,/g, "")) : undefined;
+
+            if (approvedAmount !== undefined && !Number.isFinite(approvedAmount)) {
+                return redirect(
+                    `/dashboard/transactions?error=${encodeURIComponent(
+                        "Approved amount must be a number"
+                    )}`
+                );
+            }
+
+            const res = await reapproveTransaction(
+                transactionId as string,
+                userId,
+                type,
+                approvedAmount
+            );
             if (res.id) {
                 return redirect("/dashboard/transactions?success=Transaction+re-approved+successfully");
             }
         } catch (error: any) {
             console.log("REAPPROVE_TRANSACTION_FAILED", error);
-            const errorMessage = error?.errors?.id || error?.message || "Failed to re-approve transaction";
+            const errorMessage =
+                error?.errors?.amount ||
+                error?.errors?.id ||
+                error?.message ||
+                "Failed to re-approve transaction";
             return redirect(`/dashboard/transactions?error=${encodeURIComponent(errorMessage)}`);
         }
     }

@@ -21,10 +21,13 @@ const useStatus = {
     CANCELED: "cancelled",
     EXPIRED: "expired",
     AWAITING_SLIP: "awaiting_slip",
+    REVISION_REQUIRED: "revision_required",
 };
 
 const STATUS_LABELS: Record<string, string> = {
     awaiting_slip: "Awaiting Slip",
+    // Distinct from "Rejected" on purpose: this one is recoverable.
+    revision_required: "Needs Changes",
 };
 
 const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
@@ -50,6 +53,11 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
                 return {
                     className: "bg-red-100 text-red-800",
                     weight: "bg-red-500",
+                };
+            case useStatus.REVISION_REQUIRED:
+                return {
+                    className: "bg-amber-100 text-amber-800",
+                    weight: "bg-amber-500",
                 };
             case useStatus.COMPLETED:
                 return {

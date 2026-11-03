@@ -452,7 +452,16 @@ export async function getRecentTransactions(
 export async function approveTransaction(
   transactionId: string,
   approverUserId: string,
-  type: "model" | "customer"
+  type: "model" | "customer",
+  /**
+   * Amount to actually approve, when it differs from what the user
+   * requested. A customer who fills in 120,000 but transfers 100,000 used
+   * to force a reject-and-resubmit round trip; the admin can now correct
+   * the figure and approve in one step.
+   *
+   * Omit to approve the requested amount unchanged.
+   */
+  approvedAmount?: number
 ) {
   if (!transactionId)
     throw new FieldValidationError({
@@ -564,9 +573,45 @@ export async function approveTransaction(
       });
     }
 
+    // Resolve the amount being approved. Everything downstream — the
+    // wallet movement, the stored record and the user's notification —
+    // uses this one value, so an adjustment can't half-apply.
+    const requestedAmount = transaction.amount;
+    let finalAmount = requestedAmount;
+
+    if (approvedAmount !== undefined && approvedAmount !== null) {
+      if (!Number.isFinite(approvedAmount) || approvedAmount <= 0) {
+        throw new FieldValidationError({
+          amount: "Approved amount must be greater than zero!",
+        });
+      }
+      finalAmount = approvedAmount;
+    }
+
+    const amountWasAdjusted = finalAmount !== requestedAmount;
+
+    // A top-up may be paying for a pending subscription. Approving less
+    // than the plan costs would activate it without the money to cover it,
+    // so refuse rather than leave the wallet short.
+    if (amountWasAdjusted && type === "customer" && transaction.customerId) {
+      const pending = await prisma.subscription.findFirst({
+        where: {
+          transactionId,
+          customerId: transaction.customerId,
+          status: "pending_payment",
+        },
+        include: { plan: { select: { name: true, price: true } } },
+      });
+      if (pending && finalAmount < pending.plan.price) {
+        throw new FieldValidationError({
+          amount: `This top-up pays for "${pending.plan.name}" (${pending.plan.price.toLocaleString()} LAK). The approved amount cannot be less than the plan price.`,
+        });
+      }
+    }
+
     await updateWalletBalanceByTransaction({
       type: transaction.identifier,
-      amount: transaction.amount,
+      amount: finalAmount,
       walletId: walletId,
     });
 
@@ -574,6 +619,16 @@ export async function approveTransaction(
       where: { id: transactionId },
       data: {
         status: "approved",
+        // Persist the corrected figure, so the record matches the money
+        // that actually moved.
+        amount: finalAmount,
+        ...(amountWasAdjusted
+          ? {
+              reason: `${
+                transaction.reason ? `${transaction.reason} | ` : ""
+              }Amount adjusted by admin on approval: ${requestedAmount.toLocaleString()} → ${finalAmount.toLocaleString()} LAK`,
+            }
+          : {}),
         ApprovedBy: { connect: { id: approverUserId } },
         updatedAt: new Date(),
       },
@@ -734,9 +789,11 @@ export async function approveTransaction(
 
     await createAuditLogs({
       ...auditBase,
-      description: `Transaction with ID ${transactionId} approved successfully.`,
+      description: amountWasAdjusted
+        ? `Transaction with ID ${transactionId} approved with an adjusted amount: ${requestedAmount.toLocaleString()} → ${finalAmount.toLocaleString()} LAK.`
+        : `Transaction with ID ${transactionId} approved successfully.`,
       status: "success",
-      onSuccess: updatedTransaction,
+      onSuccess: { ...updatedTransaction, requestedAmount },
     });
 
     // Send notifications based on transaction type
@@ -1318,7 +1375,9 @@ export async function completeHeldTransaction(
 export async function reapproveTransaction(
   transactionId: string,
   approverUserId: string,
-  type: "model" | "customer"
+  type: "model" | "customer",
+  /** See `approveTransaction` — same correction, for a rejected record. */
+  approvedAmount?: number
 ) {
   if (!transactionId)
     throw new FieldValidationError({
@@ -1423,9 +1482,21 @@ export async function reapproveTransaction(
     }
 
     // Credit wallet balance
+    const requestedAmount = transaction.amount;
+    let finalAmount = requestedAmount;
+    if (approvedAmount !== undefined && approvedAmount !== null) {
+      if (!Number.isFinite(approvedAmount) || approvedAmount <= 0) {
+        throw new FieldValidationError({
+          amount: "Approved amount must be greater than zero!",
+        });
+      }
+      finalAmount = approvedAmount;
+    }
+    const amountWasAdjusted = finalAmount !== requestedAmount;
+
     await updateWalletBalanceByTransaction({
       type: transaction.identifier,
-      amount: transaction.amount,
+      amount: finalAmount,
       walletId: walletId,
     });
 
@@ -1434,7 +1505,15 @@ export async function reapproveTransaction(
       where: { id: transactionId },
       data: {
         status: "approved",
+        amount: finalAmount,
         rejectReason: null,
+        ...(amountWasAdjusted
+          ? {
+              reason: `${
+                transaction.reason ? `${transaction.reason} | ` : ""
+              }Amount adjusted by admin on re-approval: ${requestedAmount.toLocaleString()} → ${finalAmount.toLocaleString()} LAK`,
+            }
+          : {}),
         ApprovedBy: { connect: { id: approverUserId } },
         updatedAt: new Date(),
       },
@@ -1571,7 +1650,9 @@ export async function reapproveTransaction(
 
     await createAuditLogs({
       ...auditBase,
-      description: `Rejected transaction ${transactionId} re-approved successfully.`,
+      description: amountWasAdjusted
+        ? `Rejected transaction ${transactionId} re-approved with an adjusted amount: ${requestedAmount.toLocaleString()} → ${finalAmount.toLocaleString()} LAK.`
+        : `Rejected transaction ${transactionId} re-approved successfully.`,
       status: "success",
       onSuccess: updatedTransaction,
     });

@@ -725,6 +725,48 @@ export async function notifyModelApproved(
   );
 }
 
+/**
+ * Tell a model what to fix, and give them the link to fix it.
+ *
+ * SMS only, deliberately. A model in `revision_required` cannot log in, so
+ * an in-app row or a push would sit behind a login wall they can't pass.
+ * The link carries its own token and is the only way back in.
+ */
+export async function notifyModelRevisionRequested(
+  model: ModelNotificationData & {
+    reason: string;
+    token: string;
+    expiresAt: Date;
+  }
+): Promise<void> {
+  const modelName = `${model.firstName} ${model.lastName || ""}`.trim();
+  const base = (process.env.CLIENT_URL || "https://xaosao.com").replace(
+    /\/+$/,
+    ""
+  );
+  const link = `${base}/model-revision/${model.token}`;
+
+  if (!model.whatsapp) {
+    console.warn(
+      `[Notification Admin] Model ${model.id} has no whatsapp number — cannot send the revision link. An admin will have to pass it on manually: ${link}`
+    );
+    return;
+  }
+
+  const days = Math.max(
+    1,
+    Math.round((model.expiresAt.getTime() - Date.now()) / 86_400_000)
+  );
+  const smsMessage = `XaoSao: ສະບາຍດີ ${modelName}, ບັນຊີຂອງທ່ານຍັງຕ້ອງແກ້ໄຂກ່ອນ. ເຫດຜົນ: ${model.reason} ກະລຸນາແກ້ໄຂຕາມລິ້ງນີ້ພາຍໃນ ${days} ວັນ: ${link}`;
+
+  console.log(
+    `[Notification Admin] Sending revision-request SMS to ${model.whatsapp}`
+  );
+  sendSMS(model.whatsapp.toString(), smsMessage).catch((err) =>
+    console.error("Failed to send model revision SMS:", err)
+  );
+}
+
 export async function notifyModelRejected(
   model: ModelNotificationData & { rejectReason?: string | null }
 ): Promise<void> {

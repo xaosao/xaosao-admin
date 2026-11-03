@@ -130,6 +130,34 @@ export default function ApproveTransactionModal() {
                         </div>
                     ) : (
                         <Form method="patch" className="space-y-4">
+                            <Card>
+                                <CardContent className="p-4 space-y-2">
+                                    <label
+                                        htmlFor="approvedAmount"
+                                        className="text-sm font-semibold text-gray-800"
+                                    >
+                                        Amount to approve (LAK)
+                                    </label>
+                                    <input
+                                        id="approvedAmount"
+                                        name="approvedAmount"
+                                        type="number"
+                                        min={1}
+                                        step={1}
+                                        defaultValue={transaction.amount ?? ""}
+                                        className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300 focus:border-green-300"
+                                    />
+                                    <p className="text-xs text-gray-500">
+                                        Requested:{" "}
+                                        <span className="font-medium text-gray-700">
+                                            {(transaction.amount ?? 0).toLocaleString()} LAK
+                                        </span>
+                                        . Change this if the real transfer was a
+                                        different figure — the corrected amount is what
+                                        gets credited and saved.
+                                    </p>
+                                </CardContent>
+                            </Card>
                             <div className="flex justify-end space-x-2 pt-4">
                                 <Button type="button" variant="outline" onClick={closeHandler} disabled={isSubmitting}>
                                     Cancel
@@ -177,14 +205,39 @@ export async function action({ params, request }: ActionFunctionArgs) {
 
     if (request.method === "PATCH") {
         try {
-            const res = await approveTransaction(transactionId as string, userId, type);
+            // The admin may correct the figure before approving — e.g. a
+            // customer requests 120,000 but only transfers 100,000. Blank
+            // or unchanged means approve what was requested.
+            const formData = await request.formData();
+            const raw = (formData.get("approvedAmount") as string | null)?.trim();
+            const approvedAmount =
+                raw && raw.length > 0 ? Number(raw.replace(/,/g, "")) : undefined;
+
+            if (approvedAmount !== undefined && !Number.isFinite(approvedAmount)) {
+                return redirect(
+                    `/dashboard/transactions?error=${encodeURIComponent(
+                        "Approved amount must be a number"
+                    )}`
+                );
+            }
+
+            const res = await approveTransaction(
+                transactionId as string,
+                userId,
+                type,
+                approvedAmount
+            );
             if (res.id) {
                 return redirect("/dashboard/transactions?success=Approved+transaction+successfully");
             }
         } catch (error: any) {
             console.log("APPROVED_TRANSACTION_FAILED", error);
             // Return proper error message
-            const errorMessage = error?.errors?.id || error?.message || "Failed to approve transaction";
+            const errorMessage =
+                error?.errors?.amount ||
+                error?.errors?.id ||
+                error?.message ||
+                "Failed to approve transaction";
             return redirect(`/dashboard/transactions?error=${encodeURIComponent(errorMessage)}`);
         }
     }

@@ -15,6 +15,10 @@ enum InteractionAction {
 
 enum ModelStatus {
   pending   // Awaiting admin approval - can login, hidden from customers
+  // Admin asked for changes. Recoverable, unlike `inactive` (reject):
+  // the model fixes their profile through a tokenised link and resubmits,
+  // which puts them back to `pending`. Cannot login, hidden from customers.
+  revision_required
   verified  // Approved but hidden - can login, hidden from customers
   active    // Active and visible - can login, shown to customers
   inactive  // Temporarily disabled - cannot login, hidden from customers
@@ -265,6 +269,24 @@ model model {
   mutedNotificationTypes String[] @default([])
   // Firebase Cloud Messaging token (synced from xs_backend) — used for push delivery.
   fcmToken            String?
+  // ── Revision request ────────────────────────────────────────────────
+  // Set when an admin asks a new model to fix something rather than
+  // rejecting them outright. Reject is final (the number stays taken, so
+  // they cannot sign up again); a revision request is recoverable — the
+  // model opens the tokenised link, corrects their profile and resubmits,
+  // which puts them back to `pending` for a second look.
+  revisionReason         String?
+  /// Not `@unique`: MongoDB treats every missing value as the same
+  /// null, so a unique index is rejected while most models have no
+  /// token. The value is 32 random bytes, so uniqueness is a given —
+  /// the index here is purely so the lookup by token is fast.
+  revisionToken          String?
+  revisionTokenExpiresAt DateTime?
+  revisionRequestedAt    DateTime?
+  /// Admin who asked for the changes. Stored as a plain id — no relation,
+  /// to keep this out of the already-crowded user back-reference list.
+  revisionRequestedById  String?   @db.ObjectId
+
   // Last successful login, written by both the web client and xs_backend.
   // Stored on the model (rather than derived from audit_logs every time) so
   // the admin list can sort by it in the database. MongoDB sorts null below
@@ -359,6 +381,8 @@ model model {
 
   // Contact attempts logged by admins (append-only; see model_contact).
   contacts model_contact[]
+
+  @@index([revisionToken])
 }
 
 // subscription
