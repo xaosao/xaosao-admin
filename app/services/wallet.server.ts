@@ -662,7 +662,18 @@ export async function getWalletSummary(
     // For customers: only count "recharge" (top-up) as incoming, NOT refunds
     // Refunds are returned spending, not new incoming funds
     const earningIdentifiers = isModel
-      ? ["booking_earning", "booking_referral", "subscription_referral", "referral", "gift_earning"]
+      ? [
+          "booking_earning",
+          "booking_referral",
+          "subscription_referral",
+          "referral",
+          "gift_earning",
+          // Platform-paid: timed reward slots and the daily check-in.
+          // Both credit totalBalance, so leaving them out made the
+          // summary disagree with the model's actual balance.
+          "reward_earning",
+          "checkin_earning",
+        ]
       : ["recharge"];
 
     const earningStatuses = isModel

@@ -20,9 +20,14 @@ import { getSettings, updateSettings } from "~/services/setting.server"
 import { requireUserPermission, requireUserSession } from "~/services/auth.server"
 import { deleteFileFromBunny, uploadFileToBunnyServer } from "~/services/upload.server"
 import { validateSettingInputs } from "~/services/validation.server";
+import { getPaymentMethods, savePaymentMethods } from "~/services/payment-method.server";
+// From a client-safe module: the component below renders the network list,
+// and Remix won't let client code reach into a `.server` file.
+import { CRYPTO_NETWORKS, type PaymentMethods } from "~/utils/constands/payment";
 
 type LoaderData = {
     settings: ISettingResponse,
+    paymentMethods: PaymentMethods,
     success: string
 }
 
@@ -31,7 +36,7 @@ export default function SettingsPage() {
     const navigation = useNavigation()
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [imagePreview, setImagePreview] = React.useState<string | null>(null)
-    const { settings, success } = useLoaderData<LoaderData>();
+    const { settings, paymentMethods, success } = useLoaderData<LoaderData>();
     const isSubmitting = navigation.state !== "idle" && navigation.formMethod === "PATCH"
     const validationErrors = useActionData<Partial<Record<keyof ISettingInputs, string>>>();
     const hasPermission = useAuthStore((state) => state.hasPermission);
@@ -215,6 +220,11 @@ export default function SettingsPage() {
                         </CardContent>
                     </Card>
 
+                    {/* Rendered outside the settings <Form> on purpose: it
+                        saves to system_config through its own POST, while
+                        everything around it PATCHes the `setting` document. */}
+                    <PaymentMethodsCard methods={paymentMethods} />
+
                     <Card className="border-0 border rounded-md h-auto">
                         <CardHeader>
                             <CardTitle className="text-sm font-semibold flex items-center">
@@ -301,9 +311,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const url = new URL(request.url);
     const success = url.searchParams.get("success");
     try {
-        const settings = await getSettings();
+        const [settings, paymentMethods] = await Promise.all([
+            getSettings(),
+            getPaymentMethods(),
+        ]);
         return json({
             settings,
+            paymentMethods,
             success
         });
     } catch (error) {
@@ -321,6 +335,31 @@ export async function action({ request }: ActionFunctionArgs) {
     });
 
     const formData = await request.formData();
+
+    // Payment methods save through POST and live in `system_config`; the
+    // rest of this page PATCHes the `setting` document. Handled first so
+    // the two never read each other's fields.
+    if (request.method === "POST" && formData.get("intent") === "payment_methods") {
+        try {
+            await savePaymentMethods(
+                {
+                    bankEnabled: formData.get("bankEnabled") === "on",
+                    bankQrCode: (formData.get("existingQr") as string) ?? "",
+                    bankQrFile: (formData.get("bankQrFile") as File) ?? undefined,
+                    cryptoEnabled: formData.get("cryptoEnabled") === "on",
+                    cryptoAddress: (formData.get("cryptoAddress") as string) ?? "",
+                    cryptoNetwork: (formData.get("cryptoNetwork") as string) ?? "BEP20",
+                    usdRate: Number(formData.get("usdRate")),
+                },
+                userId
+            );
+            return redirect("/dashboard/settings?success=Payment+methods+saved");
+        } catch (error: any) {
+            console.error("SAVE_PAYMENT_METHODS_FAILED", error);
+            return json(error?.fieldErrors ?? error?.errors ?? { error: "Failed to save payment methods" });
+        }
+    }
+
     const settingData = Object.fromEntries(formData);
     const file = formData.get("qr_code") as File;
     const dbQrCode = formData.get("dbQrCode");
@@ -374,4 +413,181 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     return json({ error: "Invalid request method!" });
+}
+
+/**
+ * Customer payment methods.
+ *
+ * Saves through its own POST because the surrounding settings form is a
+ * PATCH against the `setting` document, while these live in
+ * `system_config` — the store the customer top-up screen actually reads.
+ */
+function PaymentMethodsCard({ methods }: { methods: PaymentMethods }) {
+    const navigation = useNavigation();
+    const errors = useActionData<Partial<Record<string, string>>>();
+    const saving = navigation.state !== "idle" && navigation.formMethod === "POST";
+
+    const [bankOn, setBankOn] = React.useState(methods.bankEnabled);
+    const [cryptoOn, setCryptoOn] = React.useState(methods.cryptoEnabled);
+    const [network, setNetwork] = React.useState(methods.cryptoNetwork);
+    const [qrPreview, setQrPreview] = React.useState<string | null>(null);
+
+    return (
+        <Card className="border-0 border rounded-md h-auto">
+            <CardHeader>
+                <CardTitle className="text-sm font-semibold flex items-center">
+                    <Landmark className="h-4 w-4 mr-2" />
+                    Customer Payment Methods
+                </CardTitle>
+                <p className="text-xs text-gray-500">
+                    What customers can pay with when topping up their wallet.
+                </p>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <Form method="post" encType="multipart/form-data" className="space-y-6">
+                    <input type="hidden" name="intent" value="payment_methods" />
+                    <input type="hidden" name="existingQr" value={methods.bankQrCode} />
+
+                    {/* ── Bank ─────────────────────────────────────────── */}
+                    <div className="rounded-md border p-4 space-y-3">
+                        <label className="flex items-center justify-between">
+                            <span>
+                                <span className="block text-sm font-medium text-gray-800">Bank transfer</span>
+                                <span className="block text-xs text-gray-500">
+                                    Customer scans your QR code and uploads the slip.
+                                </span>
+                            </span>
+                            <input
+                                type="checkbox"
+                                name="bankEnabled"
+                                checked={bankOn}
+                                onChange={(e) => setBankOn(e.target.checked)}
+                                className="h-4 w-4 rounded border-gray-300 text-rose-500"
+                            />
+                        </label>
+
+                        {bankOn && (
+                            <div className="flex items-center gap-4">
+                                {(qrPreview || methods.bankQrCode) ? (
+                                    <img
+                                        src={qrPreview || methods.bankQrCode}
+                                        alt="Payment QR"
+                                        className="h-24 w-24 rounded-md border object-cover"
+                                    />
+                                ) : (
+                                    <div className="flex h-24 w-24 items-center justify-center rounded-md border border-dashed text-[11px] text-gray-400">
+                                        No QR yet
+                                    </div>
+                                )}
+                                <div>
+                                    <input
+                                        type="file"
+                                        name="bankQrFile"
+                                        accept="image/*"
+                                        onChange={(e) => {
+                                            const f = e.target.files?.[0];
+                                            if (f) setQrPreview(URL.createObjectURL(f));
+                                        }}
+                                        className="text-xs"
+                                    />
+                                    <p className="mt-1 text-xs text-gray-500">JPG or PNG. Replaces the current QR.</p>
+                                    {errors?.bankQrCode && (
+                                        <p className="mt-1 text-xs text-red-600">{errors.bankQrCode}</p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* ── Crypto ───────────────────────────────────────── */}
+                    <div className="rounded-md border p-4 space-y-3">
+                        <label className="flex items-center justify-between">
+                            <span>
+                                <span className="block text-sm font-medium text-gray-800">Cryptocurrency</span>
+                                <span className="block text-xs text-gray-500">
+                                    Customer sends to your wallet address and uploads proof.
+                                </span>
+                            </span>
+                            <input
+                                type="checkbox"
+                                name="cryptoEnabled"
+                                checked={cryptoOn}
+                                onChange={(e) => setCryptoOn(e.target.checked)}
+                                className="h-4 w-4 rounded border-gray-300 text-rose-500"
+                            />
+                        </label>
+
+                        {cryptoOn && (
+                            <div className="grid gap-3 sm:grid-cols-3">
+                                <div>
+                                    <label className="text-xs font-medium text-gray-500">Network</label>
+                                    <select
+                                        name="cryptoNetwork"
+                                        value={network}
+                                        onChange={(e) => setNetwork(e.target.value as typeof network)}
+                                        className="mt-1 w-full rounded-md border border-gray-200 px-3 py-2 text-sm"
+                                    >
+                                        {Object.entries(CRYPTO_NETWORKS).map(([key, net]) => (
+                                            <option key={key} value={key}>{net.label}</option>
+                                        ))}
+                                    </select>
+                                    {errors?.cryptoNetwork && (
+                                        <p className="mt-1 text-xs text-red-600">{errors.cryptoNetwork}</p>
+                                    )}
+                                </div>
+                                <div className="sm:col-span-3">
+                                    <label className="text-xs font-medium text-gray-500">
+                                        Exchange rate — kip per 1 USD
+                                    </label>
+                                    <Input
+                                        name="usdRate"
+                                        type="number"
+                                        min={1}
+                                        step={1}
+                                        defaultValue={methods.usdRate}
+                                        className="text-sm"
+                                    />
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        Customers paying in crypto see dollar amounts
+                                        priced at this rate. It only has to be roughly
+                                        right — you confirm the exact kip to credit when
+                                        you approve the top-up.
+                                    </p>
+                                    {errors?.usdRate && (
+                                        <p className="mt-1 text-xs text-red-600">{errors.usdRate}</p>
+                                    )}
+                                </div>
+                                <div className="sm:col-span-2">
+                                    <label className="text-xs font-medium text-gray-500">Wallet address</label>
+                                    <Input
+                                        name="cryptoAddress"
+                                        defaultValue={methods.cryptoAddress}
+                                        placeholder={CRYPTO_NETWORKS[network].example}
+                                        className="text-sm font-mono"
+                                    />
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        BEP20 is the default Binance withdrawal network. Paste the
+                                        address exactly — a wrong one loses the customer&apos;s money.
+                                    </p>
+                                    {errors?.cryptoAddress && (
+                                        <p className="mt-1 text-xs text-red-600">{errors.cryptoAddress}</p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {errors?.bankEnabled && (
+                        <p className="text-xs text-red-600">{errors.bankEnabled}</p>
+                    )}
+
+                    <div className="flex justify-end">
+                        <Button type="submit" disabled={saving} className="bg-rose-500 hover:bg-rose-600 text-white">
+                            {saving ? "Saving..." : "Save payment methods"}
+                        </Button>
+                    </div>
+                </Form>
+            </CardContent>
+        </Card>
+    );
 }

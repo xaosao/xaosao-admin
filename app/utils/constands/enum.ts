@@ -16,6 +16,8 @@ import {
   CreditCard,
   Gift,
   ImageIcon,
+  Trophy,
+  Bot,
 } from "lucide-react";
 
 export const status: any = [
@@ -154,6 +156,24 @@ export const singleNavigation = [
     href: "/dashboard/gifts",
     icon: Gift,
     permission: { group: "gift", action: "view" },
+  },
+  {
+    // Daily login rewards paid by the platform. Sits under `setting`
+    // permissions rather than `gift` — it spends real money on a schedule,
+    // so it belongs with the controls that configure the platform.
+    name: "Rewards",
+    href: "/dashboard/rewards",
+    icon: Trophy,
+    permission: { group: "setting", action: "view" },
+  },
+  {
+    // Conversations customers had with the AI assistant. Grouped under
+    // `chat` permissions — it is reading customer messages, even though
+    // the other side is a bot.
+    name: "AI chats",
+    href: "/dashboard/assistant",
+    icon: Bot,
+    permission: { group: "chat", action: "view" },
   },
   {
     name: "Images",

@@ -108,7 +108,8 @@ export async function getFinanceSummary(
       },
       _sum: { amount: true },
     }),
-    // 4. Total Model Earnings (booking + referral + commission + gift)
+    // 4. Total Model Earnings (booking + referral + commission + gift +
+    //    the two platform-paid programmes: timed rewards and check-ins)
     prisma.transaction_history.aggregate({
       where: {
         identifier: {
@@ -118,6 +119,8 @@ export async function getFinanceSummary(
             "booking_referral",
             "subscription_referral",
             "gift_earning",
+            "reward_earning",
+            "checkin_earning",
           ],
         },
         status: statusFilter,
@@ -391,6 +394,10 @@ export async function getFinanceBreakdown(
     "booking_referral",
     "subscription_referral",
     "gift_earning",
+    // Kept apart on purpose: a timed reward slot and the daily check-in
+    // are separate programmes an admin budgets for separately.
+    "reward_earning",
+    "checkin_earning",
     "withdrawal",
   ];
   const expenseStatusFilter = { in: ["approved", "success", "released"] };
@@ -414,6 +421,8 @@ export async function getFinanceBreakdown(
     booking_referral: "Booking Commission",
     subscription_referral: "Subscription Commission",
     gift_earning: "Gift Earnings",
+    reward_earning: "Timed Rewards",
+    checkin_earning: "Daily Check-ins",
     withdrawal: "Withdrawals",
   };
   const expenseColors: Record<string, string> = {
@@ -422,6 +431,8 @@ export async function getFinanceBreakdown(
     booking_referral: "bg-teal-500",
     subscription_referral: "bg-cyan-500",
     gift_earning: "bg-rose-500",
+    reward_earning: "bg-amber-500",
+    checkin_earning: "bg-orange-400",
     withdrawal: "bg-red-500",
   };
 
@@ -469,6 +480,8 @@ export async function getModelEarningsTable(
     "booking_referral",
     "subscription_referral",
     "gift_earning",
+    "reward_earning",
+    "checkin_earning",
   ];
 
   // Get distinct modelIds with earnings
