@@ -4,9 +4,22 @@ import { IModelInput, IModelUpdateInput } from "~/interfaces/model";
 import { IServicesInput } from "~/interfaces/service";
 import { IWalletInputs } from "~/interfaces/wallet";
 
-// Basic SQLi blocker
+/**
+ * Reject text that is trying to smuggle markup or script into a page.
+ *
+ * This used to be a SQL-injection filter, and it rejected any value
+ * containing a SQL keyword, an apostrophe or a semicolon. Nothing here
+ * speaks SQL — every query goes through Prisma to MongoDB, where this
+ * text is stored as data and never parsed as a command — so that list
+ * bought no safety and refused ordinary words instead: a service named
+ * "call", a description containing "create" or "update", a password
+ * with a semicolon in it, a name like O'Brien.
+ *
+ * What is left is the part that does protect something: markup and
+ * script that could execute if the value were ever rendered as HTML.
+ */
 const blockInjection = (value: string) => {
-  return !/('|--|\/\/|\/\*|\*\/|;|\b(select|insert|update|delete|drop|alter|create|exec|execute|union|grant|revoke|truncate|xp_cmdshell|call|declare)\b|\b(or|and)\b\s+\d+=\d+|\bOR\b\s+['"]?\d+['"]?\s*=\s*['"]?|<script.*?>.*?<\/script>|javascript:|on\w+=["'].*?["'])/gis.test(
+  return !/<\s*\/?\s*(script|iframe|object|embed|style)\b|javascript\s*:|data\s*:\s*text\/html|\bon\w+\s*=\s*["']/i.test(
     value
   );
 };
@@ -323,13 +336,13 @@ const serviceSchema = z.object({
   name: refineSafe(
     z
       .string()
-      .min(5, "Invalid service name. Must be at least 3 characters.")
+      .min(3, "Invalid service name. Must be at least 3 characters.")
       .max(50, "Invalid service name. Must be at most 50 characters long.")
   ),
   description: refineSafe(
     z
       .string()
-      .min(5, "Invalid description. Must be at least 3 characters.")
+      .min(3, "Invalid description. Must be at least 3 characters.")
       .max(255, "Invalid description. Must be at most 255 characters long.")
   ),
   status: z

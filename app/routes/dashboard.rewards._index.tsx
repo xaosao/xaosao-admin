@@ -99,7 +99,7 @@ export default function RewardsPage() {
                         <Form method="post" encType="multipart/form-data" className="space-y-3">
                             <input type="hidden" name="intent" value={editing ? "update" : "create"} />
                             {editing && <input type="hidden" name="id" value={editing.id} />}
-                            {editing && <input type="hidden" name="existingImage" value={editing.image} />}
+                            {editing && <input type="hidden" name="existingImage" value={editing.image ?? ""} />}
 
                             <div className="grid gap-3 sm:grid-cols-2">
                                 <Labeled label="Name *" error={actionData?.name}>
@@ -117,13 +117,23 @@ export default function RewardsPage() {
                                 <Labeled label="Daily cap (blank = unlimited)" error={actionData?.dailyCap}>
                                     <input name="dailyCap" type="number" min={0} step={1} defaultValue={editing?.dailyCap ?? ""} className={input} />
                                 </Labeled>
-                                <Labeled label={editing ? "Replace image" : "Image *"} error={actionData?.image}>
+                                <Labeled
+                                    label={editing ? "Replace image (optional)" : "Image (optional)"}
+                                    error={actionData?.image}
+                                >
                                     <input name="imageFile" type="file" accept="image/*" className={input} />
+                                    {editing?.image && (
+                                        <label className="mt-1 flex items-center gap-2 text-[11px] text-gray-500">
+                                            <input type="checkbox" name="removeImage" value="1" className="h-3 w-3" />
+                                            Remove the current picture
+                                        </label>
+                                    )}
                                 </Labeled>
                             </div>
 
                             <p className="text-[11px] text-gray-400">
-                                A model who is not in the app during the window gets
+                                Without a picture the reward shows a gift icon. A
+                                model who is not in the app during the window gets
                                 nothing for it. Once the cap is reached, later models
                                 are told today&apos;s rewards are finished.
                             </p>
@@ -270,7 +280,9 @@ export async function action({ request }: ActionFunctionArgs) {
         const capRaw = (formData.get("dailyCap") as string)?.trim();
         const payload = {
             name: (formData.get("name") as string) ?? "",
-            image: (formData.get("existingImage") as string) ?? "",
+            image: formData.get("removeImage")
+                ? null
+                : ((formData.get("existingImage") as string) ?? null),
             imageFile: (formData.get("imageFile") as File) ?? undefined,
             amount: Number(formData.get("amount")),
             startTime: (formData.get("startTime") as string) ?? "",

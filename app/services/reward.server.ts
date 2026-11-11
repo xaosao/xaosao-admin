@@ -14,8 +14,9 @@ import { uploadFileToBunnyServer } from "./upload.server";
 
 export interface RewardSlotInput {
   name: string;
-  /** Existing CDN URL. Ignored when `imageFile` is supplied. */
-  image: string;
+  /** Existing CDN URL, or null for a slot with no picture. Ignored
+   *  when `imageFile` is supplied. */
+  image: string | null;
   /** New upload, if the admin picked one. */
   imageFile?: File;
   amount: number;
@@ -39,7 +40,6 @@ function validate(data: RewardSlotInput) {
   const errors: Record<string, string> = {};
 
   if (!data.name?.trim()) errors.name = "Name is required";
-  if (!data.image?.trim()) errors.image = "An image is required";
   if (!Number.isFinite(data.amount) || data.amount <= 0) {
     errors.amount = "Amount must be greater than zero";
   }
@@ -117,7 +117,7 @@ export async function createRewardSlot(data: RewardSlotInput, userId: string) {
   const slot = await prisma.reward_slot.create({
     data: {
       name: data.name.trim(),
-      image: data.image.trim(),
+      image: data.image,
       amount: data.amount,
       startTime: data.startTime.trim(),
       durationMinutes: data.durationMinutes,
@@ -149,7 +149,7 @@ export async function updateRewardSlot(
     where: { id },
     data: {
       name: data.name.trim(),
-      image: data.image.trim(),
+      image: data.image,
       amount: data.amount,
       startTime: data.startTime.trim(),
       durationMinutes: data.durationMinutes,
@@ -215,12 +215,15 @@ export async function deleteRewardSlot(id: string, userId: string) {
 }
 
 /**
- * Upload the chosen image if there is one, otherwise keep the existing
- * URL. Uploading happens before validation so a failed upload surfaces as
- * "an image is required" rather than a half-saved slot.
+ * Upload the chosen image if there is one, otherwise keep whatever the
+ * slot already had. A picture is optional, so "none" is a real answer
+ * here and is stored as null rather than an empty string — the app and
+ * the admin list both draw a gift icon in its place.
  */
-async function resolveImage(data: RewardSlotInput): Promise<string> {
-  if (!data.imageFile || data.imageFile.size === 0) return data.image ?? "";
+async function resolveImage(data: RewardSlotInput): Promise<string | null> {
+  if (!data.imageFile || data.imageFile.size === 0) {
+    return data.image?.trim() ? data.image.trim() : null;
+  }
   const buffer = Buffer.from(await data.imageFile.arrayBuffer());
   const ext = data.imageFile.name.split(".").pop() || "png";
   const safeName = (data.name || "reward").toLowerCase().replace(/\s+/g, "-");
