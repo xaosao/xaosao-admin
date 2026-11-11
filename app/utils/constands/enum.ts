@@ -1,4 +1,5 @@
 import {
+  Phone,
   LayoutDashboard,
   Users,
   UserCheck,
@@ -109,12 +110,16 @@ export const singleNavigation = [
   //   icon: MessageSquare,
   //   permission: { group: "chat", action: "view" },
   // },
-  // {
-  //   name: "Call Sessions",
-  //   href: "/dashboard/call-sessions",
-  //   icon: Phone,
-  //   permission: { group: "call", action: "view" },
-  // },
+  {
+    // Per-minute calls: who called whom, for how long, what it cost and
+    // what the model earned. Grouped under `session` permissions — the
+    // group that exists for this; there has never been a "call" group,
+    // which is why this entry was invisible while it was commented out.
+    name: "Calls",
+    href: "/dashboard/call-sessions",
+    icon: Phone,
+    permission: { group: "session", action: "view" },
+  },
   {
     name: "Wallets",
     href: "/dashboard/wallets",

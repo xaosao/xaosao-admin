@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react"
 import { cn, singleNavigation } from "~/utils"
 import { Link, useLocation } from "@remix-run/react"
 import { useAuthStore } from "~/store/permissionStore"
@@ -12,7 +13,25 @@ export function DashboardSidebar({ pendingCounts }: DashboardSidebarProps) {
   const location = useLocation()
   const pathname = location.pathname
 
+  // The menu is longer than the sidebar, so the page you are on can sit
+  // below the fold — on Settings it showed as a stripe of highlight under
+  // the last visible item. Bring it into view instead.
+  const activeRef = useRef<HTMLAnchorElement | null>(null)
   const isAuthReady = useAuthStore((state) => state.isAuthReady)
+
+  // `isAuthReady` matters as much as the path: the menu is not rendered
+  // until permissions arrive, so an effect keyed on the path alone runs
+  // once against an empty sidebar and never again.
+  useEffect(() => {
+    if (!isAuthReady) return
+    const link = activeRef.current
+    if (!link) return
+    const frame = requestAnimationFrame(() =>
+      link.scrollIntoView({ block: "nearest" }),
+    )
+    return () => cancelAnimationFrame(frame)
+  }, [pathname, isAuthReady])
+
   const hasPermission = useAuthStore((state) => state.hasPermission)
   const role = useAuthStore((state) => state.role)
 
@@ -50,13 +69,13 @@ export function DashboardSidebar({ pendingCounts }: DashboardSidebarProps) {
   };
 
   return (
-    <div className="fixed inset-y-0 left-0 z-50 w-64 flex flex-col bg-white border-r border-gray-200">
-      <div className="flex h-16 items-center justify-center px-6 border-b border-gray-200">
+    <div className="flex h-full w-full min-h-0 flex-col bg-white">
+      <div className="flex h-16 shrink-0 items-center justify-center border-b border-gray-200 px-6">
         <img src="/images/logo-pink.png" className="w-28 h-8" />
       </div>
 
-      <ScrollArea className="flex-1 px-3 py-4">
-        <nav className="space-y-1">
+      <ScrollArea className="min-h-0 flex-1 px-3 py-4">
+        <nav className="w-full space-y-1 pb-2 pr-1">
           {visibleNavigation.map((item) => {
             const isActive = pathname === item.href
             const badgeCount = getBadgeCount(item.name);
@@ -64,16 +83,17 @@ export function DashboardSidebar({ pendingCounts }: DashboardSidebarProps) {
               <Link
                 key={item.name}
                 to={item.href}
+                ref={isActive ? activeRef : undefined}
                 className={cn(
-                  "flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                  "flex items-center justify-between gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                   isActive
                     ? "bg-dark-pink text-white"
                     : "text-gray-700 hover:bg-gray-100 hover:text-gray-900",
                 )}
               >
-                <div className="flex items-center">
-                  <item.icon className="mr-3 h-4 w-4" />
-                  {item.name}
+                <div className="flex min-w-0 items-center">
+                  <item.icon className="mr-3 h-4 w-4 shrink-0" />
+                  <span className="truncate">{item.name}</span>
                 </div>
                 {badgeCount > 0 && (
                   <span

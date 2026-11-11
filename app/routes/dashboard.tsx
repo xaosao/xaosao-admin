@@ -15,7 +15,7 @@ export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="h-screen flex overflow-hidden bg-gray-50">
+    <div className="relative flex h-screen overflow-hidden bg-gray-50">
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden"
@@ -23,12 +23,15 @@ export default function DashboardLayout() {
         />
       )}
 
+      {/* The drawer on a phone, a column of the page on a desktop. Either
+          way it owns a fixed width and its own height, so the menu scrolls
+          inside it instead of running off the screen. */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r transform transition-transform duration-300 ease-in-out
+        className={`fixed inset-y-0 left-0 z-50 flex h-full w-64 shrink-0 flex-col border-r bg-white transition-transform duration-300 ease-in-out
         ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
-        lg:translate-x-0 lg:static lg:inset-0`}
+        lg:static lg:translate-x-0`}
       >
-        <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b">
+        <div className="flex shrink-0 items-center justify-between border-b px-4 py-3 lg:hidden">
           <h2 className="font-bold text-lg">Menu</h2>
           <button onClick={() => setSidebarOpen(false)}>
             <X className="w-6 h-6" />
@@ -37,8 +40,8 @@ export default function DashboardLayout() {
         <DashboardSidebar pendingCounts={pendingCounts} />
       </div>
 
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
-        <div className="lg:hidden flex items-center justify-between px-4 py-3 bg-white border-b">
+      <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden">
+        <div className="flex shrink-0 items-center justify-between border-b bg-white px-4 py-3 lg:hidden">
           <button onClick={() => setSidebarOpen(true)}>
             <Menu className="h-6 w-6" />
           </button>
@@ -46,11 +49,11 @@ export default function DashboardLayout() {
           <div />
         </div>
 
-        <div className="hidden lg:block">
+        <div className="hidden shrink-0 lg:block">
           <DashboardNavbar admin={admin!} />
         </div>
-        <main className="flex-1 overflow-y-auto py-6">
-          <div className="mx-auto px-2 sm:px-4">
+        <main className="relative min-h-0 flex-1 overflow-auto py-6">
+          <div className="w-full min-w-0 px-2 sm:px-4">
             <Outlet />
           </div>
         </main>
