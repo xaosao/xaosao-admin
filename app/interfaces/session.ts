@@ -3,8 +3,19 @@ export interface ISessionResponse {
   sessionStart: string;
   sessionEnd: string;
   duration: number;
-  rate_per_minute: number;
-  total_cost: number;
+  /**
+   * What `toSessionRow` actually produces. The snake_case pair below is
+   * the older naming some screens still reference; both are declared so
+   * a rename does not silently render blanks the way it did on the call
+   * list, where the page read `total_cost` and the row carried
+   * `totalCost`.
+   */
+  ratePerMinute: number;
+  totalCost: number;
+  rate_per_minute?: number;
+  total_cost?: number;
+  /** Null until both sides actually joined — no connection, no duration. */
+  connectedAt: string | null;
   sessionStatus: string;
   paymentStatus: string;
   createdAt: string;

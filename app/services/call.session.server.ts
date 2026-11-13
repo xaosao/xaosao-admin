@@ -211,7 +211,10 @@ export async function getCallSessions(
     const hasPreviousPage = page > 1;
 
     return {
-      call_sessions,
+      // Through toSessionRow, or the screens read fields that do not
+      // exist on a raw row — which is why Duration, Total Cost and the
+      // two status columns were rendering blank.
+      call_sessions: call_sessions.map(toSessionRow),
       pagination: {
         currentPage: page,
         totalPages,

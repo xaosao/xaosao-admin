@@ -362,7 +362,9 @@ export default function Sessions() {
                                         </TableCell>
                                         <TableCell>
                                             <p>{session.modelService.service.name}</p>
-                                            <p className="text-xs mt-1">${session.modelService.customRate} / minute</p>
+                                            <p className="text-xs mt-1">
+                                                {Number(session.ratePerMinute ?? 0).toLocaleString()} ₭ / minute
+                                            </p>
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex items-center justify-start flex-col gap-1">
@@ -376,10 +378,12 @@ export default function Sessions() {
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-center">
-                                            {session.duration} mins
+                                            {session.connectedAt
+                                                ? `${Number(session.duration ?? 0).toLocaleString()} mins`
+                                                : "—"}
                                         </TableCell>
                                         <TableCell className="text-center">
-                                            ${session.total_cost}
+                                            {Number(session.totalCost ?? 0).toLocaleString()} ₭
                                         </TableCell>
                                         <TableCell className="text-center">
                                             <StatusBadge status={session.sessionStatus} />
