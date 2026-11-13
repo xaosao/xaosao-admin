@@ -216,6 +216,8 @@ export default function EditService() {
                                 />
                                 <p className="text-xs text-gray-400 mt-1">
                                     This rate will be charged per minute during voice/video calls.
+                                    Between 1,000 and 10,000 LAK — a 60-minute call at 10,000/min
+                                    already holds 600,000 LAK from the customer's wallet.
                                 </p>
                             </div>
                         )}

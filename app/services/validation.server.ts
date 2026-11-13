@@ -2,6 +2,17 @@ import { z } from "zod";
 import { ISettingInputs, ISigninCredentials } from "~/interfaces";
 import { IModelInput, IModelUpdateInput } from "~/interfaces/model";
 import { IServicesInput } from "~/interfaces/service";
+
+/**
+ * Limits for a per-minute (call) service rate.
+ *
+ * Kept in step with xaosao-client's ~/utils/service-pricing, which the
+ * model-facing forms and its server use. A model cannot charge outside
+ * this range, so an admin setting a service default outside it would
+ * create a service no model could match.
+ */
+const MIN_MINUTE_RATE = 1_000;
+const MAX_MINUTE_RATE = 10_000;
 import { IWalletInputs } from "~/interfaces/wallet";
 
 /**
@@ -354,6 +365,16 @@ const serviceSchema = z.object({
   commission: z
     .number()
     .min(2, "Commission percent should be at least 2 digits."),
+  // The per-minute rate for call services. Capped because the customer's
+  // wallet is held for the whole call up front: at 10,000/min a 60-minute
+  // call already reserves 600,000 kip. Optional — only per_minute
+  // services carry one.
+  minuteRate: z
+    .number()
+    .min(MIN_MINUTE_RATE, `Call rate must be at least ${MIN_MINUTE_RATE.toLocaleString("en-US")} Kip per minute.`)
+    .max(MAX_MINUTE_RATE, `Call rate cannot exceed ${MAX_MINUTE_RATE.toLocaleString("en-US")} Kip per minute.`)
+    .nullable()
+    .optional(),
 });
 
 export function validateServiceInputs(input: IServicesInput) {
